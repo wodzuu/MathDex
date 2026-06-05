@@ -1,0 +1,332 @@
+/*
+ * Town screen styles.
+ * Reference: reference/mathdex_mockups.jsx  TownScreen({ phase })
+ *
+ * Palette tokens (src/styles/tokens.ts):
+ *   darker #0a1220  navy #0F1B2D  card #22253a  card2 #2a2d45
+ *   border #3a3d5c  yellow #FFCB05  red #CC0000  green #48c774
+ *   muted #8892b8  white #f0f4ff
+ */
+
+/* ── Screen ──────────────────────────────────────────────────────────────── */
+.screen {
+  background: #0a1220;
+  min-height: 100vh;
+  font-family: 'Nunito', sans-serif;
+  padding-bottom: 32px;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.header {
+  background: linear-gradient(180deg, #1a2a5a, #0F1B2D);
+  border-bottom: 2px solid #3a3d5c;
+  padding: 16px 14px 12px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.townLabel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #FFCB05;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+
+.townName {
+  font-size: 26px;
+  font-weight: 900;
+  color: #f0f4ff;
+}
+
+.moneyCard {
+  background: #22253a;
+  border: 2px solid #FFCB05;
+  border-radius: 12px;
+  padding: 8px 14px;
+  text-align: right;
+  box-shadow: 3px 3px 0 rgba(255, 203, 5, 0.25);
+}
+
+.moneyLabel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #8892b8;
+  margin-bottom: 4px;
+}
+
+.moneyValue {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 16px;
+  color: #FFCB05;
+}
+
+/* ── Main content ────────────────────────────────────────────────────────── */
+.content {
+  padding: 0 12px;
+}
+
+/* ── Party strip ──────────────────────────────────────────────────────────── */
+/* Horizontal layout matching the Town mockup */
+.partyCard {
+  background: #22253a;
+  border: 2px solid #3a3d5c;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin: 12px 0 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.partyCardLabel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #8892b8;
+  min-width: 40px;
+}
+
+.partyMember {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.partySprite {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  /* bg + border applied inline */
+}
+
+.partyMemberInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.partyMemberNameRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.partyMemberName {
+  font-size: 12px;
+  font-weight: 800;
+  color: #f0f4ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.partyMemberLv {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #8892b8;
+  flex-shrink: 0;
+}
+
+.hpRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hpLabel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #f0f4ff;
+}
+
+.hpTrack {
+  flex: 1;
+  height: 6px;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hpFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s;
+  /* width + background applied inline */
+}
+
+/* ── Phase notice ────────────────────────────────────────────────────────── */
+.phaseNotice {
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.phaseNoticePhase1 {
+  background: #0a1a0a;
+  border: 2px solid #48c774;
+  color: #48c774;
+}
+
+.phaseNoticePhase2 {
+  background: #1a1400;
+  border: 2px solid #FFCB05;
+  color: #FFCB05;
+}
+
+/* ── Locations section ───────────────────────────────────────────────────── */
+.sectionLabel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #8892b8;
+  letter-spacing: 2px;
+  padding: 12px 0 8px;
+}
+
+.locationGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.locationTile {
+  background: #22253a;
+  border: 2px solid #3a3d5c;
+  border-radius: 16px;
+  padding: 14px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s, transform 0.15s;
+  position: relative;
+  text-align: center;
+}
+
+.locationTile:hover:not(.locked) {
+  border-color: #FFCB05;
+  transform: translateY(-2px);
+}
+
+.locationTile.locked {
+  opacity: 0.4;
+  filter: grayscale(0.8);
+  cursor: not-allowed;
+}
+
+.lockIcon {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 14px;
+}
+
+.locationIcon {
+  font-size: 28px;
+}
+
+.locationName {
+  font-size: 12px;
+  font-weight: 800;
+  color: #f0f4ff;
+}
+
+.locationSub {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.3;
+  /* colour applied inline per location */
+}
+
+/* ── Dungeon entrance (full width) ───────────────────────────────────────── */
+.dungeonTile {
+  background: #22253a;
+  border: 2px solid #3a3d5c;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  margin-bottom: 14px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.dungeonTile:hover {
+  border-color: #FFCB05;
+  transform: translateY(-2px);
+}
+
+.dungeonTileIcon {
+  font-size: 28px;
+}
+
+.dungeonTileInfo {
+  flex: 1;
+}
+
+.dungeonTileName {
+  font-size: 13px;
+  font-weight: 800;
+  color: #f0f4ff;
+  margin-bottom: 2px;
+}
+
+.dungeonTileSub {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9070B8; /* Ghost type fg — matches mockup */
+}
+
+.dungeonBadge {
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  flex-shrink: 0;
+  /* bg + color + border applied inline for boss/normal floor */
+}
+
+/* ── Trainer Card ────────────────────────────────────────────────────────── */
+.trainerCard {
+  background: #22253a;
+  border: 2px solid #3a3d5c;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.trainerStat {
+  text-align: center;
+}
+
+.trainerStatValue {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  /* colour applied inline */
+}
+
+.trainerStatLabel {
+  font-size: 11px;
+  color: #8892b8;
+  margin-top: 4px;
+}
