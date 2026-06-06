@@ -11,7 +11,7 @@
  * Colours: src/styles/tokens.ts (inline for type-dynamic; CSS module for statics)
  */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useShallow }               from 'zustand/react/shallow';
 
@@ -19,6 +19,7 @@ import { useGameStore, useActiveTrainer, getPartyPokemon, isItemSystemActive } f
 import { useDungeonStore } from '../../store/dungeonStore';
 import { useBattleStore }  from '../../store/battleStore';
 import { usePartyDisplay } from '../../hooks/usePartyDisplay';
+import PartyMemberCard from '../../components/PartyMemberCard';
 import { typeColors, RARITY_COLORS, FONT_PIXEL, FONT_UI } from '../../styles/tokens';
 import { getSpecies }      from '../../data/species';
 import { getMove }         from '../../data/moves';
@@ -68,14 +69,6 @@ function buildEnemyPokemon(encounter: EncounterData): OwnedPokemon {
     currentHp:  hp,
     moves,
   };
-}
-
-// ── Helper ────────────────────────────────────────────────────────────────────
-
-function hpColor(pct: number): string {
-  if (pct > 50) return '#48c774';
-  if (pct > 20) return '#FFCB05';
-  return '#CC0000';
 }
 
 // ── TypeBadge (local until moved to components/ui) ────────────────────────────
@@ -308,10 +301,11 @@ export default function DungeonScreen() {
   const location = useLocation();
 
   const trainer = useActiveTrainer();
-  const { setCurrentFloor, setMaxPartySize } = useGameStore(
+  const { setCurrentFloor, setMaxPartySize, setParty } = useGameStore(
     useShallow((gs) => ({
       setCurrentFloor:  gs.setCurrentFloor,
       setMaxPartySize:  gs.setMaxPartySize,
+      setParty:         gs.setParty,
     })),
   );
 
@@ -334,18 +328,37 @@ export default function DungeonScreen() {
   }, [currentFloor]);
 
   // ── Encounter state ────────────────────────────────────────────────────────
-  const [currentEncounterIdx, setCurrentEncounterIdx] = useState(0);
-  const [battlePhase, setBattlePhase]                 = useState<BattlePhase>('pre');
-  const [lastExpGains, setLastExpGains]               = useState<ExpGainEntry[]>([]);
-  const [lastPokeReward, setLastPokeReward]           = useState<number | undefined>(undefined);
+  // The encounter index is DERIVED from how many encounter rooms are cleared in
+  // the dungeonStore (which persists across the remounts caused by navigating to
+  // /battle and back). This keeps progress stable and makes both victory and
+  // catch advance the stream. See `currentEncounterIdx` below.
+  const [battlePhase, setBattlePhase]       = useState<BattlePhase>('pre');
+  const [lastExpGains, setLastExpGains]     = useState<ExpGainEntry[]>([]);
+  const [lastPokeReward, setLastPokeReward] = useState<number | undefined>(undefined);
+  // Process each battle outcome exactly once per mount. A ref guard is required
+  // because StrictMode double-invokes mount effects in dev — without it the
+  // catch handler's clearRoom would fire twice and skip an encounter.
+  const outcomeHandledRef = useRef(false);
 
   // Read battle outcome passed back from BattleScreen via navigation state
   useEffect(() => {
-    const state = (location.state as Record<string, unknown> | null);
-    if (state?.battleOutcome === 'victory') {
+    if (outcomeHandledRef.current) return;
+    outcomeHandledRef.current = true;
+    const state   = (location.state as Record<string, unknown> | null);
+    const outcome = state?.battleOutcome;
+    if (outcome === 'victory') {
       setBattlePhase('won');
-      setLastExpGains((state.expGains as ExpGainEntry[] | undefined) ?? []);
-      setLastPokeReward(state.pokeReward as number | undefined);
+      setLastExpGains((state?.expGains as ExpGainEntry[] | undefined) ?? []);
+      setLastPokeReward(state?.pokeReward as number | undefined);
+    } else if (outcome === 'caught') {
+      // Caught Pokémon counts as defeated — clear that room and continue to the next.
+      const floor = useDungeonStore.getState().floor;
+      const rooms = (floor?.rooms ?? []).filter(
+        (r) => (r.type === 'encounter' || r.type === 'boss') && r.encounter,
+      );
+      const justFought = rooms.find((r) => !r.cleared);
+      if (justFought) clearRoom(justFought.id);
+      setBattlePhase('pre');
     }
     // 'fled' keeps the current 'pre' phase — player sees the encounter again
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -355,6 +368,13 @@ export default function DungeonScreen() {
   const displayParty  = usePartyDisplay(trainer.party, trainer.caughtPokemon);
   const leadPokemon   = party[0] ?? null;
   const totalPotions  = trainer.potions.potion + trainer.potions.superPotion + trainer.potions.hyperPotion;
+
+  // Choose which party Pokémon leads (fights). Moving it to slot 0 makes it the
+  // lead, so usePartyDisplay marks it as such (yellow frame + LEAD tag) instantly.
+  const handleSelectLead = useCallback((instanceId: string) => {
+    if (trainer.party[0] === instanceId) return;
+    setParty([instanceId, ...trainer.party.filter((id) => id !== instanceId)]);
+  }, [trainer.party, setParty]);
 
   // ── Derived encounter data from the generated floor ────────────────────────
   const encounterRooms = useMemo(
@@ -366,6 +386,8 @@ export default function DungeonScreen() {
   );
 
   const totalEncounters   = encounterRooms.length;
+  // Derived from cleared rooms — survives the remount on each /battle round-trip.
+  const currentEncounterIdx = encounterRooms.filter((r) => r.cleared).length;
   const currentEncounter  = encounterRooms[currentEncounterIdx]?.encounter ?? null;
   const isFloorComplete   = currentEncounterIdx >= totalEncounters && totalEncounters > 0;
 
@@ -378,9 +400,9 @@ export default function DungeonScreen() {
   }, [currentEncounter, leadPokemon, startBattle, navigate]);
 
   const handleNextEncounter = useCallback(() => {
-    const currentRoom = encounterRooms[currentEncounterIdx];
+    // The just-beaten encounter is the first room that is not yet cleared.
+    const currentRoom = encounterRooms.find((r) => !r.cleared);
 
-    // Mark room cleared in dungeonStore for progress tracking
     if (currentRoom) clearRoom(currentRoom.id);
 
     // Boss defeat → expand max party size
@@ -388,17 +410,15 @@ export default function DungeonScreen() {
       setMaxPartySize(Math.min(6, trainer.maxPartySize + 1));
     }
 
-    setCurrentEncounterIdx((i) => i + 1);
     setBattlePhase('pre');
     setLastExpGains([]);
     setLastPokeReward(undefined);
-  }, [currentEncounterIdx, encounterRooms, clearRoom, setMaxPartySize, trainer.maxPartySize]);
+  }, [encounterRooms, clearRoom, setMaxPartySize, trainer.maxPartySize]);
 
   const handleDescend = useCallback(() => {
     const nextFloor = currentFloor + 1;
     setCurrentFloor(nextFloor);
-    enterFloor(nextFloor);
-    setCurrentEncounterIdx(0);
+    enterFloor(nextFloor);   // regenerates → all rooms uncleared → idx resets to 0
     setBattlePhase('pre');
   }, [currentFloor, setCurrentFloor, enterFloor]);
 
@@ -444,42 +464,21 @@ export default function DungeonScreen() {
           </div>
         </div>
 
-        {/* Party HP strip */}
+        {/* Party strip — tap a Pokémon to make it the lead (the one that fights). */}
+        {displayParty.length > 1 && (
+          <div style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: '#8892b8', padding: '0 0 4px 2px' }}>
+            TAP A POKÉMON TO LEAD
+          </div>
+        )}
         <div className={s.partyStrip}>
-          {displayParty.map((pk) => {
-            const isLead = pk.isLead;
-            return (
-              <div key={pk.instanceId} className={s.partyRow}>
-                <img
-                  src={getIdleSpriteUrl(pk.dexNumber)}
-                  alt={pk.name}
-                  style={{ width: isLead ? 44 : 34, height: isLead ? 44 : 34, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }}
-                />
-                <div className={s.partyInfo}>
-                  <div className={s.partyNameRow}>
-                    <span className={`${s.partyName} ${isLead ? s.partyNameLead : s.partyNameRes}`}>
-                      {pk.name}
-                    </span>
-                    <span className={s.lvLabel}>Lv{pk.level}</span>
-                  </div>
-                  <div className={s.hpBarRow}>
-                    <span className={s.hpBarLabel}>HP</span>
-                    <div className={`${s.hpTrack} ${isLead ? s.hpTrackLead : s.hpTrackReserve}`}>
-                      <div
-                        className={s.hpFill}
-                        style={{ width: `${pk.hpPct}%`, background: hpColor(pk.hpPct) }}
-                      />
-                    </div>
-                    <span className={s.hpPct} style={{ color: pk.hpPct < 25 ? '#CC0000' : '#8892b8' }}>
-                      {pk.hpPct}%
-                    </span>
-                    {pk.hpPct < 25 && <span className={`${s.warn} pulsing`}>⚠️</span>}
-                  </div>
-                </div>
-                {isLead && <div className={s.leadBadge}>LEAD</div>}
-              </div>
-            );
-          })}
+          {displayParty.map((pk) => (
+            <PartyMemberCard
+              key={pk.instanceId}
+              pk={pk}
+              frameLead
+              onClick={() => handleSelectLead(pk.instanceId)}
+            />
+          ))}
         </div>
       </div>
 

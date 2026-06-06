@@ -9,7 +9,8 @@
       "Bash(grep -n \"^\\\\..*{\" /Users/gamer/Documents/PokeMathRPG/src/screens/Dungeon/Dungeon.module.css)",
       "Bash(curl -s http://localhost:5173)",
       "Bash(mkdir -p /Users/gamer/Documents/PokeMathRPG/.claude)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node -e ' *)"
     ]
   }
 }

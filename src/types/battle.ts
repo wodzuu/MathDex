@@ -1,19 +1,13 @@
-import type { CaughtPokemon } from './pokemon';
-import type { Move } from './moves';
-import type { MathPuzzle } from './math';
+// Battle-related shared types.
+//
+// NOTE: The full `BattleState` shape lives inline in `src/store/battleStore.ts`
+// (the single source of truth). This file only exports the small supporting
+// types that both the store and screens reference.
 
 // ── Battle phases ─────────────────────────────────────────────────────────────
 
 /**
- * State machine phases for a single battle encounter.
- *
- *   pre → action → move-select → math → resolving → enemy-attack → action …
- *   action → switch-select → (switch resolves, enemy attacks) → action
- *   action → item-select → (potion used, enemy attacks) → action
- *   action → ball-select → catch-attempt → (caught or failed) → action
- *   resolving → victory / fled / blacked-out
- *
- * Spec §4.1.
+ * State machine phases for a single battle encounter. Spec §4.1.
  */
 export type BattlePhase =
   | 'pre'           // "Wild X appeared!" — choose Fight or Flee
@@ -46,50 +40,8 @@ export interface DamageFloat {
  * Only Pokémon that were actually sent out receive any. Spec §4.7.
  */
 export interface ExpGain {
-  pokemonUid: string;
+  instanceId: string;
   amount: number;
   didLevelUp: boolean;
   newLevel?: number;
-}
-
-// ── Battle state ──────────────────────────────────────────────────────────────
-
-/**
- * Full runtime state for a single battle.
- * Owned by the battleStore (Zustand). Reset to null when the battle ends.
- *
- * The enemy is represented as a CaughtPokemon for symmetry — the same
- * damage formula and stat lookups apply to both sides.
- */
-export interface BattleState {
-  phase: BattlePhase;
-  /** Wild Pokémon being fought. Generated fresh for each encounter. */
-  enemy: CaughtPokemon;
-  /**
-   * Enemy HP as a percentage 0–100. Stored separately from enemy.currentHp
-   * so the HP bar can animate smoothly without mutating the entity struct.
-   */
-  enemyHpPercent: number;
-  /** UID of the player's currently active (Lead) Pokémon. */
-  activePlayerPokemonUid: string;
-  /**
-   * UIDs of every player Pokémon that has been sent out this battle.
-   * At battle end, all UIDs here receive the full EXP award. Spec §4.7.
-   */
-  participantUids: string[];
-  /** Move chosen during 'move-select', kept while phase is 'math'. */
-  selectedMove: Move | null;
-  /** Active math puzzle while phase is 'math'. */
-  currentPuzzle: MathPuzzle | null;
-  /**
-   * Number of consecutive correct answers (0–4 visible pips).
-   * At 5 consecutive correct answers, next hit is a Critical Hit (×1.5).
-   * Resets to 0 on any incorrect answer. Spec §4.4.
-   */
-  focusPips: number;
-  /** Transient damage floaters rendered over the enemy sprite. */
-  damageFloats: DamageFloat[];
-  turnCount: number;
-  /** Populated once phase reaches 'victory'. Shown on the victory screen. */
-  expGains: ExpGain[];
 }

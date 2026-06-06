@@ -27,9 +27,9 @@ const BALL_ITEMS: BallMartItem[] = [
 ];
 
 const POTION_ITEMS: PotionMartItem[] = [
-  { key: 'potion',      name: 'Potion',       emoji: '🧪', price: 300,  desc: 'Restores 20 HP'  },
-  { key: 'superPotion', name: 'Super Potion', emoji: '💊', price: 700,  desc: 'Restores 60 HP'  },
-  { key: 'hyperPotion', name: 'Hyper Potion', emoji: '💉', price: 1200, desc: 'Restores 120 HP' },
+  { key: 'potion',      name: 'Potion',       emoji: '🧪', price: 100, desc: 'Restores 20 HP'  },
+  { key: 'superPotion', name: 'Super Potion', emoji: '💊', price: 250, desc: 'Restores 60 HP'  },
+  { key: 'hyperPotion', name: 'Hyper Potion', emoji: '💉', price: 500, desc: 'Restores 120 HP' },
 ];
 
 export default function MartScreen() {

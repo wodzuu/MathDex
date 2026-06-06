@@ -91,50 +91,6 @@ export interface PokemonSpecies {
   emoji: string;
 }
 
-// ── Caught Pokémon instance ───────────────────────────────────────────────────
-
-export interface LearnedMove {
-  moveId: string;
-  currentPp: number;
-  maxPp: number;
-}
-
-/**
- * An individual Pokémon owned by the player — a runtime instance of a species.
- * Persisted to Dexie (table: `pokemon`).
- *
- * Computed values (maxHp, current stats) are recalculated via lib/formulas.ts
- * whenever level or held items change; they are NOT stored here to avoid stale
- * data. Derive them fresh from (speciesId → baseStats, level, heldItemUids).
- */
-export interface CaughtPokemon {
-  /** UUID — unique instance identifier */
-  uid: string;
-  speciesId: string;
-  nickname?: string;
-  level: number;
-  /** Current HP as a raw value (not percentage). */
-  currentHp: number;
-  /** Total accumulated EXP points. Level is derived from this via levelFromExp(). */
-  expPoints: number;
-  /** Up to 4 learned moves in battle order. */
-  moves: LearnedMove[];
-  /**
-   * UIDs of equipped BagItems, one per unlocked slot. null = empty slot.
-   * Array length MUST equal itemSlotCount(level) from lib/formulas.ts.
-   * Must be [] when itemSystemActive is false. Spec §5.6.
-   */
-  heldItemUids: (string | null)[];
-  /**
-   * True while this Pokémon has been sent out in the current battle session.
-   * Reset to false after the battle ends. Drives XP participation rule. Spec §4.7.
-   */
-  participatedInBattle: boolean;
-  /** false = Pokémon is in the PC Box and earns no EXP. */
-  inParty: boolean;
-  /**
-   * 0-indexed position in the active party. 0 = Lead (currently in battle).
-   * null if the Pokémon is in the PC Box.
-   */
-  partySlot: number | null;
-}
+// ── Owned-Pokémon instance ────────────────────────────────────────────────────
+// The runtime instance type a player owns now lives in `src/types/gameState.ts`
+// as `OwnedPokemon`. This file holds only static species data + the type system.

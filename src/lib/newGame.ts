@@ -6,7 +6,7 @@ export function createNewGame(): GameState {
   const species = getSpecies('pikachu');
   if (!species) throw new Error('[newGame] pikachu not found in species data');
 
-  const startLevel = 5;
+  const startLevel = 1;
   const startExp   = expToLevel(startLevel);
   const maxHp      = calcHp(species.baseStats.hp, startLevel);
 

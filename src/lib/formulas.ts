@@ -73,12 +73,13 @@ export function expToNextLevel(totalExp: number): number {
 }
 
 // ── Damage formula ────────────────────────────────────────────────────────────
-// Spec §4.2:
-//   Damage = (MovePower + ItemBonus) × Atk ÷ Def × TypeMultiplier × STAB ÷ 50
+// Spec §4.2 (extended with attacker level):
+//   Damage = (MovePower + ItemBonus) × Atk ÷ Def × TypeMultiplier × STAB × Level ÷ 50
 //
 // ItemBonus = 0 when itemSystemActive is false (caller responsibility).
 // STAB = 1.5 if attacker's type matches move type, else 1.
 // TypeMultiplier: 2 (super effective), 1 (neutral), 0.5 (not very effective), 0 (immune).
+// Level = the attacking Pokémon's level — higher-level attackers hit harder.
 // CritMultiplier = 1.5 on a Critical Hit (Focus Meter full). Spec §4.4.
 // AccuracyMultiplier: 1.0 (correct answer) or partialCreditMultiplier (wrong/expired). Spec §3.3.
 
@@ -87,9 +88,12 @@ export interface DamageParams {
   itemBonus: number;
   attackerAtk: number;
   defenderDef: number;
+  /** The attacking Pokémon's level — scales damage linearly. */
+  attackerLevel: number;
   typeMultiplier: 0 | 0.5 | 1 | 2;
   stabMultiplier: 1 | 1.5;
-  critMultiplier: 1 | 1.5;
+  /** 1 = normal hit, 2 = charged/critical hit (Focus Meter full). Spec §4.4. */
+  critMultiplier: 1 | 1.5 | 2;
   /** 1.0 = correct, 0.80/0.75/0.65 = partial credit per difficulty. Spec §3.3. */
   accuracyMultiplier: number;
 }
@@ -104,6 +108,7 @@ export function calcDamage(p: DamageParams): number {
     (p.attackerAtk / p.defenderDef) *
     p.typeMultiplier *
     p.stabMultiplier *
+    p.attackerLevel *
     p.critMultiplier /
     50;
 

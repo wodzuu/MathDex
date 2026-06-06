@@ -17,17 +17,9 @@ import { useNavigate }           from 'react-router-dom';
 import { useGameStore, useActiveTrainer, isItemSystemActive } from '../../store/gameStore';
 import { useDungeonStore } from '../../store/dungeonStore';
 import { usePartyDisplay } from '../../hooks/usePartyDisplay';
-import { getIdleSpriteUrl } from '../../lib/sprites';
+import PartyMemberCard from '../../components/PartyMemberCard';
 
 import s from './Town.module.css';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function hpColor(pct: number): string {
-  if (pct > 50) return '#48c774';
-  if (pct > 20) return '#FFCB05';
-  return '#CC0000';
-}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -83,44 +75,16 @@ export default function TownScreen() {
 
       <div className={s.content}>
 
-        {/* ══ PARTY STRIP ═══════════════════════════════════════════════════ */}
-        <div className={s.partyCard}>
+        {/* ══ PARTY STRIP (no outer frame) ══════════════════════════════════ */}
+        <div style={{ margin: '12px 0 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div className={s.partyCardLabel}>PARTY</div>
-
-          {displayParty.map((pk) => {
-            return (
-              <div key={pk.instanceId} className={s.partyMember}>
-                <img src={getIdleSpriteUrl(pk.dexNumber)} alt={pk.name} style={{ width: 52, height: 52, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }} />
-                <div className={s.partyMemberInfo}>
-                  <div className={s.partyMemberNameRow}>
-                    <span className={s.partyMemberName}>{pk.name}</span>
-                    <span className={s.partyMemberLv}>Lv{pk.level}</span>
-                  </div>
-                  <div className={s.hpRow}>
-                    <span className={s.hpLabel}>HP</span>
-                    <div className={s.hpTrack}>
-                      <div
-                        className={s.hpFill}
-                        style={{
-                          width:      `${pk.hpPct}%`,
-                          background: hpColor(pk.hpPct),
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {displayParty.map((pk) => (
+            <PartyMemberCard key={pk.instanceId} pk={pk} />
+          ))}
         </div>
 
-        {/* ══ PHASE NOTICE ══════════════════════════════════════════════════ */}
-        {!itemActive ? (
-          <div className={`${s.phaseNotice} ${s.phaseNoticePhase1}`}>
-            ⚡ Level any Pokémon to <strong>Lv&nbsp;20</strong> to unlock the
-            item system and open Oak's lab.
-          </div>
-        ) : (
+        {/* ══ PHASE NOTICE — only once the item system unlocks ══════════════ */}
+        {itemActive && (
           <div className={`${s.phaseNotice} ${s.phaseNoticePhase2}`}>
             ✨ <strong>Item system active!</strong>{' '}
             <span style={{ color: '#8892b8', fontWeight: 600 }}>

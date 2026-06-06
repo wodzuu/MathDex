@@ -4,6 +4,7 @@ import type { GameState, Trainer, OwnedPokemon, Pokeballs, Potions } from '../ty
 import type { MathTopic } from '../types/math';
 import { levelFromExp, calcHp } from '../lib/formulas';
 import { getSpecies } from '../data/species';
+import { getMove } from '../data/moves';
 
 // ── Exported helpers ──────────────────────────────────────────────────────────
 
@@ -104,7 +105,12 @@ export const useGameStore = create<GameStoreState>()(
             const species = getSpecies(p.speciesId);
             if (!species) return p;
             const level = levelFromExp(p.totalExp);
-            return { ...p, currentHp: calcHp(species.baseStats.hp, level) };
+            // Full heal: restore HP and every move's PP to its maximum
+            return {
+              ...p,
+              currentHp: calcHp(species.baseStats.hp, level),
+              moves: p.moves.map(m => ({ ...m, currentPp: getMove(m.moveId)?.pp ?? m.currentPp })),
+            };
           }),
         })), false, 'healParty'),
 

@@ -32,6 +32,9 @@ interface DmgFloat {
   id: number;
   amount: number;
   correct: boolean;
+  crit: boolean;
+  /** Which combatant took the damage — controls where the number floats. */
+  target: 'enemy' | 'player';
 }
 
 interface BallOption {
@@ -67,6 +70,43 @@ function generateCatchPuzzle(ballPercent: number, enemyHpPct: number, floor: num
     context: 'battle',
     timeLimitSeconds: battleTimerSeconds(floor),
   };
+}
+
+// ── Status-move effects ───────────────────────────────────────────────────────
+// Status moves (power 0) don't deal damage — instead they apply a battle stat
+// modifier (a multiplier) to the enemy or the player that affects subsequent
+// damage. Each effect persists for the rest of the battle. Spec §4 (status moves).
+
+type StatTarget = 'enemyAtk' | 'enemyDef' | 'playerDef';
+interface StatusEffect {
+  target: StatTarget;
+  /** Full multiplier applied on a correct answer (<1 = debuff enemy, >1 = buff self). */
+  factor: number;
+  msg: string;
+}
+
+const STATUS_EFFECTS: Record<string, StatusEffect> = {
+  growl:          { target: 'enemyAtk',  factor: 0.75, msg: "Enemy's ATTACK fell!" },
+  leer:           { target: 'enemyDef',  factor: 0.75, msg: "Enemy's DEFENSE fell!" },
+  'tail-whip':    { target: 'enemyDef',  factor: 0.75, msg: "Enemy's DEFENSE fell!" },
+  screech:        { target: 'enemyDef',  factor: 0.55, msg: "Enemy's DEFENSE sharply fell!" },
+  'sand-attack':  { target: 'enemyAtk',  factor: 0.80, msg: "Enemy's accuracy dropped!" },
+  smokescreen:    { target: 'enemyAtk',  factor: 0.80, msg: "Enemy's accuracy dropped!" },
+  thunderwave:    { target: 'enemyAtk',  factor: 0.70, msg: 'Enemy was paralyzed!' },
+  agility:        { target: 'playerDef', factor: 1.15, msg: 'Got faster — harder to hit!' },
+  harden:         { target: 'playerDef', factor: 1.30, msg: 'DEFENSE rose!' },
+  'defense-curl': { target: 'playerDef', factor: 1.30, msg: 'DEFENSE rose!' },
+  withdraw:       { target: 'playerDef', factor: 1.30, msg: 'DEFENSE rose!' },
+};
+
+/** Effect for a status move id — defaults to a mild enemy DEFENSE drop. */
+function statusEffectFor(moveId: string): StatusEffect {
+  return STATUS_EFFECTS[moveId] ?? { target: 'enemyDef', factor: 0.80, msg: "Enemy's DEFENSE fell!" };
+}
+
+/** Soften an effect toward 1 (no change) when the answer was wrong. */
+function softenFactor(factor: number, correct: boolean): number {
+  return correct ? factor : 1 + (factor - 1) / 2;
 }
 
 // ── Demo data — used when no active battle in the store ───────────────────────
@@ -144,12 +184,14 @@ export default function BattleScreen() {
   const dungeonFloor = useDungeonStore((s) => s.floor);
 
   const trainer = useActiveTrainer();
-  const { addCaughtPokemon, adjustPotions, adjustPokeballs, recordMathAttempt } = useGameStore(
+  const { addCaughtPokemon, adjustPotions, adjustPokeballs, recordMathAttempt, updatePokemon, healParty } = useGameStore(
     useShallow((gs) => ({
       addCaughtPokemon:   gs.addCaughtPokemon,
       adjustPotions:      gs.adjustPotions,
       adjustPokeballs:    gs.adjustPokeballs,
       recordMathAttempt:  gs.recordMathAttempt,
+      updatePokemon:      gs.updatePokemon,
+      healParty:          gs.healParty,
     }))
   );
 
@@ -232,6 +274,8 @@ export default function BattleScreen() {
   const [focusPips, setFocusPips]       = useState(initFocusPips);
   const [floats, setFloats]             = useState<DmgFloat[]>([]);
   const [potMsg, setPotMsg]             = useState<string | null>(null);
+  const [statusMsg, setStatusMsg]       = useState<string | null>(null);
+  const [blackout, setBlackout]         = useState(false);
   const [potions, setPotions]           = useState({
     potion: trainer.potions.potion,
     superPotion: trainer.potions.superPotion,
@@ -252,9 +296,20 @@ export default function BattleScreen() {
   const resultRef    = useRef<'ok' | 'no' | null>(null);
   const focusPipsRef = useRef(initFocusPips);
   const playerHpPctRef = useRef(initPlayerHp);
+  // Guards resolveAttack against re-entry: each puzzle resolves exactly once.
+  // resolveAttack is recreated every render (stats are fresh objects), so the
+  // timer-expiry effect can otherwise fire it repeatedly. Reset on new puzzle.
+  const resolvedRef = useRef(false);
+  const puzzleRef   = useRef<MathPuzzle | null>(null);
+  // Battle stat modifiers from status moves (1 = no change). Persist for the
+  // whole battle; reset naturally because a new battle remounts this screen.
+  const enemyAtkMultRef = useRef(1);
+  const enemyDefMultRef = useRef(1);
+  const playerDefMultRef = useRef(1);
 
   useEffect(() => { moveRef.current      = selectedMove; }, [selectedMove]);
   useEffect(() => { resultRef.current    = result; }, [result]);
+  useEffect(() => { puzzleRef.current    = currentPuzzle; }, [currentPuzzle]);
   useEffect(() => { focusPipsRef.current = focusPips; }, [focusPips]);
   useEffect(() => { playerHpPctRef.current = playerHpPct; }, [playerHpPct]);
   useEffect(() => () => { if (tiRef.current) clearInterval(tiRef.current); }, []);
@@ -320,9 +375,25 @@ export default function BattleScreen() {
     navigate('/dungeon', { state: { battleOutcome: 'fled' } });
   }, [endBattle, navigate]);
 
+  // ── Blackout — active Pokémon fainted ────────────────────────────────────────
+  // Shows a brief blackout screen, then returns to town. Everything is kept
+  // (caught Pokémon, floors, Pokédollars); the party is healed so there's no
+  // soft-lock on re-entry.
+  const handleBlackout = useCallback(() => {
+    if (tiRef.current) clearInterval(tiRef.current);
+    setBlackout(true);
+    setTimeout(() => {
+      healParty();
+      endBattle();
+      navigate('/', { state: { blackedOut: true } });
+    }, 2200);
+  }, [healParty, endBattle, navigate]);
+
   // ── Attack resolution ───────────────────────────────────────────────────────
 
   const resolveAttack = useCallback((correct: boolean, slot: MoveSlot) => {
+    if (resolvedRef.current) return;   // this puzzle was already resolved
+    resolvedRef.current = true;
     if (tiRef.current) clearInterval(tiRef.current);
     setResult(correct ? 'ok' : 'no');
 
@@ -330,34 +401,53 @@ export default function BattleScreen() {
     const accuracyMult = correct ? 1.0 : 0.75;
 
     const stabMult: 1 | 1.5 = activePlayerTypes.some((t) => t === slot.type) ? 1.5 : 1;
+    // Charged attack: when the Focus Meter is full (5 pips), a correct answer
+    // lands a 2× critical hit and discharges the meter. Spec §4.4.
     const isCrit    = correct && focusPipsRef.current >= 5;
-    const critMult: 1 | 1.5 = isCrit ? 1.5 : 1;
+    const critMult: 1 | 2 = isCrit ? 2 : 1;
 
     let damage    = 0;
     let damagePct = 0;
 
-    if (slot.power > 0) {
-      const atkStat = slot.category === 'special'
-        ? (playerStats?.spAtk   ?? 10)
-        : (playerStats?.attack  ?? 10);
-      const defStat = slot.category === 'special'
-        ? (enemyStats?.spDef    ?? 10)
-        : (enemyStats?.defense  ?? 10);
+    // Every move chips the opponent. Status moves (power 0) deal a small fixed
+    // amount AND apply their stat effect below, so they always do something visible.
+    const STATUS_CHIP_POWER = 20;
+    const effPower = slot.power > 0 ? slot.power : STATUS_CHIP_POWER;
 
-      damage = calcDamage({
-        movePower:          slot.power,
-        itemBonus:          0,
-        attackerAtk:        atkStat,
-        defenderDef:        defStat,
-        typeMultiplier:     mult as 0 | 0.5 | 1 | 2,
-        stabMultiplier:     stabMult,
-        critMultiplier:     critMult,
-        accuracyMultiplier: accuracyMult,
-      });
+    const atkStat = slot.category === 'special'
+      ? (playerStats?.spAtk   ?? 10)
+      : (playerStats?.attack  ?? 10);
+    const baseDef = slot.category === 'special'
+      ? (enemyStats?.spDef    ?? 10)
+      : (enemyStats?.defense  ?? 10);
+    // Apply any enemy DEFENSE debuff accumulated from status moves.
+    const defStat = Math.max(1, baseDef * enemyDefMultRef.current);
 
-      damagePct = enemyMaxHp
-        ? Math.min(100, Math.round((damage / enemyMaxHp) * 100))
-        : Math.max(1, damage);
+    damage = calcDamage({
+      movePower:          effPower,
+      itemBonus:          0,
+      attackerAtk:        atkStat,
+      defenderDef:        defStat,
+      attackerLevel:      playerLevel,
+      typeMultiplier:     mult as 0 | 0.5 | 1 | 2,
+      stabMultiplier:     stabMult,
+      critMultiplier:     critMult,
+      accuracyMultiplier: accuracyMult,
+    });
+
+    damagePct = enemyMaxHp
+      ? Math.min(100, Math.round((damage / enemyMaxHp) * 100))
+      : Math.max(1, damage);
+
+    // Status move — additionally apply its battle stat modifier + show a message.
+    if (slot.power === 0) {
+      const eff    = statusEffectFor(slot.moveId);
+      const factor = softenFactor(eff.factor, correct);
+      if (eff.target === 'enemyAtk')  enemyAtkMultRef.current  *= factor;
+      if (eff.target === 'enemyDef')  enemyDefMultRef.current  *= factor;
+      if (eff.target === 'playerDef') playerDefMultRef.current *= factor;
+      setStatusMsg(correct ? eff.msg : `${eff.msg} (weak)`);
+      setTimeout(() => setStatusMsg(null), 1400);
     }
 
     const newEnemyHp = Math.max(0, enemyHpRef.current - damagePct);
@@ -370,15 +460,12 @@ export default function BattleScreen() {
 
     if (damagePct > 0) {
       const floatId = Date.now();
-      setFloats((f) => [...f, { id: floatId, amount: damage, correct }]);
-      setTimeout(() => setFloats((f) => f.filter((x) => x.id !== floatId)), 900);
+      setFloats((f) => [...f, { id: floatId, amount: damage, correct, crit: isCrit, target: 'enemy' }]);
+      setTimeout(() => setFloats((f) => f.filter((x) => x.id !== floatId)), 1800);
     }
 
-    // Record math attempt
-    if (slot.type) {
-      // topic is derived from the puzzle's floor — use a simple mapping
-      recordMathAttempt('addition' as MathTopic, correct);
-    }
+    // Record the math attempt against the active puzzle's topic
+    recordMathAttempt(puzzleRef.current?.topic ?? ('addition' as MathTopic), correct);
 
     if (newEnemyHp <= 0) {
       setTimeout(handleVictory, 1200);
@@ -389,8 +476,10 @@ export default function BattleScreen() {
           const enemyDmg = calcDamage({
             movePower:          40,
             itemBonus:          0,
-            attackerAtk:        enemyStats.attack,
-            defenderDef:        playerStats.defense,
+            // Apply status-move modifiers: enemy ATK debuff + player DEF buff.
+            attackerAtk:        Math.max(1, enemyStats.attack   * enemyAtkMultRef.current),
+            defenderDef:        Math.max(1, playerStats.defense * playerDefMultRef.current),
+            attackerLevel:      enemyLevel,
             typeMultiplier:     1,
             stabMultiplier:     1,
             critMultiplier:     1,
@@ -398,7 +487,21 @@ export default function BattleScreen() {
           });
           enemyDamagePct = Math.max(1, Math.min(100, Math.round((enemyDmg / playerMaxHp) * 100)));
         }
-        setPlayerHpPct((p) => Math.max(0, p - enemyDamagePct));
+        const newPlayerHp = Math.max(0, playerHpPctRef.current - enemyDamagePct);
+        setPlayerHpPct(newPlayerHp);
+        playerHpPctRef.current = newPlayerHp;
+        // Float the damage received over the player's avatar.
+        const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDamagePct / 100 * playerMaxHp)) : enemyDamagePct;
+        const pfId   = Date.now();
+        setFloats((f) => [...f, { id: pfId, amount: dmgAmt, correct: false, crit: false, target: 'player' }]);
+        setTimeout(() => setFloats((f) => f.filter((x) => x.id !== pfId)), 1800);
+        // Faint when the actual (rounded) HP reaches 0 — not just the percentage,
+        // which can sit at ~1% while displaying 0 HP.
+        const actualHp = playerMaxHp ? Math.round(newPlayerHp / 100 * playerMaxHp) : newPlayerHp;
+        if (actualHp <= 0) {
+          handleBlackout();   // active Pokémon fainted — end battle, return to town
+          return;
+        }
         setPanel('moves');
         setResult(null);
         setAnswer('');
@@ -407,7 +510,7 @@ export default function BattleScreen() {
       }, 1200);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeEnemyTypes, activePlayerTypes, enemyMaxHp, playerMaxHp, playerStats, enemyStats, handleVictory, recordMathAttempt]);
+  }, [activeEnemyTypes, activePlayerTypes, enemyMaxHp, playerMaxHp, playerStats, enemyStats, handleVictory, handleBlackout, recordMathAttempt]);
 
   // Timer expiry — attack math
   useEffect(() => {
@@ -429,6 +532,14 @@ export default function BattleScreen() {
     if ((movePp[slot.moveId] ?? slot.currentPp) === 0) return;
     setMovePp((prev) => ({ ...prev, [slot.moveId]: Math.max(0, (prev[slot.moveId] ?? slot.currentPp) - 1) }));
 
+    // Persist the PP decrement to this Pokémon's stored move list (per move, per Pokémon)
+    if (battle && playerPokemon) {
+      const newMoves = playerPokemon.moves.map((m) =>
+        m.moveId === slot.moveId ? { ...m, currentPp: Math.max(0, m.currentPp - 1) } : m,
+      );
+      updatePokemon(playerPokemon.instanceId, { moves: newMoves });
+    }
+
     const puzzle       = generateBattlePuzzle(slot, activeFloor, activeEnemyTypes, 0);
     const initialTimer = puzzle.timeLimitSeconds ?? 6;
 
@@ -436,6 +547,7 @@ export default function BattleScreen() {
     setPuzzle(puzzle);
     setAnswer('');
     setResult(null);
+    resolvedRef.current = false;   // arm resolution for the new puzzle
     setPanel('math');
     setTimer(initialTimer);
 
@@ -507,6 +619,12 @@ export default function BattleScreen() {
     if (caught) {
       setTimeout(() => {
         if (battle) {
+          // Persist the active Pokémon's battle-damaged HP (catching shouldn't heal it)
+          if (playerPokemon && playerMaxHp) {
+            updatePokemon(playerPokemon.instanceId, {
+              currentHp: Math.max(1, Math.round(playerHpPctRef.current / 100 * playerMaxHp)),
+            });
+          }
           addCaughtPokemon({
             speciesId: battle.enemy.speciesId,
             totalExp:  battle.enemy.totalExp,
@@ -520,7 +638,18 @@ export default function BattleScreen() {
     } else {
       setTimeout(() => {
         const enemyDmg = Math.max(1, Math.round(5 + Math.random() * 10));
-        setPlayerHpPct((p) => Math.max(0, p - enemyDmg));
+        const newPlayerHp = Math.max(0, playerHpPctRef.current - enemyDmg);
+        setPlayerHpPct(newPlayerHp);
+        playerHpPctRef.current = newPlayerHp;
+        const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDmg / 100 * playerMaxHp)) : enemyDmg;
+        const pfId   = Date.now();
+        setFloats((f) => [...f, { id: pfId, amount: dmgAmt, correct: false, crit: false, target: 'player' }]);
+        setTimeout(() => setFloats((f) => f.filter((x) => x.id !== pfId)), 1800);
+        const actualHp = playerMaxHp ? Math.round(newPlayerHp / 100 * playerMaxHp) : newPlayerHp;
+        if (actualHp <= 0) {
+          handleBlackout();   // active Pokémon fainted while trying to catch
+          return;
+        }
         setPanel('action');
         setResult(null);
         setAnswer('');
@@ -549,6 +678,25 @@ export default function BattleScreen() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
+  // Blackout screen — shown briefly when the active Pokémon faints, before
+  // returning to town. Everything is kept; the party is healed on the way out.
+  if (blackout) {
+    return (
+      <div className="fade-up" style={{ position: 'fixed', inset: 0, background: '#05080f', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, fontFamily: FONT_UI, color: D.white, textAlign: 'center', padding: 24, zIndex: 999 }}>
+        <div style={{ fontSize: 52 }}>💫</div>
+        <div style={{ fontFamily: FONT_PIXEL, fontSize: 13, color: D.red, lineHeight: 1.8 }}>
+          {playerName} fainted!
+        </div>
+        <div style={{ fontFamily: FONT_PIXEL, fontSize: 10, color: D.muted, lineHeight: 1.8 }}>
+          You blacked out…
+        </div>
+        <div style={{ fontFamily: FONT_UI, fontSize: 12, color: D.muted, marginTop: 6 }}>
+          Returning to town…
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 0 80px', fontFamily: FONT_UI, color: D.white }}>
 
@@ -567,7 +715,7 @@ export default function BattleScreen() {
         <div style={{ border: `2px solid ${D.border}`, borderRadius: 16, margin: '12px 0 10px', overflow: 'hidden' }}>
 
           {/* Player section — top */}
-          <div style={{ background: 'linear-gradient(180deg,#1a2a0e,#0d1a06)', padding: '14px 14px 12px', borderLeft: `3px solid ${D.yellow}` }}>
+          <div style={{ background: 'linear-gradient(180deg,#1a2a0e,#0d1a06)', padding: '14px 14px 12px', borderLeft: `3px solid ${D.yellow}`, position: 'relative' }}>
             <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 14, alignItems: 'center' }}>
               <img src={getSpriteUrl(playerDexNumber)} alt={playerName} style={{ width: 64, height: 64, imageRendering: 'pixelated', objectFit: 'contain', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.7))', flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -588,12 +736,16 @@ export default function BattleScreen() {
                 <div style={{ height: 3, background: '#111', borderRadius: 2, marginTop: 5, overflow: 'hidden' }}>
                   <div style={{ width: `${expBarPct}%`, height: '100%', background: D.blue, transition: 'width .5s' }} />
                 </div>
-                {/* Focus pips */}
+                {/* Focus pips — full meter = next correct hit is a 2× charged crit */}
                 <div style={{ display: 'flex', gap: 4, marginTop: 7, alignItems: 'center' }}>
                   {[0, 1, 2, 3, 4].map((i) => (
                     <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: i < focusPips ? D.yellow : '#111', border: `2px solid ${i < focusPips ? '#a07800' : D.border}`, boxShadow: i < focusPips ? `0 0 6px ${D.yellow}80` : 'none', transition: 'all .2s' }} />
                   ))}
-                  <span style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: D.muted, marginLeft: 4 }}>FOCUS</span>
+                  {focusPips >= 5 ? (
+                    <span className="pulsing" style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: D.yellow, marginLeft: 4 }}>⚡ CHARGED!</span>
+                  ) : (
+                    <span style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: D.muted, marginLeft: 4 }}>FOCUS</span>
+                  )}
                 </div>
                 {playerStats && (
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
@@ -611,6 +763,12 @@ export default function BattleScreen() {
                 )}
               </div>
             </div>
+            {/* Damage received — floats over the player avatar (top-right) */}
+            {floats.filter((f) => f.target === 'player').map((f) => (
+              <div key={f.id} style={{ position: 'absolute', top: 10, right: 24, fontFamily: FONT_PIXEL, fontSize: 14, fontWeight: 700, pointerEvents: 'none', color: D.red, animation: 'floatDmg 1.8s ease-out forwards', textShadow: '0 2px 6px #000', zIndex: 10, textAlign: 'right' }}>
+                -{f.amount}
+              </div>
+            ))}
           </div>
 
           {/* Divider */}
@@ -652,12 +810,19 @@ export default function BattleScreen() {
                 )}
               </div>
             </div>
-            {/* Damage floats */}
-            {floats.map((f) => (
-              <div key={f.id} style={{ position: 'absolute', top: 10, right: 20, fontFamily: FONT_PIXEL, fontSize: 14, fontWeight: 700, pointerEvents: 'none', color: f.correct ? D.yellow : D.red, animation: 'floatDmg .9s ease-out forwards', textShadow: '0 2px 6px #000', zIndex: 10 }}>
+            {/* Damage dealt — floats over the enemy avatar */}
+            {floats.filter((f) => f.target === 'enemy').map((f) => (
+              <div key={f.id} style={{ position: 'absolute', top: 10, right: 20, fontFamily: FONT_PIXEL, fontSize: f.crit ? 18 : 14, fontWeight: 700, pointerEvents: 'none', color: f.crit ? '#ff7b00' : f.correct ? D.yellow : D.red, animation: 'floatDmg 1.8s ease-out forwards', textShadow: '0 2px 6px #000', zIndex: 10, textAlign: 'right' }}>
+                {f.crit && <div style={{ fontSize: 8, color: '#ff7b00' }}>⚡CRITICAL!</div>}
                 -{f.amount}
               </div>
             ))}
+            {/* Status-move message */}
+            {statusMsg && (
+              <div className="fade-up" style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: FONT_PIXEL, fontSize: 8, color: D.white, background: 'rgba(0,0,0,.7)', border: `1px solid ${D.yellow}`, borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 11 }}>
+                {statusMsg}
+              </div>
+            )}
           </div>
 
         </div>
@@ -751,7 +916,9 @@ export default function BattleScreen() {
 
             {result ? (
               <div style={{ textAlign: 'center', fontFamily: FONT_PIXEL, fontSize: 10, marginTop: 10, color: result === 'ok' ? D.green : D.red }}>
-                {result === 'ok' ? 'CORRECT! Full power!' : 'WRONG! 75% power...'}
+                {selectedMove && selectedMove.power === 0
+                  ? (result === 'ok' ? 'CORRECT! Full effect!' : 'WRONG! Weak effect...')
+                  : (result === 'ok' ? 'CORRECT! Full power!'  : 'WRONG! 75% power...')}
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginTop: 10 }}>

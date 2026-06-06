@@ -87,6 +87,33 @@ const MOVES_LIST: Move[] = [
 
   // ── Ground ───────────────────────────────────────────────────────────────
   { id: 'earthquake',   name: 'Earthquake',   type: 'Ground',   category: 'physical', power: 100, pp: 10, accuracy: 100 },
+  { id: 'dig',          name: 'Dig',          type: 'Ground',   category: 'physical', power: 80,  pp: 10, accuracy: 100 },
+
+  // ── Rock (additional) ──────────────────────────────────────────────────────
+  { id: 'rock-slide',   name: 'Rock Slide',   type: 'Rock',     category: 'physical', power: 75,  pp: 10, accuracy: 90  },
+
+  // ── Bug ────────────────────────────────────────────────────────────────────
+  { id: 'leech-life',   name: 'Leech Life',   type: 'Bug',      category: 'physical', power: 20,  pp: 15, accuracy: 100 },
+  { id: 'pin-missile',  name: 'Pin Missile',  type: 'Bug',      category: 'physical', power: 25,  pp: 20, accuracy: 95  },
+
+  // ── Poison (additional) ────────────────────────────────────────────────────
+  { id: 'sludge',       name: 'Sludge',       type: 'Poison',   category: 'special',  power: 65,  pp: 20, accuracy: 100 },
+
+  // ── Psychic ────────────────────────────────────────────────────────────────
+  { id: 'confusion',    name: 'Confusion',    type: 'Psychic',  category: 'special',  power: 50,  pp: 25, accuracy: 100 },
+  { id: 'psychic',      name: 'Psychic',      type: 'Psychic',  category: 'special',  power: 90,  pp: 10, accuracy: 100 },
+
+  // ── Fighting ───────────────────────────────────────────────────────────────
+  { id: 'karate-chop',  name: 'Karate Chop',  type: 'Fighting', category: 'physical', power: 50,  pp: 25, accuracy: 100 },
+  { id: 'submission',   name: 'Submission',   type: 'Fighting', category: 'physical', power: 80,  pp: 20, accuracy: 80  },
+
+  // ── Ghost ──────────────────────────────────────────────────────────────────
+  { id: 'lick',         name: 'Lick',         type: 'Ghost',    category: 'physical', power: 30,  pp: 30, accuracy: 100 },
+  { id: 'night-shade',  name: 'Night Shade',  type: 'Ghost',    category: 'special',  power: 40,  pp: 15, accuracy: 100 },
+
+  // ── Ice ────────────────────────────────────────────────────────────────────
+  { id: 'aurora-beam',  name: 'Aurora Beam',  type: 'Ice',      category: 'special',  power: 65,  pp: 20, accuracy: 100 },
+  { id: 'ice-beam',     name: 'Ice Beam',     type: 'Ice',      category: 'special',  power: 90,  pp: 10, accuracy: 100 },
 ];
 
 export const MOVES_MAP = new Map<string, Move>(MOVES_LIST.map((m) => [m.id, m]));

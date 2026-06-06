@@ -16,68 +16,19 @@
 
 import type { DungeonFloor, Room, EncounterData } from '../types/dungeon';
 import type { ItemRarity } from '../types/items';
-import type { PokeType, PokemonRarity } from '../types/pokemon';
+import type { PokemonRarity } from '../types/pokemon';
 import type { MathTopic } from '../types/math';
 import { FLOOR_TOPIC } from '../types/math';
 
 // ── Species pool ──────────────────────────────────────────────────────────────
 
-interface PoolEntry {
-  speciesId:    string;
-  speciesName:  string;
-  dexNumber:    number;
-  type:         PokeType;
-  minFloor:     number;
-  maxFloor:     number;
-  /** Relative spawn weight within the floor range. Higher = more common. */
-  weight:       number;
-  rarity:       PokemonRarity;
-  /** Can this species appear as the boss of a floor block? */
-  isBossCandidate: boolean;
-}
+import { GEN1_POOL, type Gen1PoolEntry } from '../data/gen1';
 
-// All Gen 1 species from src/data/species.ts, across the 6 launch types.
-const POOL: PoolEntry[] = [
-  // ── Normal ──────────────────────────────────────────────────────────────────
-  { speciesId:'rattata',    speciesName:'Rattata',    dexNumber: 19,  type:'Normal',   minFloor: 1, maxFloor:18, weight:10, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'meowth',     speciesName:'Meowth',     dexNumber: 52,  type:'Normal',   minFloor: 1, maxFloor:22, weight: 6, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'jigglypuff', speciesName:'Jigglypuff', dexNumber: 39,  type:'Normal',   minFloor: 1, maxFloor:20, weight: 5, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'clefairy',   speciesName:'Clefairy',   dexNumber: 35,  type:'Normal',   minFloor: 3, maxFloor:28, weight: 4, rarity:'Uncommon', isBossCandidate:false },
-  { speciesId:'eevee',      speciesName:'Eevee',      dexNumber:133,  type:'Normal',   minFloor: 8, maxFloor:35, weight: 3, rarity:'Rare',     isBossCandidate:true  },
+type PoolEntry = Gen1PoolEntry;
 
-  // ── Rock ────────────────────────────────────────────────────────────────────
-  { speciesId:'geodude',   speciesName:'Geodude',   dexNumber: 74,  type:'Rock',     minFloor: 1, maxFloor:22, weight: 8, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'graveler',  speciesName:'Graveler',  dexNumber: 75,  type:'Rock',     minFloor:20, maxFloor:40, weight: 5, rarity:'Uncommon', isBossCandidate:true  },
-  { speciesId:'onix',      speciesName:'Onix',      dexNumber: 95,  type:'Rock',     minFloor: 5, maxFloor:35, weight: 4, rarity:'Uncommon', isBossCandidate:true  },
-
-  // ── Electric ────────────────────────────────────────────────────────────────
-  { speciesId:'voltorb',   speciesName:'Voltorb',   dexNumber:100,  type:'Electric', minFloor: 3, maxFloor:22, weight: 7, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'magnemite', speciesName:'Magnemite', dexNumber: 81,  type:'Electric', minFloor: 1, maxFloor:25, weight: 7, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'electrode', speciesName:'Electrode', dexNumber:101,  type:'Electric', minFloor:18, maxFloor:40, weight: 4, rarity:'Uncommon', isBossCandidate:true  },
-  { speciesId:'pikachu',   speciesName:'Pikachu',   dexNumber: 25,  type:'Electric', minFloor: 6, maxFloor:35, weight: 5, rarity:'Uncommon', isBossCandidate:true  },
-  { speciesId:'raichu',    speciesName:'Raichu',    dexNumber: 26,  type:'Electric', minFloor:30, maxFloor:65, weight: 4, rarity:'Rare',     isBossCandidate:true  },
-
-  // ── Fire ────────────────────────────────────────────────────────────────────
-  { speciesId:'growlithe', speciesName:'Growlithe', dexNumber: 58,  type:'Fire',     minFloor: 1, maxFloor:20, weight: 7, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'vulpix',    speciesName:'Vulpix',    dexNumber: 37,  type:'Fire',     minFloor: 2, maxFloor:22, weight: 6, rarity:'Uncommon', isBossCandidate:false },
-  { speciesId:'charmander',speciesName:'Charmander',dexNumber:  4,  type:'Fire',     minFloor: 2, maxFloor:15, weight: 5, rarity:'Uncommon', isBossCandidate:false },
-  { speciesId:'charmeleon',speciesName:'Charmeleon',dexNumber:  5,  type:'Fire',     minFloor:14, maxFloor:30, weight: 4, rarity:'Uncommon', isBossCandidate:true  },
-  { speciesId:'ninetales', speciesName:'Ninetales', dexNumber: 38,  type:'Fire',     minFloor:25, maxFloor:50, weight: 3, rarity:'Rare',     isBossCandidate:true  },
-  { speciesId:'charizard', speciesName:'Charizard', dexNumber:  6,  type:'Fire',     minFloor:28, maxFloor:65, weight: 3, rarity:'Rare',     isBossCandidate:true  },
-
-  // ── Water ───────────────────────────────────────────────────────────────────
-  { speciesId:'poliwag',   speciesName:'Poliwag',   dexNumber: 60,  type:'Water',    minFloor: 1, maxFloor:18, weight: 8, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'magikarp',  speciesName:'Magikarp',  dexNumber:129,  type:'Water',    minFloor: 1, maxFloor:20, weight: 9, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'squirtle',  speciesName:'Squirtle',  dexNumber:  7,  type:'Water',    minFloor: 2, maxFloor:15, weight: 5, rarity:'Uncommon', isBossCandidate:false },
-  { speciesId:'poliwhirl', speciesName:'Poliwhirl', dexNumber: 61,  type:'Water',    minFloor:20, maxFloor:38, weight: 5, rarity:'Uncommon', isBossCandidate:true  },
-  { speciesId:'wartortle', speciesName:'Wartortle', dexNumber:  8,  type:'Water',    minFloor:14, maxFloor:30, weight: 4, rarity:'Uncommon', isBossCandidate:true  },
-  { speciesId:'gyarados',  speciesName:'Gyarados',  dexNumber:130,  type:'Water',    minFloor:18, maxFloor:45, weight: 3, rarity:'Rare',     isBossCandidate:true  },
-  { speciesId:'vaporeon',  speciesName:'Vaporeon',  dexNumber:134,  type:'Water',    minFloor:20, maxFloor:50, weight: 3, rarity:'Rare',     isBossCandidate:true  },
-
-  // ── Grass ───────────────────────────────────────────────────────────────────
-  { speciesId:'oddish',    speciesName:'Oddish',    dexNumber: 43,  type:'Grass',    minFloor: 1, maxFloor:18, weight: 7, rarity:'Common',   isBossCandidate:false },
-  { speciesId:'bulbasaur', speciesName:'Bulbasaur', dexNumber:  1,  type:'Grass',    minFloor: 2, maxFloor:15, weight: 5, rarity:'Uncommon', isBossCandidate:false },
-];
+// Full Generation I roster (#1–151). Floor bands + weights are derived per
+// rarity in data/gen1.ts so weak commons appear early and rare/legendary deep.
+const POOL: PoolEntry[] = GEN1_POOL;
 
 // ── Helper: weighted random pick ──────────────────────────────────────────────
 

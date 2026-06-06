@@ -6,6 +6,7 @@ import IdentifyScreen from '../screens/IdentifyScreen';
 import EquipScreen from '../screens/EquipScreen';
 import PCScreen from '../screens/PCScreen';
 import MartScreen from '../screens/MartScreen';
+import ResetScreen from '../screens/ResetScreen';
 
 /**
  * Application routes.
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
   { path: '/equip',     element: <EquipScreen /> },
   { path: '/pc',        element: <PCScreen /> },
   { path: '/mart',      element: <MartScreen /> },
+  { path: '/reset',     element: <ResetScreen /> },
 ]);
 
 export default function AppRouter() {
