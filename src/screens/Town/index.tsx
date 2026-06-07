@@ -14,7 +14,7 @@
 import { useCallback, useState } from 'react';
 import { useNavigate }           from 'react-router-dom';
 
-import { useGameStore, useActiveTrainer, isItemSystemActive } from '../../store/gameStore';
+import { useGameStore, useActiveTrainer, isItemSystemActive, getPartyHighestLevel } from '../../store/gameStore';
 import { useDungeonStore } from '../../store/dungeonStore';
 import { usePartyDisplay } from '../../hooks/usePartyDisplay';
 import PartyMemberCard from '../../components/PartyMemberCard';
@@ -48,9 +48,9 @@ export default function TownScreen() {
 
   // ── Enter dungeon ──────────────────────────────────────────────────────────
   const handleEnterDungeon = useCallback(() => {
-    enterFloor(trainer.currentFloor);
+    enterFloor(trainer.currentFloor, getPartyHighestLevel(trainer));
     navigate('/dungeon');
-  }, [trainer.currentFloor, enterFloor, navigate]);
+  }, [trainer, enterFloor, navigate]);
 
   // ── Derived: is the current floor a boss floor? ────────────────────────────
   const isBossFloor = trainer.currentFloor % 5 === 0;

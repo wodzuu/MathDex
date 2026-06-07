@@ -13,8 +13,10 @@ export interface Trainer {
   id: string;
   name: string;
   caughtPokemon: OwnedPokemon[];
-  /** Ordered instanceIds; index 0 = lead Pokémon. */
+  /** Ordered instanceIds. Order is stable; the lead is tracked separately. */
   party: string[];
+  /** instanceId of the active fighter. Falls back to party[0] if unset/invalid. */
+  leadInstanceId?: string;
   /** 2–6; grows as boss floors are cleared. */
   maxPartySize: number;
   pokeDollars: number;

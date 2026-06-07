@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { D, FONT_PIXEL, FONT_UI } from '../styles/tokens';
 import { useGameStore, useActiveTrainer } from '../store/gameStore';
+import { getBallSpriteUrl, getItemSpriteUrl } from '../lib/sprites';
 import type { Pokeballs, Potions } from '../types/gameState';
+
+const ITEM_SPRITE_STYLE = { width: 34, height: 34, imageRendering: 'pixelated' as const, objectFit: 'contain' as const, flexShrink: 0 };
 
 interface BallMartItem {
   key:   keyof Pokeballs;
@@ -95,7 +98,7 @@ export default function MartScreen() {
     const canAdd = cartTotal + item.price <= pokeDollars;
     return (
       <div key={item.key} style={{ background: D.card, border: `1px solid ${D.border}`, borderRadius: 14, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ fontSize: 26, flexShrink: 0 }}>{item.emoji}</div>
+        <img src={getBallSpriteUrl(item.key)} alt={item.name} style={ITEM_SPRITE_STYLE} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: FONT_UI, fontSize: 14, fontWeight: 800, color: D.white }}>{item.name}</div>
           <div style={{ fontFamily: FONT_UI, fontSize: 12, color: D.muted, fontWeight: 600, marginTop: 2 }}>{item.desc}</div>
@@ -121,7 +124,7 @@ export default function MartScreen() {
     const canAdd = cartTotal + item.price <= pokeDollars;
     return (
       <div key={item.key} style={{ background: D.card, border: `1px solid ${D.border}`, borderRadius: 14, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ fontSize: 26, flexShrink: 0 }}>{item.emoji}</div>
+        <img src={getItemSpriteUrl(item.key)} alt={item.name} style={ITEM_SPRITE_STYLE} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: FONT_UI, fontSize: 14, fontWeight: 800, color: D.white }}>{item.name}</div>
           <div style={{ fontFamily: FONT_UI, fontSize: 12, color: D.muted, fontWeight: 600, marginTop: 2 }}>{item.desc}</div>

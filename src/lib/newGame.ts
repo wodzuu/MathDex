@@ -24,9 +24,10 @@ export function createNewGame(): GameState {
   const trainer: Trainer = {
     id:            crypto.randomUUID(),
     name:          'Ash',
-    caughtPokemon: [pikachu],
-    party:         [pikachu.instanceId],
-    maxPartySize:  2,
+    caughtPokemon:  [pikachu],
+    party:          [pikachu.instanceId],
+    leadInstanceId: pikachu.instanceId,
+    maxPartySize:   2,
     pokeDollars:   500,
     pokeballs:     { pokeball: 5, greatBall: 0, ultraBall: 0 },
     potions:       { potion: 3, superPotion: 0, hyperPotion: 0 },

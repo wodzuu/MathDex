@@ -10,7 +10,6 @@ export interface PartyDisplayPokemon {
   dexNumber:  number;
   type:       PokeType;
   level:      number;
-  isLead:     boolean;
   // HP
   currentHp:  number;
   maxHp:      number;
@@ -27,7 +26,7 @@ export interface PartyDisplayPokemon {
 export function usePartyDisplay(party: string[], caughtPokemon: OwnedPokemon[]): PartyDisplayPokemon[] {
   return useMemo(() =>
     party
-      .map((id, idx) => {
+      .map((id) => {
         const pk = caughtPokemon.find(p => p.instanceId === id);
         if (!pk) return null;
         const species = getSpecies(pk.speciesId);
@@ -48,7 +47,6 @@ export function usePartyDisplay(party: string[], caughtPokemon: OwnedPokemon[]):
           dexNumber:  species?.dexNumber ?? 0,
           type:       (species?.types[0] ?? 'Normal') as PokeType,
           level,
-          isLead:     idx === 0,
           currentHp,
           maxHp,
           hpPct:      maxHp > 0 ? Math.min(100, Math.max(0, Math.round((currentHp / maxHp) * 100))) : 0,

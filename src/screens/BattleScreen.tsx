@@ -9,7 +9,7 @@ import { D, FONT_PIXEL, FONT_UI, typeColors } from '../styles/tokens';
 import { getMove } from '../data/moves';
 import { getSpecies } from '../data/species';
 import { calcHp, calcAllStats, calcDamage, catchProbability, hpZone, battleTimerSeconds, expGained, levelFromExp, expToLevel } from '../lib/formulas';
-import { getSpriteUrl } from '../lib/sprites';
+import { getSpriteUrl, getBallSpriteUrl, getItemSpriteUrl } from '../lib/sprites';
 import { generateBattlePuzzle, effectiveMultiplier } from '../lib/mathProblemGenerator';
 import { useBattleStore }  from '../store/battleStore';
 import { useGameStore, useActiveTrainer, getPartyPokemon }    from '../store/gameStore';
@@ -51,6 +51,9 @@ const BALLS: BallOption[] = [
   { name: 'Great Ball', baseRate: 0.6, basePercent: 60, consumableKey: 'greatBall' },
   { name: 'Ultra Ball', baseRate: 0.8, basePercent: 80, consumableKey: 'ultraBall' },
 ];
+
+const POTION_HEAL: Record<keyof Potions, number> = { potion: 20, superPotion: 60, hyperPotion: 120 };
+const POTION_LABEL: Record<keyof Potions, string> = { potion: 'Potion', superPotion: 'Super Potion', hyperPotion: 'Hyper Potion' };
 
 // HP-zone bonus percentage shown in the catch puzzle equation.
 function catchHpBonus(hpPct: number): number {
@@ -277,8 +280,9 @@ export default function BattleScreen() {
   const [statusMsg, setStatusMsg]       = useState<string | null>(null);
   const [blackout, setBlackout]         = useState(false);
   const [potions, setPotions]           = useState({
-    potion: trainer.potions.potion,
+    potion:      trainer.potions.potion,
     superPotion: trainer.potions.superPotion,
+    hyperPotion: trainer.potions.hyperPotion,
   });
   // Catch flow
   const [selectedBall, setSelectedBall] = useState<BallOption | null>(null);
@@ -570,10 +574,10 @@ export default function BattleScreen() {
 
   // ── Use potion ──────────────────────────────────────────────────────────────
 
-  function handleUsePotion(key: keyof Potions & ('potion' | 'superPotion')) {
-    const heal  = key === 'potion' ? 20 : 60;
-    const label = key === 'potion' ? 'Potion' : 'Super Potion';
-    setPotions((p) => ({ ...p, [key]: p[key as 'potion' | 'superPotion'] - 1 }));
+  function handleUsePotion(key: keyof Potions) {
+    const heal  = POTION_HEAL[key];
+    const label = POTION_LABEL[key];
+    setPotions((p) => ({ ...p, [key]: p[key] - 1 }));
     adjustPotions(key, -1);
     setPlayerHpPct((p) => Math.min(100, p + heal));
     setPotMsg(`${playerName} restored +${heal} HP! (${label})`);
@@ -674,7 +678,7 @@ export default function BattleScreen() {
     : false;
 
   const mathBg      = result === 'ok' ? '#0d2a10' : result === 'no' ? '#2a0d0d' : D.card;
-  const totalPotions = potions.potion + potions.superPotion;
+  const totalPotions = potions.potion + potions.superPotion + potions.hyperPotion;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -839,15 +843,17 @@ export default function BattleScreen() {
             <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.muted, marginBottom: 10 }}>What will {playerName} do?</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {([
-                { label: 'FIGHT',               icon: '⚔️', col: typeColors('Fire').fg,  bg: typeColors('Fire').bg,  bdr: typeColors('Fire').bdr,  action: () => setPanel('moves')  },
-                { label: 'BALL',                icon: '🔴', col: typeColors('Water').fg, bg: typeColors('Water').bg, bdr: typeColors('Water').bdr, action: () => setPanel('ball')   },
-                { label: `POTION ×${totalPotions}`, icon: '🧪', col: D.green, bg: '#0a1a0a', bdr: '#1a4020',             action: () => setPanel('potion') },
-                { label: 'FLEE',                icon: '🏃', col: D.muted,               bg: D.card2,                 bdr: D.border,               action: handleFlee               },
+                { label: 'FIGHT',               icon: '⚔️', img: undefined,                       col: typeColors('Fire').fg,  bg: typeColors('Fire').bg,  bdr: typeColors('Fire').bdr,  action: () => setPanel('moves')  },
+                { label: 'BALL',                icon: '🔴', img: getBallSpriteUrl('pokeball'),    col: typeColors('Water').fg, bg: typeColors('Water').bg, bdr: typeColors('Water').bdr, action: () => setPanel('ball')   },
+                { label: `POTION ×${totalPotions}`, icon: '🧪', img: getItemSpriteUrl('potion'),  col: D.green, bg: '#0a1a0a', bdr: '#1a4020',                                          action: () => setPanel('potion') },
+                { label: 'FLEE',                icon: '🏃', img: undefined,                       col: D.muted,               bg: D.card2,                 bdr: D.border,               action: handleFlee               },
               ] as const).map((btn, i) => (
                 <button key={i} onClick={btn.action} style={{ background: btn.bg, border: `2px solid ${btn.bdr}`, borderRadius: 12, padding: '14px 10px', cursor: 'pointer', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, color: btn.col, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'opacity .15s' }}
                   onMouseEnter={(e) => (e.currentTarget.style.opacity = '.8')}
                   onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
-                  <span style={{ fontSize: 22 }}>{btn.icon}</span>
+                  {btn.img
+                    ? <img src={btn.img} alt={btn.label} style={{ width: 26, height: 26, imageRendering: 'pixelated', objectFit: 'contain' }} />
+                    : <span style={{ fontSize: 22 }}>{btn.icon}</span>}
                   {btn.label}
                 </button>
               ))}
@@ -933,15 +939,13 @@ export default function BattleScreen() {
         {panel === 'potion' && (
           <div className="fade-up">
             <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.muted, marginBottom: 8 }}>Use a Potion — costs your turn</div>
-            <div style={{ background: D.white, color: D.navy, border: `3px solid ${D.navy}`, borderRadius: 12, padding: '10px 14px', fontSize: 13, lineHeight: 1.7, marginBottom: 12, boxShadow: `4px 4px 0 ${D.navy}` }}>
-              Held items are always active — no button needed! Only consumable potions appear here.
-            </div>
             {([
-              { key: 'potion'      as const, name: 'Potion',       heal: 20, count: potions.potion      },
-              { key: 'superPotion' as const, name: 'Super Potion', heal: 60, count: potions.superPotion },
+              { key: 'potion'      as const, name: 'Potion',       heal: 20,  count: potions.potion      },
+              { key: 'superPotion' as const, name: 'Super Potion', heal: 60,  count: potions.superPotion },
+              { key: 'hyperPotion' as const, name: 'Hyper Potion', heal: 120, count: potions.hyperPotion },
             ]).map((p) => (
               <button key={p.key} onClick={() => p.count > 0 && handleUsePotion(p.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: D.card, border: `2px solid ${p.count > 0 ? D.green : D.border}`, borderRadius: 14, padding: '12px 14px', cursor: p.count > 0 ? 'pointer' : 'not-allowed', marginBottom: 8, fontFamily: FONT_UI, opacity: p.count > 0 ? 1 : 0.4, transition: 'all .15s' }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: '#0a1a0a', border: `2px solid ${D.green}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🧪</div>
+                <img src={getItemSpriteUrl(p.key)} alt={p.name} style={{ width: 38, height: 38, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }} />
                 <div style={{ flex: 1, textAlign: 'left' }}>
                   <div style={{ fontSize: 14, fontWeight: 800 }}>{p.name}</div>
                   <div style={{ fontSize: 12, color: D.green, fontWeight: 700 }}>Restores +{p.heal} HP</div>
@@ -980,7 +984,7 @@ export default function BattleScreen() {
                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: D.card, border: `2px solid ${count > 0 ? D.border : D.border}`, borderRadius: 14, padding: '12px 14px', cursor: count > 0 ? 'pointer' : 'not-allowed', marginBottom: 8, fontFamily: FONT_UI, opacity: count > 0 ? 1 : 0.35, transition: 'border-color .15s' }}
                     onMouseEnter={(e) => { if (count > 0) e.currentTarget.style.borderColor = tc.fg; }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = D.border; }}>
-                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: tc.bg, border: `2px solid ${tc.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🔴</div>
+                    <img src={getBallSpriteUrl(ball.consumableKey)} alt={ball.name} style={{ width: 38, height: 38, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ flex: 1, textAlign: 'left' }}>
                       <div style={{ fontSize: 14, fontWeight: 800 }}>{ball.name}</div>
                       <div style={{ fontSize: 12, color: tc.fg, fontWeight: 700 }}>Base catch rate: {ball.basePercent}%</div>
@@ -1005,7 +1009,7 @@ export default function BattleScreen() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 20 }}>🔴</span>
+                    <img src={getBallSpriteUrl(selectedBall.consumableKey)} alt={selectedBall.name} style={{ width: 22, height: 22, imageRendering: 'pixelated', objectFit: 'contain' }} />
                     <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{selectedBall.name.toUpperCase()}</span>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: zoneCol, display: 'inline-block' }} />
                   </div>

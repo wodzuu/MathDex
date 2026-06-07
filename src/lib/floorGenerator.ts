@@ -59,13 +59,12 @@ function pickFromPool(floor: number, bossOnly: boolean): PoolEntry {
 
 // ── Helper: enemy level ───────────────────────────────────────────────────────
 
-function pickLevel(floor: number, isBoss: boolean): number {
-  // Regular encounters start ~3 levels above floor so early enemies
-  // are a real threat to a fresh level-5 Pikachu (Diablo zone-level principle).
-  // Bosses are a further +4 above that baseline.
-  const base     = isBoss ? floor + 4 : floor + 3;
-  const variance = Math.round((Math.random() - 0.5) * 4);
-  return Math.max(2, base + variance);
+/**
+ * Enemy level scales with the player's strongest Pokémon, not the floor:
+ *   level = max(1, partyHighestLevel + (0|1|2) - 1)   →   partyHighest ±1.
+ */
+function pickLevel(partyHighestLevel: number): number {
+  return Math.max(1, partyHighestLevel + Math.floor(Math.random() * 3) - 1);
 }
 
 // ── Helper: item rarity for chests and boss drops ────────────────────────────
@@ -95,9 +94,10 @@ function makeEncounterRoom(
   mandatory: boolean,
   isBoss: boolean,
   itemSystemActive: boolean,
+  partyHighestLevel: number,
 ): Room {
   const entry    = pickFromPool(floor, isBoss);
-  const level    = pickLevel(floor, isBoss);
+  const level    = pickLevel(partyHighestLevel);
   const rarity: PokemonRarity = isBoss ? 'Rare' : entry.rarity;
 
   const encounter: EncounterData = {
@@ -141,6 +141,7 @@ function makeChestRoom(id: string, floor: number): Room {
 export function generateFloor(
   floorNumber: number,
   itemSystemActive: boolean,
+  partyHighestLevel: number,
 ): DungeonFloor {
   const isBossFloor  = floorNumber % 5 === 0;
   const isTutorial   = floorNumber <= 3; // floors 1–3: fixed 3 mandatory encounters, no optionals
@@ -152,16 +153,16 @@ export function generateFloor(
 
   if (isTutorial) {
     // ── Floors 1–3: exactly 3 mandatory encounters, no optional rooms ─────────
-    rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive));
-    rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive));
-    rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive));
+    rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive, partyHighestLevel));
+    rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive, partyHighestLevel));
+    rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive, partyHighestLevel));
   } else {
     // ── Room 1: first mandatory encounter ──────────────────────────────────────
-    rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive));
+    rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive, partyHighestLevel));
 
     // ── Room 2: optional (50% encounter, 50% chest) ──────────────────────────
     if (Math.random() < 0.5) {
-      rooms.push(makeEncounterRoom(nextId(), floorNumber, false, false, itemSystemActive));
+      rooms.push(makeEncounterRoom(nextId(), floorNumber, false, false, itemSystemActive, partyHighestLevel));
     } else {
       rooms.push(makeChestRoom(nextId(), floorNumber));
     }
@@ -173,10 +174,10 @@ export function generateFloor(
 
     // ── Room 4: second mandatory encounter OR boss ────────────────────────────
     if (isBossFloor) {
-      rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive));
-      rooms.push(makeEncounterRoom(nextId(), floorNumber, true, true, itemSystemActive));
+      rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive, partyHighestLevel));
+      rooms.push(makeEncounterRoom(nextId(), floorNumber, true, true, itemSystemActive, partyHighestLevel));
     } else {
-      rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive));
+      rooms.push(makeEncounterRoom(nextId(), floorNumber, true, false, itemSystemActive, partyHighestLevel));
     }
   }
 

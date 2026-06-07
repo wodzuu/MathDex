@@ -22,10 +22,11 @@ interface DungeonState {
 
   /**
    * Generate rooms for the given floor number and set them as the active floor.
-   * Clears any previously cleared-room state automatically.
+   * Clears any previously cleared-room state automatically. Enemy levels scale
+   * with partyHighestLevel (the strongest party Pokémon's level).
    * Called by TownScreen before navigating, and by DungeonScreen on mount/descend.
    */
-  enterFloor: (floorNumber: number) => void;
+  enterFloor: (floorNumber: number, partyHighestLevel: number) => void;
 
   /** Mark a single room as cleared (persists for the current floor session). */
   clearRoom: (roomId: string) => void;
@@ -39,9 +40,9 @@ export const useDungeonStore = create<DungeonState>()(
     (set) => ({
       floor: null,
 
-      enterFloor: (floorNumber) =>
+      enterFloor: (floorNumber, partyHighestLevel) =>
         set(
-          { floor: generateFloor(floorNumber, false) },
+          { floor: generateFloor(floorNumber, false, partyHighestLevel) },
           false,
           'enterFloor',
         ),

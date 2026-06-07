@@ -64,9 +64,9 @@ export default function PCScreen() {
   const maxPartySize = trainer.maxPartySize;
   const boxIds       = getPcBoxPokemon(trainer).map(p => p.instanceId);
 
-  // Display data via the shared hook. Box Pokémon are never the lead.
+  // Display data via the shared hook. PC Terminal never marks a lead.
   const partyDisplay = usePartyDisplay(trainer.party, trainer.caughtPokemon);
-  const boxDisplay   = usePartyDisplay(boxIds, trainer.caughtPokemon).map(p => ({ ...p, isLead: false }));
+  const boxDisplay   = usePartyDisplay(boxIds, trainer.caughtPokemon);
 
   const handleDeposit  = useCallback((instanceId: string) => depositPokemon(instanceId),  [depositPokemon]);
   const handleWithdraw = useCallback((instanceId: string) => withdrawPokemon(instanceId), [withdrawPokemon]);

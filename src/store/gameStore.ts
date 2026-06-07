@@ -23,6 +23,20 @@ export function isItemSystemActive(trainer: Trainer): boolean {
   return trainer.caughtPokemon.some(p => levelFromExp(p.totalExp) >= 20);
 }
 
+/** Highest level among the active party (1 if the party is empty). */
+export function getPartyHighestLevel(trainer: Trainer): number {
+  const levels = getPartyPokemon(trainer).map(p => levelFromExp(p.totalExp));
+  return levels.length ? Math.max(...levels) : 1;
+}
+
+/** instanceId of the active fighter — the stored lead if valid, else party[0]. */
+export function getLeadInstanceId(trainer: Trainer): string {
+  if (trainer.leadInstanceId && trainer.party.includes(trainer.leadInstanceId)) {
+    return trainer.leadInstanceId;
+  }
+  return trainer.party[0] ?? '';
+}
+
 // ── Internal helper ───────────────────────────────────────────────────────────
 
 function patchTrainer(
@@ -44,6 +58,7 @@ interface GameStoreState extends GameState {
   updatePokemon:    (instanceId: string, patch: Partial<OwnedPokemon>) => void;
   addCaughtPokemon: (pokemon: Omit<OwnedPokemon, 'instanceId'>) => OwnedPokemon;
   setParty:         (partyIds: string[]) => void;
+  setLead:          (instanceId: string) => void;
   depositPokemon:   (instanceId: string) => void;
   withdrawPokemon:  (instanceId: string) => void;
   healParty:        () => void;
@@ -86,6 +101,9 @@ export const useGameStore = create<GameStoreState>()(
 
       setParty: (partyIds) =>
         set((s) => patchTrainer(s, () => ({ party: partyIds })), false, 'setParty'),
+
+      setLead: (instanceId) =>
+        set((s) => patchTrainer(s, () => ({ leadInstanceId: instanceId })), false, 'setLead'),
 
       depositPokemon: (instanceId) =>
         set((s) => patchTrainer(s, (t) => ({

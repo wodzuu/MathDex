@@ -29,15 +29,17 @@ function StatChip({ label, value }: { label: string; value: number }) {
 
 interface PartyMemberCardProps {
   pk: PartyDisplayPokemon;
-  /** Highlight the lead with a yellow frame (Dungeon only). */
+  /** Marks this card as the lead/active fighter — shows the LEAD tag. */
+  isLead?: boolean;
+  /** When the card is the lead, also draw the yellow frame (Dungeon only). */
   frameLead?: boolean;
   /** Makes the card tappable (e.g. to choose the active fighter). */
   onClick?: () => void;
 }
 
-export default function PartyMemberCard({ pk, frameLead = false, onClick }: PartyMemberCardProps) {
-  const spriteSz   = pk.isLead ? 48 : 38;
-  const showFrame  = frameLead && pk.isLead;
+export default function PartyMemberCard({ pk, isLead = false, frameLead = false, onClick }: PartyMemberCardProps) {
+  const spriteSz   = isLead ? 48 : 38;
+  const showFrame  = frameLead && isLead;
   const tc         = typeColors(pk.type);
 
   return (
@@ -65,7 +67,7 @@ export default function PartyMemberCard({ pk, frameLead = false, onClick }: Part
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: FONT_UI, fontSize: 13, fontWeight: 800, color: D.white }}>{pk.name}</span>
           <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>Lv{pk.level}</span>
-          {pk.isLead && (
+          {isLead && (
             <span style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: D.darker, background: D.yellow, borderRadius: 4, padding: '2px 5px', letterSpacing: 0.5 }}>LEAD</span>
           )}
           <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, padding: '1px 7px', borderRadius: 99, textTransform: 'uppercase', background: tc.bg, color: tc.fg, border: `1px solid ${tc.bdr}` }}>

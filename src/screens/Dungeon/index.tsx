@@ -15,7 +15,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useShallow }               from 'zustand/react/shallow';
 
-import { useGameStore, useActiveTrainer, getPartyPokemon, isItemSystemActive } from '../../store/gameStore';
+import { useGameStore, useActiveTrainer, getPartyPokemon, isItemSystemActive, getPartyHighestLevel, getLeadInstanceId } from '../../store/gameStore';
 import { useDungeonStore } from '../../store/dungeonStore';
 import { useBattleStore }  from '../../store/battleStore';
 import { usePartyDisplay } from '../../hooks/usePartyDisplay';
@@ -301,11 +301,11 @@ export default function DungeonScreen() {
   const location = useLocation();
 
   const trainer = useActiveTrainer();
-  const { setCurrentFloor, setMaxPartySize, setParty } = useGameStore(
+  const { setCurrentFloor, setMaxPartySize, setLead } = useGameStore(
     useShallow((gs) => ({
       setCurrentFloor:  gs.setCurrentFloor,
       setMaxPartySize:  gs.setMaxPartySize,
-      setParty:         gs.setParty,
+      setLead:          gs.setLead,
     })),
   );
 
@@ -322,7 +322,7 @@ export default function DungeonScreen() {
   // ── Floor generation lifecycle ─────────────────────────────────────────────
   useEffect(() => {
     if (dungeonFloor?.floorNumber !== currentFloor) {
-      enterFloor(currentFloor);
+      enterFloor(currentFloor, getPartyHighestLevel(trainer));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentFloor]);
@@ -366,15 +366,12 @@ export default function DungeonScreen() {
 
   // ── Party display ──────────────────────────────────────────────────────────
   const displayParty  = usePartyDisplay(trainer.party, trainer.caughtPokemon);
-  const leadPokemon   = party[0] ?? null;
+  const leadId        = getLeadInstanceId(trainer);
+  const leadPokemon   = party.find((p) => p.instanceId === leadId) ?? party[0] ?? null;
   const totalPotions  = trainer.potions.potion + trainer.potions.superPotion + trainer.potions.hyperPotion;
 
-  // Choose which party Pokémon leads (fights). Moving it to slot 0 makes it the
-  // lead, so usePartyDisplay marks it as such (yellow frame + LEAD tag) instantly.
-  const handleSelectLead = useCallback((instanceId: string) => {
-    if (trainer.party[0] === instanceId) return;
-    setParty([instanceId, ...trainer.party.filter((id) => id !== instanceId)]);
-  }, [trainer.party, setParty]);
+  // Choose which party Pokémon leads (fights) — marks it in place (no reorder).
+  const handleSelectLead = useCallback((instanceId: string) => setLead(instanceId), [setLead]);
 
   // ── Derived encounter data from the generated floor ────────────────────────
   const encounterRooms = useMemo(
@@ -418,9 +415,9 @@ export default function DungeonScreen() {
   const handleDescend = useCallback(() => {
     const nextFloor = currentFloor + 1;
     setCurrentFloor(nextFloor);
-    enterFloor(nextFloor);   // regenerates → all rooms uncleared → idx resets to 0
+    enterFloor(nextFloor, getPartyHighestLevel(trainer));   // regenerates → all rooms uncleared → idx resets to 0
     setBattlePhase('pre');
-  }, [currentFloor, setCurrentFloor, enterFloor]);
+  }, [currentFloor, setCurrentFloor, enterFloor, trainer]);
 
   const handleReturnToTown = useCallback(() => navigate('/'), [navigate]);
 
@@ -475,6 +472,7 @@ export default function DungeonScreen() {
             <PartyMemberCard
               key={pk.instanceId}
               pk={pk}
+              isLead={pk.instanceId === leadId}
               frameLead
               onClick={() => handleSelectLead(pk.instanceId)}
             />
@@ -506,7 +504,7 @@ export default function DungeonScreen() {
             <EncounterCard
               encounter={currentEncounter}
               battlePhase={battlePhase}
-              leadDexNumber={displayParty[0]?.dexNumber ?? 25}
+              leadDexNumber={displayParty.find((p) => p.instanceId === leadId)?.dexNumber ?? 25}
               itemSystemActive={itemActive}
               isBossFloor={dungeonFloor.isBossFloor}
               floorNumber={currentFloor}
