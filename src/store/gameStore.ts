@@ -68,11 +68,11 @@ interface GameStoreState extends GameState {
   adjustPokeballs:  (key: keyof Pokeballs, delta: number) => void;
   adjustPotions:    (key: keyof Potions,   delta: number) => void;
 
-  setCurrentFloor: (floor: number) => void;
   setMaxPartySize: (size: number)  => void;
 
   recordMathAttempt:    (topic: MathTopic, correct: boolean) => void;
   incrementBattleCount: () => void;
+  recordOpponentLevel:  (level: number) => void;
 }
 
 const EMPTY: GameState = { version: 1, activeTrainerId: '', trainers: [], settings: {} };
@@ -148,12 +148,6 @@ export const useGameStore = create<GameStoreState>()(
           potions: { ...t.potions, [key]: Math.max(0, t.potions[key] + delta) },
         })), false, 'adjustPotions'),
 
-      setCurrentFloor: (floor) =>
-        set((s) => patchTrainer(s, (t) => ({
-          currentFloor: floor,
-          deepestFloor: Math.max(t.deepestFloor, floor),
-        })), false, 'setCurrentFloor'),
-
       setMaxPartySize: (size) =>
         set((s) => patchTrainer(s, () => ({ maxPartySize: size })), false, 'setMaxPartySize'),
 
@@ -180,6 +174,13 @@ export const useGameStore = create<GameStoreState>()(
         set((s) => patchTrainer(s, (t) => ({
           stats: { ...t.stats, totalBattles: t.stats.totalBattles + 1 },
         })), false, 'incrementBattleCount'),
+
+      recordOpponentLevel: (level) =>
+        set((s) => patchTrainer(s, (t) => {
+          const best = Math.max(t.stats.highestOpponentLevel ?? 0, level);
+          if (best === (t.stats.highestOpponentLevel ?? 0)) return {};
+          return { stats: { ...t.stats, highestOpponentLevel: best } };
+        }), false, 'recordOpponentLevel'),
     }),
     { name: 'MathDex/GameStore' },
   ),

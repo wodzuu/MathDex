@@ -8,12 +8,12 @@ import type { Pokeballs, Potions } from '../types/gameState';
 import { D, FONT_PIXEL, FONT_UI, typeColors } from '../styles/tokens';
 import { getMove } from '../data/moves';
 import { getSpecies } from '../data/species';
-import { calcHp, calcAllStats, calcDamage, catchProbability, hpZone, battleTimerSeconds, expGained, levelFromExp, expToLevel } from '../lib/formulas';
+import { calcHp, calcAllStats, calcDamage, catchProbability, hpZone, expGained, levelFromExp, expToLevel } from '../lib/formulas';
 import { getSpriteUrl, getBallSpriteUrl, getItemSpriteUrl } from '../lib/sprites';
+import RarityBadge from '../components/RarityBadge';
 import { generateBattlePuzzle, effectiveMultiplier } from '../lib/mathProblemGenerator';
 import { useBattleStore }  from '../store/battleStore';
 import { useGameStore, useActiveTrainer, getPartyPokemon }    from '../store/gameStore';
-import { useDungeonStore } from '../store/dungeonStore';
 import type { MathTopic } from '../types/math';
 
 // ── Local types ───────────────────────────────────────────────────────────────
@@ -55,25 +55,6 @@ const BALLS: BallOption[] = [
 const POTION_HEAL: Record<keyof Potions, number> = { potion: 20, superPotion: 60, hyperPotion: 120 };
 const POTION_LABEL: Record<keyof Potions, string> = { potion: 'Potion', superPotion: 'Super Potion', hyperPotion: 'Hyper Potion' };
 
-// HP-zone bonus percentage shown in the catch puzzle equation.
-function catchHpBonus(hpPct: number): number {
-  if (hpPct < 25) return 40;
-  if (hpPct < 50) return 20;
-  return 0;
-}
-
-function generateCatchPuzzle(ballPercent: number, enemyHpPct: number, floor: number): MathPuzzle {
-  const bonus = catchHpBonus(enemyHpPct);
-  return {
-    id: Date.now(),
-    equation: `${ballPercent} + ${bonus} = ?`,
-    answer: ballPercent + bonus,
-    topic: 'addition' as MathTopic,
-    floor,
-    context: 'battle',
-    timeLimitSeconds: battleTimerSeconds(floor),
-  };
-}
 
 // ── Status-move effects ───────────────────────────────────────────────────────
 // Status moves (power 0) don't deal damage — instead they apply a battle stat
@@ -114,7 +95,6 @@ function softenFactor(factor: number, correct: boolean): number {
 
 // ── Demo data — used when no active battle in the store ───────────────────────
 
-const DEMO_FLOOR = 8;
 const DEMO_ENEMY_TYPES: readonly PokeType[] = ['Water'];
 const DEMO_PLAYER_TYPE: PokeType = 'Electric';
 
@@ -184,7 +164,6 @@ export default function BattleScreen() {
   // ── Store reads ─────────────────────────────────────────────────────────────
   const battle    = useBattleStore((s) => s.battle);
   const endBattle = useBattleStore((s) => s.endBattle);
-  const dungeonFloor = useDungeonStore((s) => s.floor);
 
   const trainer = useActiveTrainer();
   const { addCaughtPokemon, adjustPotions, adjustPokeballs, recordMathAttempt, updatePokemon, healParty } = useGameStore(
@@ -199,23 +178,12 @@ export default function BattleScreen() {
   );
 
   const party        = getPartyPokemon(trainer);
-  const currentFloor = trainer.currentFloor;
 
   // ── Derive active context (real vs demo) ────────────────────────────────────
   const playerPokemon  = party.find((p) => p.instanceId === battle?.activePlayerInstanceId) ?? null;
   const playerSpecies  = playerPokemon ? getSpecies(playerPokemon.speciesId) : null;
   const enemySpecies   = battle ? getSpecies(battle.enemy.speciesId) : null;
 
-  const activeFloor      = battle ? currentFloor : DEMO_FLOOR;
-
-  // Floor encounter progress
-  const encounterRooms   = (dungeonFloor?.rooms ?? []).filter(
-    (r) => r.type === 'encounter' || r.type === 'boss',
-  );
-  const clearedCount     = encounterRooms.filter((r) => r.cleared).length;
-  const encounterCurrent = battle ? clearedCount + 1 : 3;
-  const encounterTotal   = battle ? encounterRooms.length || 1 : 5;
-  const progressPct      = Math.min(100, Math.round((encounterCurrent / encounterTotal) * 100));
   const activeEnemyTypes  = (battle && enemySpecies ? enemySpecies.types  : DEMO_ENEMY_TYPES)  as readonly PokeType[];
   const activePlayerTypes = (playerSpecies          ? playerSpecies.types  : [DEMO_PLAYER_TYPE]) as readonly PokeType[];
   const activePlayerType  = activePlayerTypes[0];
@@ -229,6 +197,10 @@ export default function BattleScreen() {
 
   const enemyMaxHp     = enemyStats?.maxHp ?? null;
   const playerMaxHp    = playerStats?.maxHp ?? null;
+
+  // Turn order is decided by the Speed stat — the faster Pokémon strikes first
+  // each turn. Ties go to the player. Spec §4.1.
+  const playerGoesFirst = (playerStats?.speed ?? 0) >= (enemyStats?.speed ?? 0);
 
   // Build real move slots from the player Pokémon's moves
   const realMoves: MoveSlot[] = (playerPokemon?.moves ?? []).flatMap((lm) => {
@@ -254,8 +226,10 @@ export default function BattleScreen() {
   // Display info
   const playerName      = playerSpecies?.name.toUpperCase() ?? 'PIKACHU';
   const playerDexNumber = playerSpecies?.dexNumber ?? 25;
+  const playerRarity    = playerSpecies?.rarity ?? 'Uncommon';
   const enemyName       = enemySpecies?.name.toUpperCase() ?? 'GYARADOS';
   const enemyDexNumber  = enemySpecies?.dexNumber ?? 130;
+  const enemyRarity     = enemySpecies?.rarity ?? 'Rare';
 
   const expBarPct = (() => {
     if (!playerPokemon) return 62;
@@ -278,6 +252,14 @@ export default function BattleScreen() {
   const [floats, setFloats]             = useState<DmgFloat[]>([]);
   const [potMsg, setPotMsg]             = useState<string | null>(null);
   const [statusMsg, setStatusMsg]       = useState<string | null>(null);
+  // Banner attributing the wild Pokémon's hit (so an enemy-first strike never
+  // looks like the player damaging themselves).
+  const [enemyTurnMsg, setEnemyTurnMsg] = useState<string | null>(null);
+  // UI mirrors of the status-move stat modifiers so the Atk/Def chips visibly
+  // change. The refs (below) drive the damage math; these drive the display.
+  const [enemyAtkMult,  setEnemyAtkMult]  = useState(1);
+  const [enemyDefMult,  setEnemyDefMult]  = useState(1);
+  const [playerDefMult, setPlayerDefMult] = useState(1);
   const [blackout, setBlackout]         = useState(false);
   const [potions, setPotions]           = useState({
     potion:      trainer.potions.potion,
@@ -310,6 +292,12 @@ export default function BattleScreen() {
   const enemyAtkMultRef = useRef(1);
   const enemyDefMultRef = useRef(1);
   const playerDefMultRef = useRef(1);
+  // EXP is awarded incrementally as damage is dealt: each hit grants
+  // (totalEnemyExp × HP-fraction-removed) to the Pokémon that dealt it. This ref
+  // accumulates the per-Pokémon totals (keyed by instanceId) for the end-of-battle
+  // summary. The EXP is persisted to game state immediately on every hit, so a
+  // Pokémon keeps what it earned even if the enemy is later caught. Spec §4.7.
+  const expAccRef = useRef<Record<string, { name: string; dexNumber: number; expAdded: number; oldLevel: number }>>({});
 
   useEffect(() => { moveRef.current      = selectedMove; }, [selectedMove]);
   useEffect(() => { resultRef.current    = result; }, [result]);
@@ -317,6 +305,43 @@ export default function BattleScreen() {
   useEffect(() => { focusPipsRef.current = focusPips; }, [focusPips]);
   useEffect(() => { playerHpPctRef.current = playerHpPct; }, [playerHpPct]);
   useEffect(() => () => { if (tiRef.current) clearInterval(tiRef.current); }, []);
+
+  // ── Incremental EXP award ────────────────────────────────────────────────────
+  // Grant a slice of EXP to the currently-active Pokémon for damage it just dealt.
+  // Persisted to game state immediately so the EXP bar updates live and survives a
+  // later catch. Accumulated per-Pokémon in expAccRef for the post-battle summary.
+  const awardExp = useCallback((expShare: number) => {
+    if (expShare <= 0) return;
+    const bt = useBattleStore.getState().battle;
+    if (!bt) return;
+    const instanceId = bt.activePlayerInstanceId;
+    const store = useGameStore.getState();
+    const t  = store.trainers.find((x) => x.id === store.activeTrainerId);
+    const pk = t?.caughtPokemon.find((p) => p.instanceId === instanceId);
+    if (!pk) return;
+    const spec = getSpecies(pk.speciesId);
+    const acc  = expAccRef.current[instanceId] ?? {
+      name:      spec?.name ?? pk.speciesId,
+      dexNumber: spec?.dexNumber ?? 0,
+      expAdded:  0,
+      oldLevel:  levelFromExp(pk.totalExp),
+    };
+    acc.expAdded += expShare;
+    expAccRef.current[instanceId] = acc;
+    store.updatePokemon(instanceId, { totalExp: pk.totalExp + expShare });
+  }, []);
+
+  // Build the end-of-battle EXP summary from everything awarded this battle,
+  // reading each Pokémon's final level fresh from game state.
+  const buildExpGains = useCallback(() => {
+    const store = useGameStore.getState();
+    const t = store.trainers.find((x) => x.id === store.activeTrainerId);
+    return Object.entries(expAccRef.current).map(([instanceId, rec]) => {
+      const pk = t?.caughtPokemon.find((p) => p.instanceId === instanceId);
+      const newLevel = pk ? levelFromExp(pk.totalExp) : rec.oldLevel;
+      return { instanceId, name: rec.name, dexNumber: rec.dexNumber, expAdded: rec.expAdded, oldLevel: rec.oldLevel, newLevel };
+    });
+  }, []);
 
   // ── Victory / flee navigation ───────────────────────────────────────────────
 
@@ -328,36 +353,29 @@ export default function BattleScreen() {
       return;
     }
 
-    const { earnPokeDollars: epd, updatePokemon: upd } = useGameStore.getState();
     const gs = useGameStore.getState();
     const activeTrainer = gs.trainers.find(t => t.id === gs.activeTrainerId)!;
-    const currentParty  = getPartyPokemon(activeTrainer);
 
-    const enemySpec  = getSpecies(currentBattle.enemy.speciesId);
-    const baseExp    = enemySpec?.baseExp ?? 64;
-    const expReward  = expGained(baseExp, enemyLevel);
-    const pokeReward = Math.floor(enemyLevel * 10 + currentFloor * 3);
+    // EXP was already granted incrementally per hit — here we only persist the
+    // active Pokémon's battle-damaged HP and pay out Pokédollars.
+    const activeId = currentBattle.activePlayerInstanceId;
+    const activePk = activeTrainer.caughtPokemon.find((p) => p.instanceId === activeId);
+    if (activePk) {
+      const spec = getSpecies(activePk.speciesId);
+      if (spec) {
+        const lvl   = levelFromExp(activePk.totalExp);
+        const maxHp = calcHp(spec.baseStats.hp, lvl);
+        gs.updatePokemon(activeId, { currentHp: Math.max(1, Math.round(playerHpPctRef.current / 100 * maxHp)) });
+      }
+    }
 
-    const expGains = currentBattle.participantInstanceIds.flatMap((instanceId) => {
-      const pk = currentParty.find((p) => p.instanceId === instanceId);
-      if (!pk) return [];
-      const spec     = getSpecies(pk.speciesId);
-      const oldLevel = levelFromExp(pk.totalExp);
-      const newExp   = pk.totalExp + expReward;
-      const newLevel = levelFromExp(newExp);
-      const isActive = instanceId === currentBattle.activePlayerInstanceId;
-      const currentHp = isActive && spec
-        ? Math.max(1, Math.round(playerHpPctRef.current / 100 * calcHp(spec.baseStats.hp, oldLevel)))
-        : undefined;
-      upd(instanceId, { totalExp: newExp, ...(currentHp !== undefined && { currentHp }) });
-      return [{ instanceId, name: spec?.name ?? pk.speciesId, dexNumber: spec?.dexNumber ?? 0, expAdded: expReward, oldLevel, newLevel }];
-    });
-
-    epd(pokeReward);
+    const pokeReward = Math.floor(enemyLevel * 12);
+    const expGains   = buildExpGains();
+    gs.earnPokeDollars(pokeReward);
     endBattle();
     navigate('/dungeon', { state: { battleOutcome: 'victory', expGains, pokeReward } });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endBattle, navigate, enemyLevel, currentFloor]);
+  }, [endBattle, navigate, enemyLevel, buildExpGains]);
 
   const handleFlee = useCallback(() => {
     const currentBattle = useBattleStore.getState().battle;
@@ -392,6 +410,61 @@ export default function BattleScreen() {
       navigate('/', { state: { blackedOut: true } });
     }, 2200);
   }, [healParty, endBattle, navigate]);
+
+  // ── Enemy attack ─────────────────────────────────────────────────────────────
+  // The wild Pokémon strikes the player. Applies damage, shows the attribution
+  // banner + float, and returns whether the player fainted. Used both for the
+  // per-turn counterattack and the faster-enemy opening strike.
+  const enemyAttack = useCallback((): boolean => {
+    let enemyDamagePct = 5;
+    if (enemyStats && playerStats && playerMaxHp) {
+      const enemyDmg = calcDamage({
+        movePower:          40,
+        itemBonus:          0,
+        // Apply status-move modifiers: enemy ATK debuff + player DEF buff.
+        attackerAtk:        Math.max(1, enemyStats.attack   * enemyAtkMultRef.current),
+        defenderDef:        Math.max(1, playerStats.defense * playerDefMultRef.current),
+        attackerLevel:      enemyLevel,
+        typeMultiplier:     1,
+        stabMultiplier:     1,
+        critMultiplier:     1,
+        accuracyMultiplier: 1,
+      });
+      enemyDamagePct = Math.max(1, Math.min(100, Math.round((enemyDmg / playerMaxHp) * 100)));
+    }
+    const newPlayerHp = Math.max(0, playerHpPctRef.current - enemyDamagePct);
+    setPlayerHpPct(newPlayerHp);
+    playerHpPctRef.current = newPlayerHp;
+    // Attribute the hit to the wild Pokémon so it never reads as self-damage.
+    setEnemyTurnMsg(`Wild ${enemyName} attacked!`);
+    setTimeout(() => setEnemyTurnMsg(null), 1400);
+    // Float the damage received over the player's avatar.
+    const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDamagePct / 100 * playerMaxHp)) : enemyDamagePct;
+    const pfId   = Date.now();
+    setFloats((f) => [...f, { id: pfId, amount: dmgAmt, correct: false, crit: false, target: 'player' }]);
+    setTimeout(() => setFloats((f) => f.filter((x) => x.id !== pfId)), 1800);
+    // Faint when the actual (rounded) HP reaches 0 — not just the percentage,
+    // which can sit at ~1% while displaying 0 HP.
+    const actualHp = playerMaxHp ? Math.round(newPlayerHp / 100 * playerMaxHp) : newPlayerHp;
+    return actualHp <= 0;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enemyStats, playerStats, playerMaxHp, enemyLevel, enemyName]);
+
+  // ── Faster-enemy opening strike ──────────────────────────────────────────────
+  // When the wild Pokémon is faster it gets one free hit at the very start of the
+  // battle — clearly the enemy "going first" — before the player acts. Thereafter
+  // every turn is the intuitive player-attacks-then-enemy-counters loop, so the
+  // player's own move never appears to damage themselves.
+  const openingStrikeRef = useRef(false);
+  useEffect(() => {
+    if (!battle || playerGoesFirst) return;
+    const t = setTimeout(() => {
+      if (openingStrikeRef.current) return;   // fire exactly once (StrictMode-safe)
+      openingStrikeRef.current = true;
+      if (enemyAttack()) handleBlackout();
+    }, 650);
+    return () => clearTimeout(t);
+  }, [battle, playerGoesFirst, enemyAttack, handleBlackout]);
 
   // ── Attack resolution ───────────────────────────────────────────────────────
 
@@ -443,78 +516,72 @@ export default function BattleScreen() {
       ? Math.min(100, Math.round((damage / enemyMaxHp) * 100))
       : Math.max(1, damage);
 
-    // Status move — additionally apply its battle stat modifier + show a message.
-    if (slot.power === 0) {
-      const eff    = statusEffectFor(slot.moveId);
-      const factor = softenFactor(eff.factor, correct);
-      if (eff.target === 'enemyAtk')  enemyAtkMultRef.current  *= factor;
-      if (eff.target === 'enemyDef')  enemyDefMultRef.current  *= factor;
-      if (eff.target === 'playerDef') playerDefMultRef.current *= factor;
-      setStatusMsg(correct ? eff.msg : `${eff.msg} (weak)`);
-      setTimeout(() => setStatusMsg(null), 1400);
+    // ── The player's hit — applies status effect, enemy damage, EXP, focus,
+    //    the damage float and records the math attempt. Returns whether the
+    //    enemy fainted.
+    const performPlayerHit = (): boolean => {
+      // Status move — additionally apply its battle stat modifier + show a message.
+      if (slot.power === 0) {
+        const eff    = statusEffectFor(slot.moveId);
+        const factor = softenFactor(eff.factor, correct);
+        if (eff.target === 'enemyAtk')  { enemyAtkMultRef.current  *= factor; setEnemyAtkMult(enemyAtkMultRef.current); }
+        if (eff.target === 'enemyDef')  { enemyDefMultRef.current  *= factor; setEnemyDefMult(enemyDefMultRef.current); }
+        if (eff.target === 'playerDef') { playerDefMultRef.current *= factor; setPlayerDefMult(playerDefMultRef.current); }
+        setStatusMsg(correct ? eff.msg : `${eff.msg} (weak)`);
+        setTimeout(() => setStatusMsg(null), 1400);
+      }
+
+      const oldEnemyHp = enemyHpRef.current;
+      const newEnemyHp = Math.max(0, oldEnemyHp - damagePct);
+      if (damagePct > 0) {
+        setEnemyHpPct(newEnemyHp);
+        enemyHpRef.current = newEnemyHp;
+      }
+
+      // Award EXP immediately for the HP fraction actually removed (capped at the
+      // enemy's remaining HP), proportional to the enemy's total EXP value. The
+      // attacker is the currently-active Pokémon. Sum across all hits ≈ full reward.
+      const hpFractionRemoved = oldEnemyHp - newEnemyHp;   // 0–100 (% of max HP)
+      if (hpFractionRemoved > 0) {
+        const totalExpReward = expGained(enemySpecies?.baseExp ?? 64, enemyLevel);
+        awardExp(Math.round(totalExpReward * hpFractionRemoved / 100));
+      }
+
+      setFocusPips(isCrit ? 0 : correct ? Math.min(5, focusPipsRef.current + 1) : 0);
+
+      if (damagePct > 0) {
+        const floatId = Date.now();
+        setFloats((f) => [...f, { id: floatId, amount: damage, correct, crit: isCrit, target: 'enemy' }]);
+        setTimeout(() => setFloats((f) => f.filter((x) => x.id !== floatId)), 1800);
+      }
+
+      // Record the math attempt against the active puzzle's topic
+      recordMathAttempt(puzzleRef.current?.topic ?? ('addition' as MathTopic), correct);
+
+      return newEnemyHp <= 0;
+    };
+
+    const nextTurn = () => {
+      setPanel('moves');
+      setResult(null);
+      setAnswer('');
+      setSelectedMove(null);
+      setPuzzle(null);
+    };
+
+    // The player always initiates each turn by solving the puzzle, so their move
+    // lands first; the wild Pokémon then counterattacks. (A faster enemy already
+    // took its extra hit as the opening strike at the start of the battle.)
+    if (performPlayerHit()) {
+      setTimeout(handleVictory, 1200);   // enemy fainted — player wins outright
+      return;
     }
-
-    const newEnemyHp = Math.max(0, enemyHpRef.current - damagePct);
-    if (damagePct > 0) {
-      setEnemyHpPct(newEnemyHp);
-      enemyHpRef.current = newEnemyHp;
-    }
-
-    setFocusPips(isCrit ? 0 : correct ? Math.min(5, focusPipsRef.current + 1) : 0);
-
-    if (damagePct > 0) {
-      const floatId = Date.now();
-      setFloats((f) => [...f, { id: floatId, amount: damage, correct, crit: isCrit, target: 'enemy' }]);
-      setTimeout(() => setFloats((f) => f.filter((x) => x.id !== floatId)), 1800);
-    }
-
-    // Record the math attempt against the active puzzle's topic
-    recordMathAttempt(puzzleRef.current?.topic ?? ('addition' as MathTopic), correct);
-
-    if (newEnemyHp <= 0) {
-      setTimeout(handleVictory, 1200);
-    } else {
-      setTimeout(() => {
-        let enemyDamagePct = 5;
-        if (enemyStats && playerStats && playerMaxHp) {
-          const enemyDmg = calcDamage({
-            movePower:          40,
-            itemBonus:          0,
-            // Apply status-move modifiers: enemy ATK debuff + player DEF buff.
-            attackerAtk:        Math.max(1, enemyStats.attack   * enemyAtkMultRef.current),
-            defenderDef:        Math.max(1, playerStats.defense * playerDefMultRef.current),
-            attackerLevel:      enemyLevel,
-            typeMultiplier:     1,
-            stabMultiplier:     1,
-            critMultiplier:     1,
-            accuracyMultiplier: 1,
-          });
-          enemyDamagePct = Math.max(1, Math.min(100, Math.round((enemyDmg / playerMaxHp) * 100)));
-        }
-        const newPlayerHp = Math.max(0, playerHpPctRef.current - enemyDamagePct);
-        setPlayerHpPct(newPlayerHp);
-        playerHpPctRef.current = newPlayerHp;
-        // Float the damage received over the player's avatar.
-        const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDamagePct / 100 * playerMaxHp)) : enemyDamagePct;
-        const pfId   = Date.now();
-        setFloats((f) => [...f, { id: pfId, amount: dmgAmt, correct: false, crit: false, target: 'player' }]);
-        setTimeout(() => setFloats((f) => f.filter((x) => x.id !== pfId)), 1800);
-        // Faint when the actual (rounded) HP reaches 0 — not just the percentage,
-        // which can sit at ~1% while displaying 0 HP.
-        const actualHp = playerMaxHp ? Math.round(newPlayerHp / 100 * playerMaxHp) : newPlayerHp;
-        if (actualHp <= 0) {
-          handleBlackout();   // active Pokémon fainted — end battle, return to town
-          return;
-        }
-        setPanel('moves');
-        setResult(null);
-        setAnswer('');
-        setSelectedMove(null);
-        setPuzzle(null);
-      }, 1200);
-    }
+    setTimeout(() => {
+      if (enemyAttack()) { handleBlackout(); return; }
+      nextTurn();
+    }, 1200);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeEnemyTypes, activePlayerTypes, enemyMaxHp, playerMaxHp, playerStats, enemyStats, handleVictory, handleBlackout, recordMathAttempt]);
+  }, [activeEnemyTypes, activePlayerTypes, enemyMaxHp, playerMaxHp, playerStats, enemyStats, handleVictory, handleBlackout, recordMathAttempt, awardExp, enemyAttack]);
 
   // Timer expiry — attack math
   useEffect(() => {
@@ -544,7 +611,7 @@ export default function BattleScreen() {
       updatePokemon(playerPokemon.instanceId, { moves: newMoves });
     }
 
-    const puzzle       = generateBattlePuzzle(slot, activeFloor, activeEnemyTypes, 0);
+    const puzzle       = generateBattlePuzzle(enemyLevel);
     const initialTimer = puzzle.timeLimitSeconds ?? 6;
 
     setSelectedMove(slot);
@@ -579,15 +646,24 @@ export default function BattleScreen() {
     const label = POTION_LABEL[key];
     setPotions((p) => ({ ...p, [key]: p[key] - 1 }));
     adjustPotions(key, -1);
-    setPlayerHpPct((p) => Math.min(100, p + heal));
-    setPotMsg(`${playerName} restored +${heal} HP! (${label})`);
+    // `heal` is in HP points — convert to a percentage of this Pokémon's max HP
+    // before applying it to the 0–100 HP bar. Spec §5 (potions).
+    const beforePct = playerHpPctRef.current;
+    const healPct   = playerMaxHp ? (heal / playerMaxHp) * 100 : heal;
+    const newPct    = Math.min(100, beforePct + healPct);
+    setPlayerHpPct(newPct);
+    playerHpPctRef.current = newPct;
+    // Report the HP actually restored (capped when near full).
+    const restored = playerMaxHp ? Math.round((newPct - beforePct) / 100 * playerMaxHp) : heal;
+    setPotMsg(`${playerName} restored +${restored} HP! (${label})`);
     setTimeout(() => { setPotMsg(null); setPanel('action'); }, 1100);
   }
 
   // ── Ball / catch ───────────────────────────────────────────────────────────
 
   function handleSelectBall(ball: BallOption) {
-    const puzzle = generateCatchPuzzle(ball.basePercent, enemyHpPct, activeFloor);
+    // Catch challenges use the same level-scaled difficulty as battle attacks.
+    const puzzle = generateBattlePuzzle(enemyLevel);
     setSelectedBall(ball);
     setCatchPuzzle(puzzle);
     setCatchResult(null);
@@ -645,6 +721,8 @@ export default function BattleScreen() {
         const newPlayerHp = Math.max(0, playerHpPctRef.current - enemyDmg);
         setPlayerHpPct(newPlayerHp);
         playerHpPctRef.current = newPlayerHp;
+        setEnemyTurnMsg(`Wild ${enemyName} attacked!`);
+        setTimeout(() => setEnemyTurnMsg(null), 1400);
         const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDmg / 100 * playerMaxHp)) : enemyDmg;
         const pfId   = Date.now();
         setFloats((f) => [...f, { id: pfId, amount: dmgAmt, correct: false, crit: false, target: 'player' }]);
@@ -680,6 +758,10 @@ export default function BattleScreen() {
   const mathBg      = result === 'ok' ? '#0d2a10' : result === 'no' ? '#2a0d0d' : D.card;
   const totalPotions = potions.potion + potions.superPotion + potions.hyperPotion;
 
+  // Whether this wild species is already registered in the player's collection —
+  // shown in the ball-throwing view so the player knows if it's a new catch.
+  const alreadyCaught = !!battle && trainer.caughtPokemon.some((p) => p.speciesId === battle.enemy.speciesId);
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   // Blackout screen — shown briefly when the active Pokémon faints, before
@@ -702,16 +784,7 @@ export default function BattleScreen() {
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 0 80px', fontFamily: FONT_UI, color: D.white }}>
-
-      {/* Floor bar */}
-      <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${D.border}` }}>
-        <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>FLOOR {activeFloor}</span>
-        <div style={{ flex: 1, height: 4, background: '#111', border: `1px solid ${D.border}`, borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ width: `${progressPct}%`, height: '100%', background: D.yellow, transition: 'width .4s' }} />
-        </div>
-        <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{encounterCurrent}/{encounterTotal}</span>
-      </div>
+    <div style={{ maxWidth: 420, margin: '0 auto', padding: '12px 0 80px', fontFamily: FONT_UI, color: D.white }}>
 
       <div style={{ padding: '0 12px' }}>
 
@@ -726,10 +799,10 @@ export default function BattleScreen() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.white }}>{playerName}</span>
                   <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>Lv{playerLevel}</span>
-                  <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.darker, background: D.yellow, borderRadius: 4, padding: '2px 6px', letterSpacing: 0.5 }}>LEAD</span>
                 </div>
-                <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   {activePlayerTypes.map((t) => <TypeBadge key={t} type={t} />)}
+                  <RarityBadge rarity={playerRarity} />
                 </div>
                 <HPBar
                   pct={playerHpPct}
@@ -754,12 +827,12 @@ export default function BattleScreen() {
                 {playerStats && (
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                     {([
-                      { label: 'Atk', val: playerStats.attack  },
-                      { label: 'Def', val: playerStats.defense },
-                      { label: 'Spd', val: playerStats.speed   },
-                    ] as const).map(({ label, val }) => (
+                      { label: 'Atk', val: playerStats.attack,                              col: D.white },
+                      { label: 'Def', val: Math.round(playerStats.defense * playerDefMult), col: playerDefMult > 1 ? D.green : D.white },
+                      { label: 'Spd', val: playerStats.speed,                               col: D.white },
+                    ] as const).map(({ label, val, col }) => (
                       <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 6, padding: '3px 8px' }}>
-                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.white }}>{val}</span>
+                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: col }}>{val}</span>
                         <span style={{ fontFamily: FONT_UI, fontSize: 10, color: D.muted, fontWeight: 700 }}>{label}</span>
                       </div>
                     ))}
@@ -773,6 +846,12 @@ export default function BattleScreen() {
                 -{f.amount}
               </div>
             ))}
+            {/* Attribution banner — makes clear the wild Pokémon dealt this damage */}
+            {enemyTurnMsg && (
+              <div className="fade-up" style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: FONT_PIXEL, fontSize: 8, color: D.white, background: 'rgba(40,0,0,.8)', border: `1px solid ${D.red}`, borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 11 }}>
+                {enemyTurnMsg}
+              </div>
+            )}
           </div>
 
           {/* Divider */}
@@ -790,8 +869,9 @@ export default function BattleScreen() {
                   <span style={{ fontFamily: FONT_PIXEL, fontSize: 10, color: D.white }}>{enemyName}</span>
                   <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>Lv{enemyLevel}</span>
                 </div>
-                <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   {activeEnemyTypes.map((t) => <TypeBadge key={t} type={t} />)}
+                  <RarityBadge rarity={enemyRarity} />
                 </div>
                 <HPBar
                   pct={enemyHpPct}
@@ -801,12 +881,12 @@ export default function BattleScreen() {
                 {enemyStats && (
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                     {([
-                      { label: 'Atk', val: enemyStats.attack  },
-                      { label: 'Def', val: enemyStats.defense },
-                      { label: 'Spd', val: enemyStats.speed   },
-                    ] as const).map(({ label, val }) => (
+                      { label: 'Atk', val: Math.round(enemyStats.attack  * enemyAtkMult), col: enemyAtkMult < 1 ? D.red : D.white },
+                      { label: 'Def', val: Math.round(enemyStats.defense * enemyDefMult), col: enemyDefMult < 1 ? D.red : D.white },
+                      { label: 'Spd', val: enemyStats.speed,                              col: D.white },
+                    ] as const).map(({ label, val, col }) => (
                       <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 6, padding: '3px 8px' }}>
-                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.white }}>{val}</span>
+                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: col }}>{val}</span>
                         <span style={{ fontFamily: FONT_UI, fontSize: 10, color: D.muted, fontWeight: 700 }}>{label}</span>
                       </div>
                     ))}
@@ -834,7 +914,9 @@ export default function BattleScreen() {
         {/* Matchup bar */}
         <div style={{ background: D.card, border: `1px solid ${D.border}`, borderRadius: 10, padding: '8px 12px', marginBottom: 10, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.yellow }}>{playerSpecies?.types[0] ?? '⚡'} {matchupLabel}</span>
-          <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>YOU GO FIRST</span>
+          <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: playerGoesFirst ? D.muted : D.red }}>
+            {playerGoesFirst ? 'YOU GO FIRST' : 'ENEMY GOES FIRST'}
+          </span>
         </div>
 
         {/* ── ACTION PANEL ── */}
@@ -843,7 +925,7 @@ export default function BattleScreen() {
             <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.muted, marginBottom: 10 }}>What will {playerName} do?</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {([
-                { label: 'FIGHT',               icon: '⚔️', img: undefined,                       col: typeColors('Fire').fg,  bg: typeColors('Fire').bg,  bdr: typeColors('Fire').bdr,  action: () => setPanel('moves')  },
+                { label: 'ATTACK',              icon: '⚔️', img: undefined,                       col: typeColors('Fire').fg,  bg: typeColors('Fire').bg,  bdr: typeColors('Fire').bdr,  action: () => setPanel('moves')  },
                 { label: 'BALL',                icon: '🔴', img: getBallSpriteUrl('pokeball'),    col: typeColors('Water').fg, bg: typeColors('Water').bg, bdr: typeColors('Water').bdr, action: () => setPanel('ball')   },
                 { label: `POTION ×${totalPotions}`, icon: '🧪', img: getItemSpriteUrl('potion'),  col: D.green, bg: '#0a1a0a', bdr: '#1a4020',                                          action: () => setPanel('potion') },
                 { label: 'FLEE',                icon: '🏃', img: undefined,                       col: D.muted,               bg: D.card2,                 bdr: D.border,               action: handleFlee               },
@@ -972,9 +1054,16 @@ export default function BattleScreen() {
             <div className="fade-up">
               <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.muted, marginBottom: 8 }}>Throw a Poké Ball</div>
               {/* HP zone indicator */}
-              <div style={{ background: D.card, border: `1px solid ${zoneCol}`, borderRadius: 10, padding: '8px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ background: D.card, border: `1px solid ${zoneCol}`, borderRadius: 10, padding: '8px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: zoneCol, flexShrink: 0 }} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: zoneCol }}>{zoneLabel}</span>
+              </div>
+              {/* Pokédex / already-caught indicator */}
+              <div style={{ background: D.card, border: `1px solid ${alreadyCaught ? D.muted : D.green}`, borderRadius: 10, padding: '8px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>{alreadyCaught ? '✅' : '✨'}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: alreadyCaught ? D.muted : D.green }}>
+                  {alreadyCaught ? `You've already caught ${enemyName}` : `New! You haven't caught ${enemyName} yet`}
+                </span>
               </div>
               {BALLS.map((ball) => {
                 const count = ballCounts[ball.name] ?? 0;

@@ -6,6 +6,8 @@
       "Grass",
       "Poison"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 45,
       "attack": 49,
@@ -22,6 +24,8 @@
       "Grass",
       "Poison"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 62,
@@ -38,6 +42,8 @@
       "Grass",
       "Poison"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 82,
@@ -53,6 +59,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 39,
       "attack": 52,
@@ -68,6 +76,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 58,
       "attack": 64,
@@ -84,6 +94,8 @@
       "Fire",
       "Flying"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 78,
       "attack": 84,
@@ -99,6 +111,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 44,
       "attack": 48,
@@ -114,6 +128,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 59,
       "attack": 63,
@@ -129,6 +145,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 79,
       "attack": 83,
@@ -144,6 +162,8 @@
     "types": [
       "Bug"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 45,
       "attack": 30,
@@ -159,6 +179,8 @@
     "types": [
       "Bug"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 20,
@@ -175,6 +197,8 @@
       "Bug",
       "Flying"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 45,
@@ -191,6 +215,8 @@
       "Bug",
       "Poison"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 35,
@@ -207,6 +233,8 @@
       "Bug",
       "Poison"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 45,
       "attack": 25,
@@ -223,6 +251,8 @@
       "Bug",
       "Poison"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 90,
@@ -239,6 +269,8 @@
       "Normal",
       "Flying"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 45,
@@ -255,6 +287,8 @@
       "Normal",
       "Flying"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 63,
       "attack": 60,
@@ -271,6 +305,8 @@
       "Normal",
       "Flying"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 83,
       "attack": 80,
@@ -286,6 +322,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 30,
       "attack": 56,
@@ -301,6 +339,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 127,
+    "isLegendary": false,
     "baseStats": {
       "hp": 55,
       "attack": 81,
@@ -317,6 +357,8 @@
       "Normal",
       "Flying"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 60,
@@ -333,6 +375,8 @@
       "Normal",
       "Flying"
     ],
+    "captureRate": 90,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 90,
@@ -348,6 +392,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 35,
       "attack": 60,
@@ -363,6 +409,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 90,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 95,
@@ -378,6 +426,8 @@
     "types": [
       "Electric"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 35,
       "attack": 55,
@@ -393,6 +443,8 @@
     "types": [
       "Electric"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 90,
@@ -408,6 +460,8 @@
     "types": [
       "Ground"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 75,
@@ -423,6 +477,8 @@
     "types": [
       "Ground"
     ],
+    "captureRate": 90,
+    "isLegendary": false,
     "baseStats": {
       "hp": 75,
       "attack": 100,
@@ -438,6 +494,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 235,
+    "isLegendary": false,
     "baseStats": {
       "hp": 55,
       "attack": 47,
@@ -453,6 +511,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 70,
       "attack": 62,
@@ -469,6 +529,8 @@
       "Poison",
       "Ground"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 90,
       "attack": 92,
@@ -484,6 +546,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 235,
+    "isLegendary": false,
     "baseStats": {
       "hp": 46,
       "attack": 57,
@@ -499,6 +563,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 61,
       "attack": 72,
@@ -515,6 +581,8 @@
       "Poison",
       "Ground"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 81,
       "attack": 102,
@@ -530,6 +598,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 150,
+    "isLegendary": false,
     "baseStats": {
       "hp": 70,
       "attack": 45,
@@ -545,6 +615,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 25,
+    "isLegendary": false,
     "baseStats": {
       "hp": 95,
       "attack": 70,
@@ -560,6 +632,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 38,
       "attack": 41,
@@ -575,6 +649,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 73,
       "attack": 76,
@@ -590,6 +666,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 170,
+    "isLegendary": false,
     "baseStats": {
       "hp": 115,
       "attack": 45,
@@ -605,6 +683,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 50,
+    "isLegendary": false,
     "baseStats": {
       "hp": 140,
       "attack": 70,
@@ -621,6 +701,8 @@
       "Poison",
       "Flying"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 45,
@@ -637,6 +719,8 @@
       "Poison",
       "Flying"
     ],
+    "captureRate": 90,
+    "isLegendary": false,
     "baseStats": {
       "hp": 75,
       "attack": 80,
@@ -653,6 +737,8 @@
       "Grass",
       "Poison"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 45,
       "attack": 50,
@@ -669,6 +755,8 @@
       "Grass",
       "Poison"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 65,
@@ -685,6 +773,8 @@
       "Grass",
       "Poison"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 75,
       "attack": 80,
@@ -701,6 +791,8 @@
       "Bug",
       "Grass"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 35,
       "attack": 70,
@@ -717,6 +809,8 @@
       "Bug",
       "Grass"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 95,
@@ -733,6 +827,8 @@
       "Bug",
       "Poison"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 55,
@@ -749,6 +845,8 @@
       "Bug",
       "Poison"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 70,
       "attack": 65,
@@ -764,6 +862,8 @@
     "types": [
       "Ground"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 10,
       "attack": 55,
@@ -779,6 +879,8 @@
     "types": [
       "Ground"
     ],
+    "captureRate": 50,
+    "isLegendary": false,
     "baseStats": {
       "hp": 35,
       "attack": 100,
@@ -794,6 +896,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 45,
@@ -809,6 +913,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 90,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 70,
@@ -824,6 +930,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 52,
@@ -839,6 +947,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 82,
@@ -854,6 +964,8 @@
     "types": [
       "Fighting"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 80,
@@ -869,6 +981,8 @@
     "types": [
       "Fighting"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 105,
@@ -884,6 +998,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 55,
       "attack": 70,
@@ -899,6 +1015,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 90,
       "attack": 110,
@@ -914,6 +1032,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 50,
@@ -929,6 +1049,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 65,
@@ -945,6 +1067,8 @@
       "Water",
       "Fighting"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 90,
       "attack": 95,
@@ -960,6 +1084,8 @@
     "types": [
       "Psychic"
     ],
+    "captureRate": 200,
+    "isLegendary": false,
     "baseStats": {
       "hp": 25,
       "attack": 20,
@@ -975,6 +1101,8 @@
     "types": [
       "Psychic"
     ],
+    "captureRate": 100,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 35,
@@ -990,6 +1118,8 @@
     "types": [
       "Psychic"
     ],
+    "captureRate": 50,
+    "isLegendary": false,
     "baseStats": {
       "hp": 55,
       "attack": 50,
@@ -1005,6 +1135,8 @@
     "types": [
       "Fighting"
     ],
+    "captureRate": 180,
+    "isLegendary": false,
     "baseStats": {
       "hp": 70,
       "attack": 80,
@@ -1020,6 +1152,8 @@
     "types": [
       "Fighting"
     ],
+    "captureRate": 90,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 100,
@@ -1035,6 +1169,8 @@
     "types": [
       "Fighting"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 90,
       "attack": 130,
@@ -1051,6 +1187,8 @@
       "Grass",
       "Poison"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 75,
@@ -1067,6 +1205,8 @@
       "Grass",
       "Poison"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 90,
@@ -1083,6 +1223,8 @@
       "Grass",
       "Poison"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 105,
@@ -1099,6 +1241,8 @@
       "Water",
       "Poison"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 40,
@@ -1115,6 +1259,8 @@
       "Water",
       "Poison"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 70,
@@ -1131,6 +1277,8 @@
       "Rock",
       "Ground"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 80,
@@ -1147,6 +1295,8 @@
       "Rock",
       "Ground"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 55,
       "attack": 95,
@@ -1163,6 +1313,8 @@
       "Rock",
       "Ground"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 120,
@@ -1178,6 +1330,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 85,
@@ -1193,6 +1347,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 100,
@@ -1209,6 +1365,8 @@
       "Water",
       "Psychic"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 90,
       "attack": 65,
@@ -1225,6 +1383,8 @@
       "Water",
       "Psychic"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 95,
       "attack": 75,
@@ -1240,6 +1400,8 @@
     "types": [
       "Electric"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 25,
       "attack": 35,
@@ -1255,6 +1417,8 @@
     "types": [
       "Electric"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 60,
@@ -1271,6 +1435,8 @@
       "Normal",
       "Flying"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 52,
       "attack": 90,
@@ -1287,6 +1453,8 @@
       "Normal",
       "Flying"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 35,
       "attack": 85,
@@ -1303,6 +1471,8 @@
       "Normal",
       "Flying"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 110,
@@ -1318,6 +1488,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 45,
@@ -1334,6 +1506,8 @@
       "Water",
       "Ice"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 90,
       "attack": 70,
@@ -1349,6 +1523,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 80,
@@ -1364,6 +1540,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 105,
       "attack": 105,
@@ -1379,6 +1557,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 30,
       "attack": 65,
@@ -1395,6 +1575,8 @@
       "Water",
       "Ice"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 95,
@@ -1411,6 +1593,8 @@
       "Ghost",
       "Poison"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 30,
       "attack": 35,
@@ -1427,6 +1611,8 @@
       "Ghost",
       "Poison"
     ],
+    "captureRate": 90,
+    "isLegendary": false,
     "baseStats": {
       "hp": 45,
       "attack": 50,
@@ -1443,6 +1629,8 @@
       "Ghost",
       "Poison"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 65,
@@ -1459,6 +1647,8 @@
       "Rock",
       "Ground"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 35,
       "attack": 45,
@@ -1474,6 +1664,8 @@
     "types": [
       "Psychic"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 48,
@@ -1489,6 +1681,8 @@
     "types": [
       "Psychic"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 85,
       "attack": 73,
@@ -1504,6 +1698,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 225,
+    "isLegendary": false,
     "baseStats": {
       "hp": 30,
       "attack": 105,
@@ -1519,6 +1715,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 55,
       "attack": 130,
@@ -1534,6 +1732,8 @@
     "types": [
       "Electric"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 30,
@@ -1549,6 +1749,8 @@
     "types": [
       "Electric"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 50,
@@ -1565,6 +1767,8 @@
       "Grass",
       "Psychic"
     ],
+    "captureRate": 90,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 40,
@@ -1581,6 +1785,8 @@
       "Grass",
       "Psychic"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 95,
       "attack": 95,
@@ -1596,6 +1802,8 @@
     "types": [
       "Ground"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 50,
@@ -1611,6 +1819,8 @@
     "types": [
       "Ground"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 80,
@@ -1626,6 +1836,8 @@
     "types": [
       "Fighting"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 120,
@@ -1641,6 +1853,8 @@
     "types": [
       "Fighting"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 50,
       "attack": 105,
@@ -1656,6 +1870,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 90,
       "attack": 55,
@@ -1671,6 +1887,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 190,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 65,
@@ -1686,6 +1904,8 @@
     "types": [
       "Poison"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 90,
@@ -1702,6 +1922,8 @@
       "Ground",
       "Rock"
     ],
+    "captureRate": 120,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 85,
@@ -1718,6 +1940,8 @@
       "Ground",
       "Rock"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 105,
       "attack": 130,
@@ -1733,6 +1957,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 30,
+    "isLegendary": false,
     "baseStats": {
       "hp": 250,
       "attack": 5,
@@ -1748,6 +1974,8 @@
     "types": [
       "Grass"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 55,
@@ -1763,6 +1991,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 105,
       "attack": 95,
@@ -1778,6 +2008,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 225,
+    "isLegendary": false,
     "baseStats": {
       "hp": 30,
       "attack": 40,
@@ -1793,6 +2025,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 75,
+    "isLegendary": false,
     "baseStats": {
       "hp": 55,
       "attack": 65,
@@ -1808,6 +2042,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 225,
+    "isLegendary": false,
     "baseStats": {
       "hp": 45,
       "attack": 67,
@@ -1823,6 +2059,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 92,
@@ -1838,6 +2076,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 225,
+    "isLegendary": false,
     "baseStats": {
       "hp": 30,
       "attack": 45,
@@ -1854,6 +2094,8 @@
       "Water",
       "Psychic"
     ],
+    "captureRate": 60,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 75,
@@ -1869,6 +2111,8 @@
     "types": [
       "Psychic"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 40,
       "attack": 45,
@@ -1885,6 +2129,8 @@
       "Bug",
       "Flying"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 70,
       "attack": 110,
@@ -1901,6 +2147,8 @@
       "Ice",
       "Psychic"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 50,
@@ -1916,6 +2164,8 @@
     "types": [
       "Electric"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 83,
@@ -1931,6 +2181,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 95,
@@ -1946,6 +2198,8 @@
     "types": [
       "Bug"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 125,
@@ -1961,6 +2215,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 75,
       "attack": 100,
@@ -1976,6 +2232,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 255,
+    "isLegendary": false,
     "baseStats": {
       "hp": 20,
       "attack": 10,
@@ -1992,6 +2250,8 @@
       "Water",
       "Flying"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 95,
       "attack": 125,
@@ -2008,6 +2268,8 @@
       "Water",
       "Ice"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 130,
       "attack": 85,
@@ -2023,6 +2285,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 35,
+    "isLegendary": false,
     "baseStats": {
       "hp": 48,
       "attack": 48,
@@ -2038,6 +2302,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 55,
       "attack": 55,
@@ -2053,6 +2319,8 @@
     "types": [
       "Water"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 130,
       "attack": 65,
@@ -2068,6 +2336,8 @@
     "types": [
       "Electric"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 65,
@@ -2083,6 +2353,8 @@
     "types": [
       "Fire"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 130,
@@ -2098,6 +2370,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 65,
       "attack": 60,
@@ -2114,6 +2388,8 @@
       "Rock",
       "Water"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 35,
       "attack": 40,
@@ -2130,6 +2406,8 @@
       "Rock",
       "Water"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 70,
       "attack": 60,
@@ -2146,6 +2424,8 @@
       "Rock",
       "Water"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 30,
       "attack": 80,
@@ -2162,6 +2442,8 @@
       "Rock",
       "Water"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 60,
       "attack": 115,
@@ -2178,6 +2460,8 @@
       "Rock",
       "Flying"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 80,
       "attack": 105,
@@ -2193,6 +2477,8 @@
     "types": [
       "Normal"
     ],
+    "captureRate": 25,
+    "isLegendary": false,
     "baseStats": {
       "hp": 160,
       "attack": 110,
@@ -2209,6 +2495,8 @@
       "Ice",
       "Flying"
     ],
+    "captureRate": 3,
+    "isLegendary": true,
     "baseStats": {
       "hp": 90,
       "attack": 85,
@@ -2225,6 +2513,8 @@
       "Electric",
       "Flying"
     ],
+    "captureRate": 3,
+    "isLegendary": true,
     "baseStats": {
       "hp": 90,
       "attack": 90,
@@ -2241,6 +2531,8 @@
       "Fire",
       "Flying"
     ],
+    "captureRate": 3,
+    "isLegendary": true,
     "baseStats": {
       "hp": 90,
       "attack": 100,
@@ -2256,6 +2548,8 @@
     "types": [
       "Dragon"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 41,
       "attack": 64,
@@ -2271,6 +2565,8 @@
     "types": [
       "Dragon"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 61,
       "attack": 84,
@@ -2287,6 +2583,8 @@
       "Dragon",
       "Flying"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 91,
       "attack": 134,
@@ -2302,6 +2600,8 @@
     "types": [
       "Psychic"
     ],
+    "captureRate": 3,
+    "isLegendary": true,
     "baseStats": {
       "hp": 106,
       "attack": 110,
@@ -2317,6 +2617,8 @@
     "types": [
       "Psychic"
     ],
+    "captureRate": 45,
+    "isLegendary": false,
     "baseStats": {
       "hp": 100,
       "attack": 100,

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { OwnedPokemon } from '../types/gameState';
-import type { PokeType } from '../types/pokemon';
+import type { PokeType, PokemonRarity } from '../types/pokemon';
 import { getSpecies } from '../data/species';
 import { calcAllStats, calcHp, levelFromExp, expToLevel } from '../lib/formulas';
 
@@ -9,6 +9,7 @@ export interface PartyDisplayPokemon {
   name:       string;
   dexNumber:  number;
   type:       PokeType;
+  rarity:     PokemonRarity;
   level:      number;
   // HP
   currentHp:  number;
@@ -46,6 +47,7 @@ export function usePartyDisplay(party: string[], caughtPokemon: OwnedPokemon[]):
           name:       species?.name ?? pk.speciesId,
           dexNumber:  species?.dexNumber ?? 0,
           type:       (species?.types[0] ?? 'Normal') as PokeType,
+          rarity:     species?.rarity ?? 'Common',
           level,
           currentHp,
           maxHp,

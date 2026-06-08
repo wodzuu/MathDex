@@ -1,28 +1,26 @@
 /**
  * Runtime math puzzle generator for battle encounters.
  *
- * Generates MathPuzzle objects whose equations match the curriculum tier for the
- * current floor (spec §3.1). The equation is a simplified representation of the
- * damage formula component introduced at that tier — the engine always applies the
- * full calcDamage() formula regardless of what the child sees.
+ * Every battle challenge is an ADDITION problem whose difficulty scales with the
+ * OPPONENT'S LEVEL (there are no dungeon floors). The engine always applies the
+ * full calcDamage() formula regardless of what the child sees on screen.
  *
- * Curriculum:
- *   Floors  1–10:  addition          power + itemBonus = ?
- *   Floors 11–20:  multiplication    power × typeMultiplier = ?
- *   Floors 21–30:  division          (power × mult) ÷ divisor = ?
- *   Floors 31–40:  order of ops      (power + itemBonus) × mult = ?
- *   Floors 41+:    higher tiers (falls back to multiplication for now)
- *
- * Status moves (power = 0) always generate a simple addition problem.
+ * Curriculum (by opponent level):
+ *   Lv 1:    addition, result up to 10
+ *   Lv 2:    addition, result up to 14
+ *   Lv 3:    addition, result between 10 and 20
+ *   Lv 4:    addition, result up to 50, with one addend in 0–9
+ *   Lv 5:    addition, result between 20 and 50
+ *   Lv 6+:   addition, result between 40 and 100
  */
 
-import type { MathPuzzle, MathTopic } from '../types/math';
+import type { MathPuzzle } from '../types/math';
 import type { PokeType } from '../types/pokemon';
-import { FLOOR_TOPIC } from '../types/math';
 import { battleTimerSeconds } from './formulas';
 
 // ── Simplified 6-type effectiveness chart (spec §6.2) ────────────────────────
 // Only launch types have explicit entries; all other pairs default to ×1.
+// Used by the battle screen for the matchup/super-effective display.
 
 const TYPE_CHART: Partial<Record<PokeType, Partial<Record<PokeType, 0.5 | 2>>>> = {
   Fire:     { Grass: 2, Rock: 2, Water: 0.5, Fire: 0.5 },
@@ -41,7 +39,7 @@ export function getTypeMultiplier(moveType: PokeType, defenderType: PokeType): 0
 /**
  * Highest multiplier of a move against all of a defender's types.
  * For single-type defenders this is just getTypeMultiplier(moveType, defenderType).
- * Dual types (floor 31+) will take the maximum of the two values.
+ * Dual types take the maximum of the two values.
  */
 export function effectiveMultiplier(
   moveType: PokeType,
@@ -54,147 +52,61 @@ export function effectiveMultiplier(
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function topicForFloor(floor: number): MathTopic {
-  const entry = FLOOR_TOPIC.find((t) => floor <= t.maxFloor);
-  return (entry ?? FLOOR_TOPIC[FLOOR_TOPIC.length - 1]).topic;
+/** Random integer in [min, max] inclusive. */
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// Find the smallest divisor in [2,3,4,5,10] that divides dividend evenly.
-// Falls back to 2 and adjusts the dividend if none divide cleanly.
-function cleanDivision(dividend: number): { dividend: number; divisor: number; answer: number } {
-  const candidates = [2, 3, 4, 5, 10];
-  const divisor = candidates.find((d) => dividend % d === 0) ?? 2;
-  // Round dividend down to nearest multiple of divisor so answer is always a whole number
-  const adjusted = dividend - (dividend % divisor);
-  return { dividend: Math.max(divisor, adjusted), divisor, answer: Math.max(1, adjusted / divisor) };
-}
+/**
+ * Two addends for an addition puzzle, following the per-opponent-level curriculum:
+ *
+ *   Lv 1:   result up to 10
+ *   Lv 2:   result up to 14
+ *   Lv 3:   result between 10 and 20
+ *   Lv 4:   result up to 50, with one addend in 0–9
+ *   Lv 5:   result between 20 and 50
+ *   Lv 6+:  result between 40 and 100
+ */
+function additionOperands(level: number): { a: number; b: number } {
+  // Level 4 is special: one addend is small (0–9), the other makes up the rest.
+  if (level === 4) {
+    const small = randInt(0, 9);
+    const big   = randInt(1, 50 - small);   // total = big + small ≤ 50
+    return { a: big, b: small };
+  }
 
-// Max sum for addition problems by floor tier.
-function additionMaxSum(floor: number): number {
-  if (floor <= 1) return 10;
-  if (floor <= 2) return 20;
-  return 100;
-}
+  // All other levels: pick a target total in the level's range, then split it.
+  let total: number;
+  if (level <= 1)      total = randInt(2, 10);
+  else if (level === 2) total = randInt(2, 14);
+  else if (level === 3) total = randInt(10, 20);
+  else if (level === 5) total = randInt(20, 50);
+  else                  total = randInt(40, 100);  // level 6+
 
-// Two random addends that sum to at most additionMaxSum(floor), both ≥ 1.
-function additionProblem(floor: number, timeLimitSeconds: number): MathPuzzle {
-  const max   = additionMaxSum(floor);
-  const total = Math.floor(Math.random() * (max - 1)) + 2; // 2..max
-  const a     = Math.floor(Math.random() * (total - 1)) + 1; // 1..total-1
-  const b     = total - a;
-  return {
-    id: Date.now(),
-    equation: `${a} + ${b} = ?`,
-    answer: total,
-    topic: 'addition',
-    floor,
-    context: 'battle',
-    timeLimitSeconds,
-  };
+  const a = randInt(1, total - 1);
+  return { a, b: total - a };
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
- * Generate a battle math puzzle for the given move and game context.
+ * Generate a battle math puzzle for the given opponent level.
  *
- * @param move          The move the player selected.
- * @param floor         Current dungeon floor — determines curriculum tier.
- * @param defenderTypes The enemy Pokémon's type(s).
- * @param itemBonus     Attack item bonus (0 when item system is inactive). Spec §4.2.
+ * @param level The opponent's level — determines the addition difficulty + timer.
  */
-/** Minimal move shape required by the generator — avoids coupling to the full Move type. */
-export interface MoveLike {
-  type: PokeType;
-  category: 'physical' | 'special' | 'status';
-  power: number;
-}
+export function generateBattlePuzzle(level: number): MathPuzzle {
+  const timeLimitSeconds = battleTimerSeconds(level);
 
-export function generateBattlePuzzle(
-  move: MoveLike,
-  floor: number,
-  defenderTypes: readonly PokeType[],
-  itemBonus: number,
-): MathPuzzle {
-  const timeLimitSeconds = battleTimerSeconds(floor);
-  const topic = topicForFloor(floor);
+  let { a, b } = additionOperands(level);
+  if (Math.random() < 0.5) [a, b] = [b, a];   // vary which addend appears first
 
-  if (move.category === 'status' || move.power === 0) {
-    return additionProblem(floor, timeLimitSeconds);
-  }
-
-  const power = move.power;
-  const mult = effectiveMultiplier(move.type, defenderTypes);
-  // Use ×1 when the move has no effect (immune) so the puzzle still makes sense.
-  const displayMult = mult === 0 ? 1 : mult;
-
-  switch (topic) {
-    case 'addition':
-    case 'subtraction': {
-      return additionProblem(floor, timeLimitSeconds);
-    }
-
-    case 'multiplication': {
-      if (displayMult === 0.5) {
-        // Show ÷2 instead of ×0.5 — children find halving more natural. Spec §3.2.
-        return {
-          id: Date.now(),
-          equation: `${power} ÷ 2 = ?`,
-          answer: Math.floor(power / 2),
-          topic: 'multiplication',
-          floor,
-          context: 'battle',
-          timeLimitSeconds,
-        };
-      }
-      return {
-        id: Date.now(),
-        equation: `${power} × ${displayMult} = ?`,
-        answer: power * displayMult,
-        topic: 'multiplication',
-        floor,
-        context: 'battle',
-        timeLimitSeconds,
-      };
-    }
-
-    case 'division': {
-      const total = Math.round(power * displayMult);
-      const { dividend, divisor, answer } = cleanDivision(total);
-      return {
-        id: Date.now(),
-        equation: `${dividend} ÷ ${divisor} = ?`,
-        answer,
-        topic: 'division',
-        floor,
-        context: 'battle',
-        timeLimitSeconds,
-      };
-    }
-
-    case 'orderOfOperations': {
-      return {
-        id: Date.now(),
-        equation: `(${power} + ${itemBonus}) × ${displayMult} = ?`,
-        answer: (power + itemBonus) * displayMult,
-        topic: 'orderOfOperations',
-        floor,
-        context: 'battle',
-        timeLimitSeconds,
-      };
-    }
-
-    default: {
-      // Higher curriculum tiers — multiplication is a safe readable fallback for now.
-      return {
-        id: Date.now(),
-        equation: `${power} × ${displayMult} = ?`,
-        answer: power * displayMult,
-        topic,
-        floor,
-        context: 'battle',
-        timeLimitSeconds,
-      };
-    }
-  }
+  return {
+    id: Date.now(),
+    equation: `${a} + ${b} = ?`,
+    answer: a + b,
+    topic: 'addition',
+    level,
+    context: 'battle',
+    timeLimitSeconds,
+  };
 }

@@ -5,7 +5,7 @@
  * which Pokémon exist and their core attributes (dexNumber, name, types,
  * baseStats). This module reads that JSON and derives the gameplay fields:
  *   - PokemonSpecies entries (GEN1_SPECIES) consumed by data/species.ts
- *   - encounter-pool entries (GEN1_POOL) consumed by lib/floorGenerator.ts
+ *   - encounter-pool entries (GEN1_POOL) consumed by lib/encounterGenerator.ts
  *
  * Derived fields (rules applied to the JSON config):
  *   - rarity:     legendaries → Legendary; else by base-stat total
@@ -24,13 +24,15 @@ interface PokemonConfig {
   dexNumber: number;
   name: string;
   types: PokeType[];
+  /** PokéAPI capture rate (3–255). Drives the rarity tier. */
+  captureRate: number;
+  /** True forces Legendary rarity regardless of capture rate. */
+  isLegendary?: boolean;
   baseStats: BaseStats;
 }
 
 /** pokemon.json is the only source of which Pokémon exist + their core stats. */
 const ROSTER = rawPokemon as PokemonConfig[];
-
-const LEGENDARY_DEX = new Set([144, 145, 146, 150, 151]);
 
 // Damaging moves per type (weak → strong); all exist in data/moves.ts.
 const TYPE_MOVESET: Partial<Record<PokeType, string[]>> = {
@@ -63,20 +65,16 @@ function bstOf(s: BaseStats): number {
   return s.hp + s.attack + s.defense + s.spAtk + s.spDef + s.speed;
 }
 
-function rarityOf(dex: number, bst: number): PokemonRarity {
-  if (LEGENDARY_DEX.has(dex)) return 'Legendary';
-  if (bst >= 500) return 'Rare';
-  if (bst >= 400) return 'Uncommon';
-  return 'Common';
-}
-
-function catchRateOf(rarity: PokemonRarity): number {
-  switch (rarity) {
-    case 'Legendary': return 3;
-    case 'Rare':      return 45;
-    case 'Uncommon':  return 120;
-    default:          return 200;
-  }
+/**
+ * Rarity from PokéAPI capture rate (is_legendary always wins):
+ *   190–255 Common · 100–189 Uncommon · 45–99 Rare · 3–44 Epic
+ */
+function rarityFromCaptureRate(captureRate: number, isLegendary?: boolean): PokemonRarity {
+  if (isLegendary)         return 'Legendary';
+  if (captureRate >= 190)  return 'Common';
+  if (captureRate >= 100)  return 'Uncommon';
+  if (captureRate >= 45)   return 'Rare';
+  return 'Epic';
 }
 
 /** A small type-appropriate learnset; always includes a usable attack + fallback. */
@@ -97,7 +95,7 @@ function genLearnset(types: PokeType[]): LevelUpMove[] {
 // ── Build PokemonSpecies entries ──────────────────────────────────────────────
 export const GEN1_SPECIES: PokemonSpecies[] = ROSTER.map((p) => {
   const bst    = bstOf(p.baseStats);
-  const rarity = rarityOf(p.dexNumber, bst);
+  const rarity = rarityFromCaptureRate(p.captureRate, p.isLegendary);
   return {
     id:        slugId(p.name),
     dexNumber: p.dexNumber,
@@ -105,7 +103,7 @@ export const GEN1_SPECIES: PokemonSpecies[] = ROSTER.map((p) => {
     types:     p.types as PokemonSpecies['types'],
     baseStats: p.baseStats,
     baseExp:   Math.round(bst / 5),
-    catchRate: catchRateOf(rarity),
+    catchRate: p.captureRate,   // real PokéAPI capture rate
     rarity,
     learnset:  genLearnset(p.types),
     emoji:     '❓', // sprites are used for rendering; emoji is a legacy placeholder
@@ -119,32 +117,32 @@ export interface Gen1PoolEntry {
   speciesName: string;
   dexNumber: number;
   type: PokeType;
-  minFloor: number;
-  maxFloor: number;
+  /** Opponent-level range this species can be encountered in. */
+  minLevel: number;
+  maxLevel: number;
   weight: number;
   rarity: PokemonRarity;
-  isBossCandidate: boolean;
 }
 
-/** Floor band + spawn weight derived from rarity so weak commons appear early. */
-function poolBand(rarity: PokemonRarity, bst: number): Pick<Gen1PoolEntry, 'minFloor' | 'maxFloor' | 'weight' | 'isBossCandidate'> {
+/** Level band + spawn weight derived from rarity so weak commons appear early. */
+function poolBand(rarity: PokemonRarity): Pick<Gen1PoolEntry, 'minLevel' | 'maxLevel' | 'weight'> {
   switch (rarity) {
-    case 'Legendary': return { minFloor: 40, maxFloor: 65, weight: 1, isBossCandidate: true };
-    case 'Rare':      return { minFloor: 18, maxFloor: 65, weight: 3, isBossCandidate: true };
-    case 'Uncommon':  return { minFloor: 6,  maxFloor: 45, weight: 5, isBossCandidate: bst >= 450 };
-    default:          return { minFloor: 1,  maxFloor: 30, weight: 8, isBossCandidate: false };
+    case 'Legendary': return { minLevel: 40, maxLevel: 100, weight: 1 };
+    case 'Epic':      return { minLevel: 25, maxLevel: 100, weight: 2 };
+    case 'Rare':      return { minLevel: 12, maxLevel: 100, weight: 3 };
+    case 'Uncommon':  return { minLevel: 6,  maxLevel: 100, weight: 5 };
+    default:          return { minLevel: 1,  maxLevel: 100, weight: 8 };
   }
 }
 
 export const GEN1_POOL: Gen1PoolEntry[] = ROSTER.map((p) => {
-  const bst    = bstOf(p.baseStats);
-  const rarity = rarityOf(p.dexNumber, bst);
+  const rarity = rarityFromCaptureRate(p.captureRate, p.isLegendary);
   return {
     speciesId:   slugId(p.name),
     speciesName: p.name,
     dexNumber:   p.dexNumber,
     type:        p.types[0],
     rarity,
-    ...poolBand(rarity, bst),
+    ...poolBand(rarity),
   };
 });

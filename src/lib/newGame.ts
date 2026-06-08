@@ -30,9 +30,8 @@ export function createNewGame(): GameState {
     maxPartySize:   2,
     pokeDollars:   500,
     pokeballs:     { pokeball: 5, greatBall: 0, ultraBall: 0 },
+    // (no floors — difficulty scales with opponent level)
     potions:       { potion: 3, superPotion: 0, hyperPotion: 0 },
-    currentFloor:  1,
-    deepestFloor:  1,
     stats: {
       totalProblemsAttempted: 0,
       totalProblemsSolved:    0,
@@ -40,6 +39,7 @@ export function createNewGame(): GameState {
       longestStreak:          0,
       totalBattles:           0,
       totalCatches:           0,
+      highestOpponentLevel:   0,
       topicAccuracy:          {},
     },
   };

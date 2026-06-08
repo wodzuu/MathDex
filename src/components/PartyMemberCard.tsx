@@ -10,6 +10,7 @@
 
 import { D, FONT_PIXEL, FONT_UI, typeColors } from '../styles/tokens';
 import { getIdleSpriteUrl } from '../lib/sprites';
+import RarityBadge from './RarityBadge';
 import type { PartyDisplayPokemon } from '../hooks/usePartyDisplay';
 
 function hpColor(pct: number): string {
@@ -38,7 +39,7 @@ interface PartyMemberCardProps {
 }
 
 export default function PartyMemberCard({ pk, isLead = false, frameLead = false, onClick }: PartyMemberCardProps) {
-  const spriteSz   = isLead ? 48 : 38;
+  const spriteSz   = isLead ? 72 : 64;
   const showFrame  = frameLead && isLead;
   const tc         = typeColors(pk.type);
 
@@ -58,21 +59,19 @@ export default function PartyMemberCard({ pk, isLead = false, frameLead = false,
       <img
         src={getIdleSpriteUrl(pk.dexNumber)}
         alt={pk.name}
-        style={{ width: spriteSz, height: spriteSz, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }}
+        style={{ width: spriteSz, height: spriteSz, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.7))' }}
       />
 
       {/* Info column */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Name + level + LEAD */}
+        {/* Name + level + type */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: FONT_UI, fontSize: 13, fontWeight: 800, color: D.white }}>{pk.name}</span>
           <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>Lv{pk.level}</span>
-          {isLead && (
-            <span style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: D.darker, background: D.yellow, borderRadius: 4, padding: '2px 5px', letterSpacing: 0.5 }}>LEAD</span>
-          )}
           <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, padding: '1px 7px', borderRadius: 99, textTransform: 'uppercase', background: tc.bg, color: tc.fg, border: `1px solid ${tc.bdr}` }}>
             {pk.type}
           </span>
+          <RarityBadge rarity={pk.rarity} />
         </div>
 
         {/* HP bar with numeric value */}

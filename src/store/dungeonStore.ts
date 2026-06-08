@@ -1,70 +1,40 @@
 /**
- * dungeonStore — state for one active dungeon run.
+ * dungeonStore — the current wild encounter.
  *
- * Responsibilities:
- *   - Hold the procedurally generated rooms for the current floor.
- *   - Track which rooms the player has cleared this session.
- *   - Expose enterFloor / clearRoom / exitDungeon actions.
- *
- * Not persisted to Dexie directly. On app reload, the DungeonScreen's
- * useEffect re-generates the floor from gameStore.currentFloor.
- * Cleared room state resets each time the player enters or re-enters a floor.
+ * There are no floors. The dungeon is an infinite stream of single encounters;
+ * this store holds the one the player is currently facing. It persists across
+ * the remounts caused by navigating to /battle and back. Not saved to Dexie.
  */
 
-import { create }     from 'zustand';
-import { devtools }   from 'zustand/middleware';
-import type { DungeonFloor } from '../types/dungeon';
-import { generateFloor }     from '../lib/floorGenerator';
+import { create }   from 'zustand';
+import { devtools } from 'zustand/middleware';
+import type { EncounterData } from '../types/dungeon';
+import { generateEncounter } from '../lib/encounterGenerator';
 
 interface DungeonState {
-  /** Active floor data. null = player is not currently in the dungeon. */
-  floor: DungeonFloor | null;
+  /** The wild Pokémon currently being faced. null = player is not in the dungeon. */
+  encounter: EncounterData | null;
 
-  /**
-   * Generate rooms for the given floor number and set them as the active floor.
-   * Clears any previously cleared-room state automatically. Enemy levels scale
-   * with partyHighestLevel (the strongest party Pokémon's level).
-   * Called by TownScreen before navigating, and by DungeonScreen on mount/descend.
-   */
-  enterFloor: (floorNumber: number, partyHighestLevel: number) => void;
+  /** Roll a fresh encounter scaled to the player's strongest Pokémon. */
+  rollEncounter: (partyHighestLevel: number, itemSystemActive: boolean) => void;
 
-  /** Mark a single room as cleared (persists for the current floor session). */
-  clearRoom: (roomId: string) => void;
-
-  /** Reset the floor to null when the player returns to town or blacks out. */
+  /** Clear the encounter when returning to town or blacking out. */
   exitDungeon: () => void;
 }
 
 export const useDungeonStore = create<DungeonState>()(
   devtools(
     (set) => ({
-      floor: null,
+      encounter: null,
 
-      enterFloor: (floorNumber, partyHighestLevel) =>
+      rollEncounter: (partyHighestLevel, itemSystemActive) =>
         set(
-          { floor: generateFloor(floorNumber, false, partyHighestLevel) },
+          { encounter: generateEncounter(partyHighestLevel, itemSystemActive) },
           false,
-          'enterFloor',
+          'rollEncounter',
         ),
 
-      clearRoom: (roomId) =>
-        set(
-          (s) =>
-            s.floor
-              ? {
-                  floor: {
-                    ...s.floor,
-                    rooms: s.floor.rooms.map((r) =>
-                      r.id === roomId ? { ...r, cleared: true } : r,
-                    ),
-                  },
-                }
-              : s,
-          false,
-          'clearRoom',
-        ),
-
-      exitDungeon: () => set({ floor: null }, false, 'exitDungeon'),
+      exitDungeon: () => set({ encounter: null }, false, 'exitDungeon'),
     }),
     { name: 'MathDex/DungeonStore' },
   ),

@@ -29,7 +29,7 @@ export default function TownScreen() {
 
   const trainer = useActiveTrainer();
   const healParty = useGameStore(s => s.healParty);
-  const enterFloor = useDungeonStore((s) => s.enterFloor);
+  const rollEncounter = useDungeonStore((s) => s.rollEncounter);
 
   // ── Party display ──────────────────────────────────────────────────────────
   const displayParty = usePartyDisplay(trainer.party, trainer.caughtPokemon);
@@ -48,12 +48,9 @@ export default function TownScreen() {
 
   // ── Enter dungeon ──────────────────────────────────────────────────────────
   const handleEnterDungeon = useCallback(() => {
-    enterFloor(trainer.currentFloor, getPartyHighestLevel(trainer));
+    rollEncounter(getPartyHighestLevel(trainer), itemActive);
     navigate('/dungeon');
-  }, [trainer, enterFloor, navigate]);
-
-  // ── Derived: is the current floor a boss floor? ────────────────────────────
-  const isBossFloor = trainer.currentFloor % 5 === 0;
+  }, [trainer, itemActive, rollEncounter, navigate]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -156,19 +153,15 @@ export default function TownScreen() {
             <div className={s.dungeonTileName}>Dungeon Entrance</div>
             <div className={s.dungeonTileSub}>
               {totalPotions > 0
-                ? `${totalPotions} Potion${totalPotions !== 1 ? 's' : ''} ready · Floor ${trainer.currentFloor}`
-                : `No potions — heal first · Floor ${trainer.currentFloor}`}
+                ? `${totalPotions} Potion${totalPotions !== 1 ? 's' : ''} ready · Endless battles`
+                : 'No potions — heal first'}
             </div>
           </div>
           <div
             className={s.dungeonBadge}
-            style={
-              isBossFloor
-                ? { background: '#2a1800', color: '#F8D030', border: '1px solid #4a3000' }
-                : { background: '#180818', color: '#9070B8', border: '1px solid #301030' }
-            }
+            style={{ background: '#180818', color: '#9070B8', border: '1px solid #301030' }}
           >
-            {isBossFloor ? `FL.${trainer.currentFloor} BOSS` : `FL.${trainer.currentFloor} →`}
+            ENTER →
           </div>
         </button>
 
@@ -189,9 +182,15 @@ export default function TownScreen() {
           </div>
           <div className={s.trainerStat}>
             <div className={s.trainerStatValue} style={{ color: '#9070B8' }}>
-              {trainer.deepestFloor}
+              {trainer.stats.totalCatches}
             </div>
-            <div className={s.trainerStatLabel}>Best Floor</div>
+            <div className={s.trainerStatLabel}>Caught</div>
+          </div>
+          <div className={s.trainerStat}>
+            <div className={s.trainerStatValue} style={{ color: '#6890F0' }}>
+              {trainer.stats.highestOpponentLevel ?? 0}
+            </div>
+            <div className={s.trainerStatLabel}>Top Lv</div>
           </div>
         </div>
       </div>

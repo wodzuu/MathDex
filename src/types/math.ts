@@ -1,25 +1,25 @@
 // ── Curriculum ────────────────────────────────────────────────────────────────
-// Floor-to-topic mapping from spec §3.1.
+// Difficulty scales with the opponent's level (not dungeon floors).
 
 export type MathTopic =
-  | 'addition'          // Floors 1–10  (combined with subtraction)
-  | 'subtraction'       // Floors 1–10
-  | 'multiplication'    // Floors 11–20 (unlocked by floor 10 boss)
-  | 'division'          // Floors 21–30 (unlocked by floor 20 boss)
-  | 'orderOfOperations' // Floors 31–40 (unlocked by floor 30 boss)
-  | 'fractions'         // Floors 41–50 (unlocked by floor 40 boss)
-  | 'percentages'       // Floors 51–60 (unlocked by floor 50 boss)
-  | 'algebra';          // Floors 61+   (unlocked by floor 60 boss)
+  | 'addition'          // Lv 1–10  (combined with subtraction)
+  | 'subtraction'       // Lv 1–10
+  | 'multiplication'    // Lv 11–20
+  | 'division'          // Lv 21–30
+  | 'orderOfOperations' // Lv 31–40
+  | 'fractions'         // Lv 41–50
+  | 'percentages'       // Lv 51–60
+  | 'algebra';          // Lv 61+
 
-/** Maps a floor number to the active MathTopic for that floor. Spec §3.1. */
-export const FLOOR_TOPIC: ReadonlyArray<{ maxFloor: number; topic: MathTopic }> = [
-  { maxFloor: 10,         topic: 'addition' },
-  { maxFloor: 20,         topic: 'multiplication' },
-  { maxFloor: 30,         topic: 'division' },
-  { maxFloor: 40,         topic: 'orderOfOperations' },
-  { maxFloor: 50,         topic: 'fractions' },
-  { maxFloor: 60,         topic: 'percentages' },
-  { maxFloor: Infinity,   topic: 'algebra' },
+/** Maps an opponent level to the active MathTopic for that battle. */
+export const LEVEL_TOPIC: ReadonlyArray<{ maxLevel: number; topic: MathTopic }> = [
+  { maxLevel: 10,         topic: 'addition' },
+  { maxLevel: 20,         topic: 'multiplication' },
+  { maxLevel: 30,         topic: 'division' },
+  { maxLevel: 40,         topic: 'orderOfOperations' },
+  { maxLevel: 50,         topic: 'fractions' },
+  { maxLevel: 60,         topic: 'percentages' },
+  { maxLevel: Infinity,   topic: 'algebra' },
 ];
 
 // ── Puzzle ────────────────────────────────────────────────────────────────────
@@ -42,12 +42,13 @@ export interface MathPuzzle {
   equation: string;
   answer: number;
   topic: MathTopic;
-  floor: number;
+  /** Opponent level this puzzle was generated for (drives difficulty). */
+  level: number;
   context: PuzzleContext;
   /**
    * Seconds before the puzzle auto-submits at partial credit.
    * null for identification puzzles (always untimed). Spec §5.4.
-   * Battle timer: 8s at floor 1, scaling to 4s at floor 40+. Spec §4.3.
+   * Battle timer: 8s at level 1, scaling to 4s at level 40+.
    */
   timeLimitSeconds: number | null;
   /**

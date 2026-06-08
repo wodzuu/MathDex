@@ -56,7 +56,7 @@ export interface SpeciesEvolution {
  * Rarity tier of a wild Pokémon encounter.
  * Determines drop frequency and base EXP yield.
  */
-export type PokemonRarity = 'Common' | 'Uncommon' | 'Rare' | 'Legendary';
+export type PokemonRarity = 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary';
 
 /**
  * Static species definition — the blueprint for a type of Pokémon.

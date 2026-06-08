@@ -129,15 +129,15 @@ export function itemSlotCount(level: number): number {
 }
 
 // ── Battle timer ──────────────────────────────────────────────────────────────
-// Spec §4.3: 8 seconds at floor 1, scaling to 4 seconds at floor 40+.
+// 8 seconds at level 1, scaling down to 4 seconds at level 40+.
 
 /**
- * Returns the battle puzzle timer in seconds for a given floor.
- * Linear interpolation between 8s (floor 1) and 4s (floor 40).
+ * Returns the battle puzzle timer in seconds for a given opponent level.
+ * Linear interpolation between 8s (level 1) and 4s (level 40).
  */
-export function battleTimerSeconds(floor: number): number {
-  if (floor >= 40) return 4;
-  const t = (floor - 1) / 39; // 0 at floor 1, ~1 at floor 40
+export function battleTimerSeconds(level: number): number {
+  if (level >= 40) return 4;
+  const t = (level - 1) / 39; // 0 at level 1, ~1 at level 40
   return Math.round(8 - t * 4);
 }
 

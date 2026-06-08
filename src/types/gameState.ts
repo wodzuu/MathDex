@@ -22,8 +22,6 @@ export interface Trainer {
   pokeDollars: number;
   pokeballs: Pokeballs;
   potions: Potions;
-  currentFloor: number;
-  deepestFloor: number;
   stats: TrainerStats;
 }
 
@@ -60,6 +58,8 @@ export interface TrainerStats {
   longestStreak: number;
   totalBattles: number;
   totalCatches: number;
+  /** Highest level of any wild Pokémon the player has encountered. */
+  highestOpponentLevel: number;
   topicAccuracy: Partial<Record<MathTopic, TopicStats>>;
 }
 
