@@ -11,7 +11,7 @@ import { getSpecies } from '../data/species';
 import { calcHp, calcAllStats, calcDamage, catchProbability, hpZone, expGained, levelFromExp, expToLevel } from '../lib/formulas';
 import { getSpriteUrl, getBallSpriteUrl, getItemSpriteUrl } from '../lib/sprites';
 import RarityBadge from '../components/RarityBadge';
-import { generateBattlePuzzle, effectiveMultiplier } from '../lib/mathProblemGenerator';
+import { generateBattlePuzzle, effectiveMultiplier, getTypeMultiplier } from '../lib/mathProblemGenerator';
 import { useBattleStore }  from '../store/battleStore';
 import { useGameStore, useActiveTrainer, getPartyPokemon }    from '../store/gameStore';
 import type { MathTopic } from '../types/math';
@@ -166,14 +166,13 @@ export default function BattleScreen() {
   const endBattle = useBattleStore((s) => s.endBattle);
 
   const trainer = useActiveTrainer();
-  const { addCaughtPokemon, adjustPotions, adjustPokeballs, recordMathAttempt, updatePokemon, healParty } = useGameStore(
+  const { addCaughtPokemon, adjustPotions, adjustPokeballs, recordMathAttempt, updatePokemon } = useGameStore(
     useShallow((gs) => ({
       addCaughtPokemon:   gs.addCaughtPokemon,
       adjustPotions:      gs.adjustPotions,
       adjustPokeballs:    gs.adjustPokeballs,
       recordMathAttempt:  gs.recordMathAttempt,
       updatePokemon:      gs.updatePokemon,
-      healParty:          gs.healParty,
     }))
   );
 
@@ -186,7 +185,6 @@ export default function BattleScreen() {
 
   const activeEnemyTypes  = (battle && enemySpecies ? enemySpecies.types  : DEMO_ENEMY_TYPES)  as readonly PokeType[];
   const activePlayerTypes = (playerSpecies          ? playerSpecies.types  : [DEMO_PLAYER_TYPE]) as readonly PokeType[];
-  const activePlayerType  = activePlayerTypes[0];
 
   // Derive level from totalExp
   const playerLevel = playerPokemon ? levelFromExp(playerPokemon.totalExp) : 24;
@@ -399,17 +397,18 @@ export default function BattleScreen() {
 
   // ── Blackout — active Pokémon fainted ────────────────────────────────────────
   // Shows a brief blackout screen, then returns to town. Everything is kept
-  // (caught Pokémon, floors, Pokédollars); the party is healed so there's no
-  // soft-lock on re-entry.
+  // (caught Pokémon, Pokédollars). The fainted Pokémon is persisted at 0 HP, so
+  // the player sees it must be healed at the Pokémon Center before battling again.
   const handleBlackout = useCallback(() => {
     if (tiRef.current) clearInterval(tiRef.current);
+    const bt = useBattleStore.getState().battle;
+    if (bt) useGameStore.getState().updatePokemon(bt.activePlayerInstanceId, { currentHp: 0 });
     setBlackout(true);
     setTimeout(() => {
-      healParty();
       endBattle();
       navigate('/', { state: { blackedOut: true } });
     }, 2200);
-  }, [healParty, endBattle, navigate]);
+  }, [endBattle, navigate]);
 
   // ── Enemy attack ─────────────────────────────────────────────────────────────
   // The wild Pokémon strikes the player. Applies damage, shows the attribution
@@ -744,13 +743,6 @@ export default function BattleScreen() {
 
   // ── Derived ─────────────────────────────────────────────────────────────────
 
-  const matchupMult  = effectiveMultiplier(activePlayerType, activeEnemyTypes);
-  const matchupLabel = matchupMult === 2
-    ? `×2 vs ${activeEnemyTypes[0].toUpperCase()}`
-    : matchupMult === 0.5
-      ? `×0.5 vs ${activeEnemyTypes[0].toUpperCase()}`
-      : `×1 vs ${activeEnemyTypes[0].toUpperCase()}`;
-
   const isSuperEff = selectedMove
     ? effectiveMultiplier(selectedMove.type, activeEnemyTypes) > 1 && selectedMove.power > 0
     : false;
@@ -911,14 +903,6 @@ export default function BattleScreen() {
 
         </div>
 
-        {/* Matchup bar */}
-        <div style={{ background: D.card, border: `1px solid ${D.border}`, borderRadius: 10, padding: '8px 12px', marginBottom: 10, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.yellow }}>{playerSpecies?.types[0] ?? '⚡'} {matchupLabel}</span>
-          <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: playerGoesFirst ? D.muted : D.red }}>
-            {playerGoesFirst ? 'YOU GO FIRST' : 'ENEMY GOES FIRST'}
-          </span>
-        </div>
-
         {/* ── ACTION PANEL ── */}
         {panel === 'action' && (
           <div className="fade-up">
@@ -952,13 +936,23 @@ export default function BattleScreen() {
                 const currentPp = movePp[slot.moveId] ?? slot.currentPp;
                 const outOfPp   = currentPp === 0;
                 const tc        = typeColors(slot.type);
-                const superEff  = effectiveMultiplier(slot.type, activeEnemyTypes) > 1 && slot.power > 0;
+                // The enemy type this move is ×2 against (if any) — shown so the
+                // player sees WHY it's super effective. Simplified chart has only ×2.
+                const seType    = slot.power > 0
+                  ? activeEnemyTypes.find((t) => getTypeMultiplier(slot.type, t) === 2)
+                  : undefined;
                 return (
                   <button key={slot.moveId} onClick={() => handlePickMove(slot)} disabled={outOfPp} style={{ background: tc.bg, border: `2px solid ${tc.bdr}`, borderRadius: 12, padding: '10px 12px', cursor: outOfPp ? 'not-allowed' : 'pointer', textAlign: 'left', fontFamily: FONT_UI, transition: 'all .15s', opacity: outOfPp ? 0.35 : 1, position: 'relative' }}
                     onMouseEnter={(e) => { if (!outOfPp) { e.currentTarget.style.opacity = '.8'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
                     onMouseLeave={(e) => { e.currentTarget.style.opacity = outOfPp ? '0.35' : '1'; e.currentTarget.style.transform = 'none'; }}>
-                    {superEff && <div style={{ position: 'absolute', top: 5, right: 5, fontFamily: FONT_PIXEL, fontSize: 6, color: '#CC0000', background: '#fff', borderRadius: 4, padding: '1px 4px', border: '1px solid #CC0000' }}>★</div>}
-                    <div style={{ fontSize: 13, fontWeight: 800, color: tc.fg, marginBottom: 5 }}>{slot.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: tc.fg }}>{slot.name}</span>
+                      {seType && (
+                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, fontWeight: 800, color: '#7bd49a', background: 'rgba(72,199,116,.14)', border: '1px solid #2f7d4f', borderRadius: 4, padding: '2px 5px', lineHeight: 1, whiteSpace: 'nowrap' }}>
+                          ×2 vs {seType.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                       <TypeBadge type={slot.type} />
                       <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>PP {currentPp}/{slot.maxPp}</span>

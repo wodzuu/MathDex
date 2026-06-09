@@ -80,7 +80,7 @@ Changes made in implementation review (this is the version the live build reflec
 | **"Already caught" indicator in the ball view** | 4,8 | A panel beside the catch-chance indicator tells the player whether this species is already in their collection. |
 | **Money earned only on defeat** | 7 | Pokédollars are awarded only when the opponent is defeated (not on catch or flee). |
 | **Potion healing fixed** | 5,7 | Potions restore their stated HP value (+20 / +60 / +120), converted correctly into the HP bar. |
-| **Blackout no longer costs money** | 2 | Fainting returns the player to town and fully heals the party; nothing is lost. |
+| **Blackout no longer costs money** | 2 | Fainting returns the player to town; no Pokédollars are lost. The fainted Pokémon is left at 0 HP and must be healed at the Pokémon Center before battling again. |
 | **Trainer Card reworked** | 7,8 | Shows Correct answers, longest Streak, Pokémon Caught, and highest opponent level encountered ("Top Lv", persisted). Floor-based stats removed. |
 | **Mid-battle switching not exposed** | 4 | The active Pokémon (Lead) is chosen before the battle by tapping a party member in the dungeon; the in-battle Switch action from v1.3 is not present in the live build. |
 
@@ -130,7 +130,7 @@ This phase lasts from the start of the game until the first Pokémon in the play
 4. Battle: choose a move, solve the equation, see the result. Or throw a ball to catch it. Or flee.
 5. Defeat: earn EXP (incrementally, as damage is dealt) and Pokédollars. Catch: the Pokémon joins your collection. Flee: nothing.
 6. A new wild Pokémon appears immediately. Continue as long as you like.
-7. Return to town when HP or Potions run low. If the active Pokémon faints, the player blacks out, is returned to town, and the party is fully healed (nothing is lost).
+7. Return to town when HP or Potions run low. If the active Pokémon faints, the player blacks out and is returned to town. No Pokédollars are lost, but the fainted Pokémon stays at 0 HP and must be healed at the Pokémon Center (free) before it can battle again.
 
 ## **2.2 Phase 2 — Full Loop (After Item System Activation)**
 
@@ -162,7 +162,7 @@ When the player enters the Dungeon or advances to the next wild Pokémon, an enc
 
 At any time one party Pokémon is the **Lead** — the one that fights. All others are Reserves. The Lead is chosen in town or in the Dungeon by tapping a party member in the party strip; it is shown with a larger sprite and a highlighted frame. (There is no in-battle Switch action in the live build — the Lead is committed before the battle begins.)
 
-If the Lead faints (HP reaches 0) the player blacks out, returns to town, and the whole party is healed. Nothing is lost.
+If the Lead faints (HP reaches 0) the player blacks out and returns to town. No Pokédollars are lost, but the fainted Pokémon is kept at 0 HP — the player must heal it at the Pokémon Center (free) before battling again.
 
 # **3. Mathematics Curriculum**
 
@@ -562,7 +562,7 @@ Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caug
 | All 151 Gen-1 Pokémon | Yes | Config in `pokemon.json` |
 | Rarity-bag encounters | Yes | Persisted 100-ticket bag (55/27/12/5/1); every rarity guaranteed per 100; no level bands |
 | Lead via party strip | Yes | No in-battle Switch action |
-| Blackout → heal, lose nothing | Yes | |
+| Blackout → fainted Pokémon at 0 HP, no money lost | Yes | Heal at the Pokémon Center before re-entering |
 | Trainer Card (Correct/Streak/Caught/Top Lv) | Yes | Top Lv persisted |
 | PC Box | Yes | Unlimited; box Pokémon don't grow |
 | Item system (Phase 2) | Designed, level-gated | Activates at first level 20 |

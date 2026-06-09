@@ -10,6 +10,14 @@ installable as a PWA.
 > 🤖 This project was **vibe-coded with Claude (Opus 4.8)** — design, gameplay logic,
 > and UI were built collaboratively through conversation.
 
+## Download to play
+
+<p align="center">
+  <a href="https://wodzuu.github.io/MathDex/"><img src="docs/download-qr.png" alt="QR code to play MathDex" width="220" height="220" /></a>
+  <br/>
+  <a href="https://wodzuu.github.io/MathDex/">https://wodzuu.github.io/MathDex/</a>
+</p>
+
 ## Tech stack
 
 React 18 · Vite 5 · TypeScript 5 · React Router 6 · Zustand 4 · Dexie 3 (IndexedDB) · vite-plugin-pwa
