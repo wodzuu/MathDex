@@ -13,10 +13,11 @@ The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
 NOTE: This license applies to the source code of MathDex only. It does NOT
-apply to the Pokémon sprite images, which are sourced from Bulbapedia and
-licensed under Creative Commons Attribution-NonCommercial-ShareAlike 2.5, nor
-to "Pokémon" and Pokémon character names, which are trademarks of Nintendo,
-Creatures Inc., and GAME FREAK inc.
+apply to the Pokémon sprite images, which are sourced from PMDCollab/SpriteCollab
+(https://github.com/PMDCollab/SpriteCollab) and licensed under Creative Commons
+Attribution-NonCommercial 4.0 International (CC BY-NC 4.0), nor to "Pokémon" and
+Pokémon character names, which are trademarks of Nintendo, Creatures Inc., and
+GAME FREAK inc.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

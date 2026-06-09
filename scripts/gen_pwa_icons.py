@@ -78,3 +78,5 @@ if __name__ == "__main__":
     out = os.path.join(os.path.dirname(__file__), "..", "public")
     write_png(os.path.join(out, "pwa-192x192.png"), 192)
     write_png(os.path.join(out, "pwa-512x512.png"), 512)
+    # Apple touch icon for iOS home-screen installs (no transparency; iOS masks).
+    write_png(os.path.join(out, "apple-touch-icon.png"), 180)

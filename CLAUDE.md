@@ -19,13 +19,15 @@ npm run typecheck  # Type-check only (no emit)
 
 ## Game Design Specification
 
-`docs/MathDex_Game_Specification_v1.3.docx.md` is the authoritative source for all game mechanics. Read it before implementing any game logic. Key sections:
+`docs/specification.md` (v1.4) is the authoritative source for all game mechanics. Read it before implementing any game logic. (v1.4 supersedes the earlier floor-based design: floors are removed and progression is level-based — see the changelog at the top of the spec.) Key sections:
 
-- **§2** – Core game loop and dungeon navigation (room types, floor map, the Lead Pokémon)
-- **§3** – Mathematics curriculum map (which math topics appear on which floors)
-- **§4** – Battle system and damage formula
-- **§5** – Item system (activation trigger, rarity tiers, identification flow, per-Pokémon slot progression)
-- **§11** – Technical implementation notes (`itemSystemActive` flag, math problem generation, save state schema, analytics events)
+- **§2** – Core game loop: endless wild encounters (no floors), encounter generation (opponent level = party-high ±1), the Lead Pokémon
+- **§3** – Mathematics curriculum: addition only, re-tuned by opponent level
+- **§4** – Battle system: damage formula, speed-based turn order, incremental damage-proportional EXP, Focus/charged crit
+- **§6** – Pokémon system: rarity tiers (from capture rate), rarity-weighted encounters, types, evolution, catching
+- **§5** – Item system (Phase 2, level-gated: activation trigger, rarity tiers, per-Pokémon slot progression)
+- **§7** – Progression & economy (money on defeat only, Trainer Card)
+- **§11** – Technical implementation notes (`itemSystemActive` derivation, math problem generation, save-state schema)
 
 ## Project Structure
 
@@ -36,7 +38,7 @@ src/
     tokens.ts     D palette, TYPE_COLORS, STAT_COLORS, RARITY_COLORS, font constants
     animations.ts Global keyframes + utility CSS classes; useGlobalAnimations() hook
   store/
-    gameStore.ts  Zustand: item system gate, party, economy, floor progress, trainer card
+    gameStore.ts  Zustand: item system gate, party, economy, trainer card/stats
     battleStore.ts Zustand: full battle state machine (phase, enemy, focus meter, floats)
   db/
     db.ts         Dexie schema + persistSave() / loadSave() / clearSave() helpers
