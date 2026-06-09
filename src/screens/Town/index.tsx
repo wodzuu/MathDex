@@ -16,10 +16,18 @@ import { useNavigate }           from 'react-router-dom';
 
 import { useGameStore, useActiveTrainer, isItemSystemActive, getPartyHighestLevel } from '../../store/gameStore';
 import { useDungeonStore } from '../../store/dungeonStore';
+import { usePwaStore } from '../../store/pwaStore';
 import { usePartyDisplay } from '../../hooks/usePartyDisplay';
 import PartyMemberCard from '../../components/PartyMemberCard';
 
 import s from './Town.module.css';
+
+// Build timestamp injected by Vite (set by the GitHub Pages workflow). Formatted
+// to "YYYY-MM-DD HH:mm UTC" for the Town footer.
+const BUILD_TIME_LABEL = (() => {
+  const d = new Date(__BUILD_TIME__);
+  return isNaN(d.getTime()) ? __BUILD_TIME__ : `${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+})();
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +38,10 @@ export default function TownScreen() {
   const trainer = useActiveTrainer();
   const healParty = useGameStore(s => s.healParty);
   const rollEncounter = useDungeonStore((s) => s.rollEncounter);
+
+  // PWA update prompt — shown at the top when a new version is waiting.
+  const needRefresh = usePwaStore((s) => s.needRefresh);
+  const updateApp   = usePwaStore((s) => s.update);
 
   // ── Party display ──────────────────────────────────────────────────────────
   const displayParty = usePartyDisplay(trainer.party, trainer.caughtPokemon);
@@ -55,6 +67,14 @@ export default function TownScreen() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className={s.screen}>
+
+      {/* ══ PWA UPDATE PANEL ══════════════════════════════════════════════ */}
+      {needRefresh && (
+        <button className={s.updatePanel} onClick={updateApp}>
+          <span className={s.updatePanelIcon}>⬆️</span>
+          New version available. Tap to update
+        </button>
+      )}
 
       {/* ══ HEADER ════════════════════════════════════════════════════════ */}
       <div className={s.header}>
@@ -192,6 +212,19 @@ export default function TownScreen() {
             </div>
             <div className={s.trainerStatLabel}>Top Lv</div>
           </div>
+        </div>
+
+        {/* ══ FOOTER ════════════════════════════════════════════════════════ */}
+        <div className={s.footer}>
+          <div>Build {BUILD_TIME_LABEL}</div>
+          <a
+            className={s.footerLink}
+            href="https://github.com/wodzuu/MathDex"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Project page, licenses and source code
+          </a>
         </div>
       </div>
     </div>

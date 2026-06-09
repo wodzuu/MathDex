@@ -1,6 +1,7 @@
 import { useGlobalAnimations } from './styles/animations';
 import { useGameInit }         from './hooks/useGameInit';
 import AppRouter               from './router';
+import PwaUpdater              from './components/PwaUpdater';
 import { FONT_PIXEL }          from './styles/tokens';
 
 /**
@@ -57,5 +58,10 @@ export default function App() {
     );
   }
 
-  return <AppRouter />;
+  return (
+    <>
+      <PwaUpdater />
+      <AppRouter />
+    </>
+  );
 }

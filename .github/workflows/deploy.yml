@@ -46,10 +46,15 @@ jobs:
             echo "base=/${{ github.event.repository.name }}/" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Compute build time
+        id: buildtime
+        run: echo "time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
       - name: Build
         run: npm run build
         env:
           VITE_BASE: ${{ steps.base.outputs.base }}
+          VITE_BUILD_TIME: ${{ steps.buildtime.outputs.time }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -16,6 +16,39 @@
   padding-bottom: 32px;
 }
 
+/* ── PWA update panel (top banner) ───────────────────────────────────────── */
+.updatePanel {
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid #48c774;
+  background: linear-gradient(180deg, #1f7a41, #155029);
+  color: #eafff0;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 10px rgba(72, 199, 116, 0.35);
+  animation: updatePulse 1.8s ease-in-out infinite;
+}
+
+.updatePanel:hover {
+  background: linear-gradient(180deg, #248a4a, #186030);
+}
+
+.updatePanelIcon {
+  font-size: 16px;
+}
+
+@keyframes updatePulse {
+  0%, 100% { box-shadow: 0 2px 10px rgba(72, 199, 116, 0.30); }
+  50%      { box-shadow: 0 2px 16px rgba(72, 199, 116, 0.65); }
+}
+
 /* ── Header ──────────────────────────────────────────────────────────────── */
 .header {
   background: linear-gradient(180deg, #1a2a5a, #0F1B2D);
@@ -329,4 +362,25 @@
   font-size: 11px;
   color: #8892b8;
   margin-top: 4px;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.footer {
+  margin-top: 20px;
+  padding: 12px 0 4px;
+  text-align: center;
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px;
+  line-height: 1.9;
+  color: #59607e;
+}
+
+.footerLink {
+  color: #8892b8;
+  text-decoration: underline;
+  transition: color 0.15s;
+}
+
+.footerLink:hover {
+  color: #c0c8e8;
 }

@@ -11,12 +11,22 @@ declare const process: { env: Record<string, string | undefined> };
 // The deploy workflow sets VITE_BASE accordingly; locally it defaults to "/".
 const base = process.env.VITE_BASE || '/';
 
+// Build timestamp (ISO 8601). The deploy workflow sets VITE_BUILD_TIME; locally
+// it falls back to the moment `vite build` runs. Exposed as the __BUILD_TIME__
+// global and shown in the Town footer.
+const buildTime = process.env.VITE_BUILD_TIME || new Date().toISOString();
+
 export default defineConfig({
   base,
+  define: {
+    __BUILD_TIME__: JSON.stringify(buildTime),
+  },
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (not autoUpdate): a new version installs but waits for the user
+      // to tap the in-app "New version available" panel before activating.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'MathDex',
