@@ -156,7 +156,7 @@ function BackBtn({ onClick }: { onClick: () => void }) {
 
 // ── BattleScreen ──────────────────────────────────────────────────────────────
 
-type Panel = 'action' | 'moves' | 'math' | 'potion' | 'ball' | 'catch';
+type Panel = 'moves' | 'math' | 'potion' | 'ball' | 'catch';
 
 export default function BattleScreen() {
   const navigate = useNavigate();
@@ -238,7 +238,7 @@ export default function BattleScreen() {
   })();
 
   // ── Component state ─────────────────────────────────────────────────────────
-  const [panel, setPanel]               = useState<Panel>('action');
+  const [panel, setPanel]               = useState<Panel>('moves');
   const [selectedMove, setSelectedMove] = useState<MoveSlot | null>(null);
   const [currentPuzzle, setPuzzle]      = useState<MathPuzzle | null>(null);
   const [answer, setAnswer]             = useState('');
@@ -655,7 +655,7 @@ export default function BattleScreen() {
     // Report the HP actually restored (capped when near full).
     const restored = playerMaxHp ? Math.round((newPct - beforePct) / 100 * playerMaxHp) : heal;
     setPotMsg(`${playerName} restored +${restored} HP! (${label})`);
-    setTimeout(() => { setPotMsg(null); setPanel('action'); }, 1100);
+    setTimeout(() => { setPotMsg(null); setPanel('moves'); }, 1100);
   }
 
   // ── Ball / catch ───────────────────────────────────────────────────────────
@@ -731,7 +731,7 @@ export default function BattleScreen() {
           handleBlackout();   // active Pokémon fainted while trying to catch
           return;
         }
-        setPanel('action');
+        setPanel('moves');
         setResult(null);
         setAnswer('');
         setSelectedBall(null);
@@ -903,31 +903,7 @@ export default function BattleScreen() {
 
         </div>
 
-        {/* ── ACTION PANEL ── */}
-        {panel === 'action' && (
-          <div className="fade-up">
-            <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.muted, marginBottom: 10 }}>What will {playerName} do?</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {([
-                { label: 'ATTACK',              icon: '⚔️', img: undefined,                       col: typeColors('Fire').fg,  bg: typeColors('Fire').bg,  bdr: typeColors('Fire').bdr,  action: () => setPanel('moves')  },
-                { label: 'BALL',                icon: '🔴', img: getBallSpriteUrl('pokeball'),    col: typeColors('Water').fg, bg: typeColors('Water').bg, bdr: typeColors('Water').bdr, action: () => setPanel('ball')   },
-                { label: `POTION ×${totalPotions}`, icon: '🧪', img: getItemSpriteUrl('potion'),  col: D.green, bg: '#0a1a0a', bdr: '#1a4020',                                          action: () => setPanel('potion') },
-                { label: 'FLEE',                icon: '🏃', img: undefined,                       col: D.muted,               bg: D.card2,                 bdr: D.border,               action: handleFlee               },
-              ] as const).map((btn, i) => (
-                <button key={i} onClick={btn.action} style={{ background: btn.bg, border: `2px solid ${btn.bdr}`, borderRadius: 12, padding: '14px 10px', cursor: 'pointer', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, color: btn.col, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'opacity .15s' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '.8')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
-                  {btn.img
-                    ? <img src={btn.img} alt={btn.label} style={{ width: 26, height: 26, imageRendering: 'pixelated', objectFit: 'contain' }} />
-                    : <span style={{ fontSize: 22 }}>{btn.icon}</span>}
-                  {btn.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── MOVE PANEL ── */}
+        {/* ── MOVE PANEL (moves + Ball/Potion/Flee) ── */}
         {panel === 'moves' && (
           <div className="fade-up">
             <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.muted, marginBottom: 8 }}>Choose a move</div>
@@ -962,7 +938,23 @@ export default function BattleScreen() {
                 );
               })}
             </div>
-            <BackBtn onClick={() => setPanel('action')} />
+            {/* Secondary actions — Ball / Potion / Flee */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              {([
+                { label: 'BALL',                img: getBallSpriteUrl('pokeball'),   icon: '🔴', col: typeColors('Water').fg, bg: typeColors('Water').bg, bdr: typeColors('Water').bdr, action: () => setPanel('ball')   },
+                { label: `POTION ×${totalPotions}`, img: getItemSpriteUrl('potion'), icon: '🧪', col: D.green,                bg: '#0a1a0a',               bdr: '#1a4020',              action: () => setPanel('potion') },
+                { label: 'FLEE',                img: undefined,                      icon: '🏃', col: D.muted,                bg: D.card2,                 bdr: D.border,               action: handleFlee               },
+              ] as const).map((btn, i) => (
+                <button key={i} onClick={btn.action} style={{ background: btn.bg, border: `2px solid ${btn.bdr}`, borderRadius: 12, padding: '10px 6px', cursor: 'pointer', fontFamily: FONT_UI, fontSize: 12, fontWeight: 900, color: btn.col, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, transition: 'opacity .15s' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '.8')}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
+                  {btn.img
+                    ? <img src={btn.img} alt={btn.label} style={{ width: 24, height: 24, imageRendering: 'pixelated', objectFit: 'contain' }} />
+                    : <span style={{ fontSize: 20 }}>{btn.icon}</span>}
+                  {btn.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1030,7 +1022,7 @@ export default function BattleScreen() {
               </button>
             ))}
             {potMsg && <div style={{ fontFamily: FONT_PIXEL, fontSize: 10, textAlign: 'center', color: D.green, padding: 8 }}>{potMsg}</div>}
-            <BackBtn onClick={() => setPanel('action')} />
+            <BackBtn onClick={() => setPanel('moves')} />
           </div>
         )}
 
@@ -1076,7 +1068,7 @@ export default function BattleScreen() {
                   </button>
                 );
               })}
-              <BackBtn onClick={() => setPanel('action')} />
+              <BackBtn onClick={() => setPanel('moves')} />
             </div>
           );
         })()}
