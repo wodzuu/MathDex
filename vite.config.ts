@@ -2,7 +2,17 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Minimal typing for the Node global (avoids a dependency on @types/node just
+// to read one env var at config time).
+declare const process: { env: Record<string, string | undefined> };
+
+// Base public path. On GitHub Pages a *project* site is served from
+// https://<user>.github.io/<repo>/, so assets must be prefixed with "/<repo>/".
+// The deploy workflow sets VITE_BASE accordingly; locally it defaults to "/".
+const base = process.env.VITE_BASE || '/';
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -16,8 +26,8 @@ export default defineConfig({
         background_color: '#0a1220',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/',
-        start_url: '/',
+        scope: base,
+        start_url: base,
         icons: [
           {
             src: 'pwa-192x192.png',

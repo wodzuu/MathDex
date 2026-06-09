@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createHashRouter, RouterProvider } from 'react-router-dom';
 import TownScreen from '../screens/TownScreen';
 import DungeonScreen from '../screens/Dungeon';
 import BattleScreen from '../screens/BattleScreen';
@@ -16,7 +16,7 @@ import ResetScreen from '../screens/ResetScreen';
  * reached from both locations — this makes the back-button / navigation
  * history work naturally on mobile. Spec §2.
  */
-const router = createBrowserRouter([
+const router = createHashRouter([
   { path: '/',          element: <TownScreen /> },
   { path: '/dungeon',   element: <DungeonScreen /> },
   { path: '/battle',    element: <BattleScreen /> },

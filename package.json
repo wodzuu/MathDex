@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
+  "description": "A Pokémon-inspired, math-gated dungeon-crawling RPG for ages 9–11 (mobile-web PWA).",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

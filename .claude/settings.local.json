@@ -10,7 +10,19 @@
       "Bash(curl -s http://localhost:5173)",
       "Bash(mkdir -p /Users/gamer/Documents/PokeMathRPG/.claude)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(git ls-files *)",
+      "Bash(git status *)",
+      "Bash(npx tsc *)",
+      "Bash(git rm *)",
+      "Bash(VITE_BASE=/PokeMathRPG/ npm run build)",
+      "Bash(grep -rn \"\\\\`/\\\\|\\\\\"/\\\\|'/\" src/lib/sprites.ts)",
+      "Bash(grep -rnE \"\\(src=|url\\\\\\(|\\\\`|'|\\\\\"\\)/\\(pokemon_sprites|ball_sprites|item_sprites|sounds|assets|sprites\\)\" src)",
+      "Bash(python3 -c \"import PIL; print\\('Pillow', PIL.__version__\\)\")",
+      "Bash(node -e \"try{require\\('sharp'\\);console.log\\('sharp ok'\\)}catch\\(e\\){console.log\\('no sharp'\\)}\")",
+      "Bash(python3 scripts/gen_pwa_icons.py)",
+      "Bash(git config *)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('package.json','utf8'\\)\\); console.log\\('package.json valid JSON'\\)\")"
     ]
   }
 }
