@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { GameState, Trainer, OwnedPokemon, Pokeballs, Potions } from '../types/gameState';
 import type { MathTopic } from '../types/math';
+import type { PokemonRarity } from '../types/pokemon';
 import { levelFromExp, calcHp } from '../lib/formulas';
+import { drawFromBag } from '../lib/rarityBag';
 import { getSpecies } from '../data/species';
 import { getMove } from '../data/moves';
 
@@ -73,13 +75,16 @@ interface GameStoreState extends GameState {
   recordMathAttempt:    (topic: MathTopic, correct: boolean) => void;
   incrementBattleCount: () => void;
   recordOpponentLevel:  (level: number) => void;
+
+  /** Draw the next encounter rarity from the persisted shuffle-bag. Spec §6.2. */
+  drawEncounterRarity:  () => PokemonRarity;
 }
 
 const EMPTY: GameState = { version: 1, activeTrainerId: '', trainers: [], settings: {} };
 
 export const useGameStore = create<GameStoreState>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
       ...EMPTY,
 
       hydrateFromSave: (state) => set(state, false, 'hydrateFromSave'),
@@ -181,6 +186,14 @@ export const useGameStore = create<GameStoreState>()(
           if (best === (t.stats.highestOpponentLevel ?? 0)) return {};
           return { stats: { ...t.stats, highestOpponentLevel: best } };
         }), false, 'recordOpponentLevel'),
+
+      drawEncounterRarity: () => {
+        const s = get();
+        const active = s.trainers.find(t => t.id === s.activeTrainerId);
+        const { rarity, bag } = drawFromBag(active?.rarityBag);
+        set((st) => patchTrainer(st, () => ({ rarityBag: bag })), false, 'drawEncounterRarity');
+        return rarity;
+      },
     }),
     { name: 'MathDex/GameStore' },
   ),

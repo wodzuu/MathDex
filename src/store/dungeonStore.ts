@@ -10,6 +10,7 @@ import { create }   from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { EncounterData } from '../types/dungeon';
 import { generateEncounter } from '../lib/encounterGenerator';
+import { useGameStore } from './gameStore';
 
 interface DungeonState {
   /** The wild Pokémon currently being faced. null = player is not in the dungeon. */
@@ -27,12 +28,15 @@ export const useDungeonStore = create<DungeonState>()(
     (set) => ({
       encounter: null,
 
-      rollEncounter: (partyHighestLevel, itemSystemActive) =>
+      rollEncounter: (partyHighestLevel, itemSystemActive) => {
+        // Rarity comes from the persisted shuffle-bag in the game store (spec §6.2).
+        const rarity = useGameStore.getState().drawEncounterRarity();
         set(
-          { encounter: generateEncounter(partyHighestLevel, itemSystemActive) },
+          { encounter: generateEncounter(partyHighestLevel, itemSystemActive, rarity) },
           false,
           'rollEncounter',
-        ),
+        );
+      },
 
       exitDungeon: () => set({ encounter: null }, false, 'exitDungeon'),
     }),

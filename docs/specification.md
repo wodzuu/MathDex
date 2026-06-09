@@ -71,7 +71,7 @@ Changes made in implementation review (this is the version the live build reflec
 | **Difficulty scales with opponent level, not floor** | 2,3,4,11,12 | Every difficulty knob (math content, timer, enemy strength) is now a function of the wild Pokémon's level. The opponent's level itself tracks the player's strongest party member. |
 | **Curriculum reduced to addition, re-tuned by level** | 3 | All battle and catch puzzles are addition problems whose number ranges grow with opponent level (see §3). Multiplication/division/order-of-operations/fractions/percentages/algebra tiers are no longer used in the live build (retained only as an extension path). |
 | **Pokémon rarity system added (5 tiers)** | 6,8 | Common / Uncommon / Rare / Epic / Legendary, derived from each species' capture rate (with an `is_legendary` override). Shown as a tag beside the Pokémon name in every view. |
-| **Rarity-weighted, level-banded encounters** | 2,6 | Rarer Pokémon appear less often; each rarity has a level band. Replaces floor-keyed spawn tables. |
+| **Rarity "bag" encounter selection** | 2,6,11 | Encounter rarity is drawn from a persisted 100-ticket shuffle bag (55/27/12/5/1 for Common/Uncommon/Rare/Epic/Legendary), refilled when empty. Every rarity is guaranteed to appear a fixed number of times per 100 encounters; rarity is decoupled from level (no level bands). Replaces the earlier weighted/level-banded roll. |
 | **All 151 Generation-1 Pokémon included** | 6,11 | Species config (types, base stats, capture rate, legendary flag) externalised to `src/data/pokemon.json`. |
 | **EXP is incremental and damage-proportional** | 4,6,7 | EXP is granted the instant damage is dealt, to the Pokémon that dealt it, in proportion to the HP fraction removed. Replaces the "full EXP to every participant at battle end" rule. A Pokémon keeps EXP it earned even if the enemy is later caught. |
 | **Speed determines turn order** | 4 | The faster Pokémon strikes first. A faster wild Pokémon takes one clearly-labelled opening strike at the start of the battle; thereafter every turn is player-attacks-then-enemy-counters. Ties go to the player. |
@@ -154,7 +154,8 @@ Because survival requires accurate math, math fluency and progression are the sa
 When the player enters the Dungeon or advances to the next wild Pokémon, an encounter is generated:
 
 * **Opponent level** = `max(1, partyHighestLevel + ⌊random·3⌋ − 1)` — i.e. the level of the player's strongest party member, ±1.
-* **Species** is chosen by a rarity-weighted, level-banded roll (see §6.2). Rarer Pokémon are less likely to appear, and each rarity tier only appears once the opponent level falls within its band.
+* **Rarity** is drawn from a persisted 100-ticket "rarity bag" (see §6.2), which guarantees every rarity appears a fixed number of times per 100 encounters.
+* **Species** is then chosen uniformly at random from the Pokémon of that rarity, and rendered at the opponent's level (rarity is independent of level — an early legendary is simply a low-level one).
 * The highest opponent level the player has ever encountered is recorded and shown on the Trainer Card ("Top Lv").
 
 ## **2.5 The Lead Pokémon**
@@ -342,7 +343,29 @@ Every species has a **rarity** derived from its capture rate (stored per species
 
 The four Generation-1 legendaries are Articuno, Zapdos, Moltres, and Mewtwo. Rarity is shown as a coloured tag beside the Pokémon's name in every view (encounter card, battle, party, PC).
 
-**Encounter selection** is a rarity-weighted, level-banded roll. Each rarity tier has a minimum level at which it can begin to appear and a relative spawn weight; rarer tiers have lower weights and higher minimum levels, so rare/epic/legendary Pokémon both appear later and appear less often. The candidate pool is filtered to species whose band includes the rolled opponent level, then one is chosen by weight.
+### **Rarity selection — the "rarity bag" (shuffle-bag randomiser)**
+
+Encounter rarity is **not** a plain weighted roll. Instead it is drawn from a persisted bag of 100 tickets, which guarantees that every rarity shows up a fixed number of times in each window of 100 encounters — no long droughts, no lucky streaks.
+
+The bag is filled with one ticket per percentage point of each rarity (the counts always sum to 100):
+
+| Rarity | Tickets (per 100) | Guaranteed appearances per 100 encounters |
+| :---- | :---- | :---- |
+| Common | 55 | 55 |
+| Uncommon | 27 | 27 |
+| Rare | 12 | 12 |
+| Epic | 5 | 5 |
+| Legendary | 1 | 1 |
+
+Algorithm:
+
+1. To pick an encounter's rarity, draw one ticket from the bag **at random and remove it** (draw without replacement).
+2. The drawn ticket determines the rarity. A species of that rarity is then chosen uniformly at random and rendered at the opponent's level.
+3. When the bag is **empty**, refill it with a fresh 100 tickets using the table above.
+
+Because every rarity has at least one ticket, **all rarities are guaranteed to appear**. Legendary, for example, appears exactly once per 100 encounters. Rarity is fully decoupled from level — there are no level bands; a rarity drawn early simply yields a low-level member of that tier.
+
+The bag (its current remaining ticket counts) is **persisted in game state** so the guarantee holds across sessions — closing and reopening the game does not reset the cadence.
 
 ## **6.3 Types — Simplified Type Chart**
 
@@ -507,7 +530,7 @@ The damage formula (§4.2) is evaluated by the engine. Item Bonus is zero while 
 
 ## **11.4 Save State**
 
-Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caught Pokémon, party, lead, max party size, Pokédollars, Pokéballs, potions, and stats), the active trainer id, and settings. Each owned Pokémon stores its species id, total EXP, current HP, and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
+Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caught Pokémon, party, lead, max party size, Pokédollars, Pokéballs, potions, stats, and the **rarity bag** — the remaining rarity tickets, see §6.2), the active trainer id, and settings. Each owned Pokémon stores its species id, total EXP, current HP, and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
 
 ## **11.5 Build & Deployment**
 
@@ -537,7 +560,7 @@ Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caug
 | Already-caught indicator | Yes | In the ball view |
 | Pokémon rarity (5 tiers) | Yes | From capture rate; shown as a tag |
 | All 151 Gen-1 Pokémon | Yes | Config in `pokemon.json` |
-| Rarity-weighted encounters | Yes | Level-banded |
+| Rarity-bag encounters | Yes | Persisted 100-ticket bag (55/27/12/5/1); every rarity guaranteed per 100; no level bands |
 | Lead via party strip | Yes | No in-battle Switch action |
 | Blackout → heal, lose nothing | Yes | |
 | Trainer Card (Correct/Streak/Caught/Top Lv) | Yes | Top Lv persisted |

@@ -1,4 +1,5 @@
 import type { MathTopic } from './math';
+import type { RarityBag } from './pokemon';
 
 export interface GameState {
   version: number;
@@ -23,6 +24,12 @@ export interface Trainer {
   pokeballs: Pokeballs;
   potions: Potions;
   stats: TrainerStats;
+  /**
+   * Remaining tickets in the rarity shuffle-bag (spec §6.2). Optional for
+   * backward compatibility with saves made before the bag existed — a missing
+   * bag is treated as empty and refilled on first draw.
+   */
+  rarityBag?: RarityBag;
 }
 
 export interface Pokeballs {

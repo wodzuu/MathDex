@@ -3,13 +3,24 @@
  *
  * There are no dungeon floors — the dungeon is an infinite stream of single
  * encounters. Each encounter's level scales with the player's strongest party
- * Pokémon, and the species is drawn from the level-appropriate pool.
+ * Pokémon. The rarity is decided by the shuffle-bag (spec §6.2, drawn in the
+ * game store); this module then picks a species of that rarity uniformly and
+ * renders it at the opponent's level. Rarity is independent of level — there are
+ * no level bands.
  */
 
 import type { EncounterData } from '../types/dungeon';
+import type { PokemonRarity } from '../types/pokemon';
 import { GEN1_POOL, type Gen1PoolEntry } from '../data/gen1';
 
-const POOL: Gen1PoolEntry[] = GEN1_POOL;
+/** Species grouped by rarity, so a draw of a rarity can pick one uniformly. */
+const BY_RARITY: Record<PokemonRarity, Gen1PoolEntry[]> = GEN1_POOL.reduce(
+  (acc, entry) => {
+    (acc[entry.rarity] ??= []).push(entry);
+    return acc;
+  },
+  {} as Record<PokemonRarity, Gen1PoolEntry[]>,
+);
 
 /**
  * Enemy level scales with the player's strongest Pokémon:
@@ -19,25 +30,27 @@ function pickLevel(partyHighestLevel: number): number {
   return Math.max(1, partyHighestLevel + Math.floor(Math.random() * 3) - 1);
 }
 
-/** Weighted random species from the entries available at the given level. */
-function pickFromPool(level: number): Gen1PoolEntry {
-  const candidates = POOL.filter((e) => level >= e.minLevel && level <= e.maxLevel);
-  const pool = candidates.length > 0 ? candidates : POOL.filter((e) => level >= e.minLevel);
-  const finalPool = pool.length > 0 ? pool : POOL;
-
-  const totalWeight = finalPool.reduce((s, e) => s + e.weight, 0);
-  let r = Math.random() * totalWeight;
-  for (const entry of finalPool) {
-    r -= entry.weight;
-    if (r <= 0) return entry;
-  }
-  return finalPool[finalPool.length - 1];
+/** A uniformly-random species of the given rarity (falls back to any species). */
+function pickSpecies(rarity: PokemonRarity): Gen1PoolEntry {
+  const list = BY_RARITY[rarity];
+  if (list && list.length > 0) return list[Math.floor(Math.random() * list.length)];
+  return GEN1_POOL[Math.floor(Math.random() * GEN1_POOL.length)];
 }
 
-/** Roll a single wild encounter scaled to the player's strongest Pokémon. */
-export function generateEncounter(partyHighestLevel: number, itemSystemActive: boolean): EncounterData {
+/**
+ * Roll a single wild encounter.
+ *
+ * @param partyHighestLevel level of the player's strongest party Pokémon
+ * @param itemSystemActive  whether wild Pokémon carry items
+ * @param rarity            rarity drawn from the shuffle-bag (gameStore.drawEncounterRarity)
+ */
+export function generateEncounter(
+  partyHighestLevel: number,
+  itemSystemActive: boolean,
+  rarity: PokemonRarity,
+): EncounterData {
   const level = pickLevel(partyHighestLevel);
-  const entry = pickFromPool(level);
+  const entry = pickSpecies(rarity);
   return {
     speciesId:   entry.speciesId,
     speciesName: entry.speciesName,

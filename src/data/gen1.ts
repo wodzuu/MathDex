@@ -117,32 +117,16 @@ export interface Gen1PoolEntry {
   speciesName: string;
   dexNumber: number;
   type: PokeType;
-  /** Opponent-level range this species can be encountered in. */
-  minLevel: number;
-  maxLevel: number;
-  weight: number;
   rarity: PokemonRarity;
 }
 
-/** Level band + spawn weight derived from rarity so weak commons appear early. */
-function poolBand(rarity: PokemonRarity): Pick<Gen1PoolEntry, 'minLevel' | 'maxLevel' | 'weight'> {
-  switch (rarity) {
-    case 'Legendary': return { minLevel: 40, maxLevel: 100, weight: 1 };
-    case 'Epic':      return { minLevel: 25, maxLevel: 100, weight: 2 };
-    case 'Rare':      return { minLevel: 12, maxLevel: 100, weight: 3 };
-    case 'Uncommon':  return { minLevel: 6,  maxLevel: 100, weight: 5 };
-    default:          return { minLevel: 1,  maxLevel: 100, weight: 8 };
-  }
-}
-
-export const GEN1_POOL: Gen1PoolEntry[] = ROSTER.map((p) => {
-  const rarity = rarityFromCaptureRate(p.captureRate, p.isLegendary);
-  return {
-    speciesId:   slugId(p.name),
-    speciesName: p.name,
-    dexNumber:   p.dexNumber,
-    type:        p.types[0],
-    rarity,
-    ...poolBand(rarity),
-  };
-});
+// Encounter rarity is chosen by the shuffle-bag (spec §6.2); within a rarity the
+// species is picked uniformly and rendered at the opponent's level. There are no
+// level bands or spawn weights — the pool is just every species tagged by rarity.
+export const GEN1_POOL: Gen1PoolEntry[] = ROSTER.map((p) => ({
+  speciesId:   slugId(p.name),
+  speciesName: p.name,
+  dexNumber:   p.dexNumber,
+  type:        p.types[0],
+  rarity:      rarityFromCaptureRate(p.captureRate, p.isLegendary),
+}));

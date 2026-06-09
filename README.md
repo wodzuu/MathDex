@@ -31,16 +31,22 @@ The MIT license applies to the code only. The Pokémon sprites and Pokémon-rela
 names/characters are **not** covered by it — see the attribution and trademark
 notices below.
 
-## Pokémon sprite attribution
+## Pokémon image attribution
 
-The Pokémon sprite images (the walking/idle animations) used in this project are
-taken from [PMDCollab/SpriteCollab](https://github.com/PMDCollab/SpriteCollab),
-a community sprite repository licensed under
-**Attribution-NonCommercial 4.0 International**
-([CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)).
+Pokémon images used in this project come from the following sources:
 
-In keeping with that license, these sprites may only be used **non-commercially**
-and must be **attributed** to PMDCollab/SpriteCollab and its contributors.
+- The Pokémon sprite animations (walking/idle) are taken from
+  [PMDCollab/SpriteCollab](https://github.com/PMDCollab/SpriteCollab), a community
+  sprite repository licensed under **Attribution-NonCommercial 4.0 International**
+  ([CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)).
+- Additional Pokémon imagery is from
+  [Bulbapedia](https://bulbapedia.bulbagarden.net/), where *"Content is available
+  under Attribution-NonCommercial-ShareAlike 2.5"*
+  ([CC BY-NC-SA 2.5](https://creativecommons.org/licenses/by-nc-sa/2.5/)).
+
+In keeping with these licenses, the images may only be used **non-commercially**
+and must be **attributed** to their respective sources; Bulbapedia content must
+additionally be redistributed under the **same license**.
 
 ## Trademark & disclaimer
 
