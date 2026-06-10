@@ -210,7 +210,7 @@ export const useBattleStore = create<BattleStoreState>()(
                 ...s.battle,
                 activePlayerInstanceId: instanceId,
                 participantInstanceIds: participants,
-                phase: 'enemy-attack', // wild Pokémon attacks after the switch. Spec §4.6
+                // Switching mid-battle via the carousel is free — no enemy turn.
               },
             };
           },

@@ -78,6 +78,9 @@ interface GameStoreState extends GameState {
 
   /** Draw the next encounter rarity from the persisted shuffle-bag. Spec §6.2. */
   drawEncounterRarity:  () => PokemonRarity;
+
+  /** Set the trainer's persisted Focus meter (0–5). Spec §4.4. */
+  setFocus: (focus: number) => void;
 }
 
 const EMPTY: GameState = { version: 1, activeTrainerId: '', trainers: [], settings: {} };
@@ -194,6 +197,9 @@ export const useGameStore = create<GameStoreState>()(
         set((st) => patchTrainer(st, () => ({ rarityBag: bag })), false, 'drawEncounterRarity');
         return rarity;
       },
+
+      setFocus: (focus) =>
+        set((s) => patchTrainer(s, () => ({ focus: Math.max(0, Math.min(5, focus)) })), false, 'setFocus'),
     }),
     { name: 'MathDex/GameStore' },
   ),

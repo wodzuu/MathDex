@@ -30,6 +30,13 @@ export interface Trainer {
    * bag is treated as empty and refilled on first draw.
    */
   rarityBag?: RarityBag;
+  /**
+   * Trainer Focus meter (0–5). A battle-wide combo of consecutive correct
+   * answers that powers the charged critical hit; it belongs to the trainer
+   * (not a Pokémon), carries across switches and battles, and is persisted.
+   * Spec §4.4. Optional for backward compatibility (missing = 0).
+   */
+  focus?: number;
 }
 
 export interface Pokeballs {

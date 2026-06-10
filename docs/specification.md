@@ -82,7 +82,9 @@ Changes made in implementation review (this is the version the live build reflec
 | **Potion healing fixed** | 5,7 | Potions restore their stated HP value (+20 / +60 / +120), converted correctly into the HP bar. |
 | **Blackout no longer costs money** | 2 | Fainting returns the player to town; no Pokédollars are lost. The fainted Pokémon is left at 0 HP and must be healed at the Pokémon Center before battling again. |
 | **Trainer Card reworked** | 7,8 | Shows Correct answers, longest Streak, Pokémon Caught, and highest opponent level encountered ("Top Lv", persisted). Floor-based stats removed. |
-| **Mid-battle switching not exposed** | 4 | The active Pokémon (Lead) is chosen before the battle by tapping a party member in the dungeon; the in-battle Switch action from v1.3 is not present in the live build. |
+| **Battle screen re-laid-out + party carousel** | 4 | The opponent panel is on top; below it the active Pokémon's panel holds its details, a left/right **carousel** to switch party members, and its move list; Ball/Potion/Flee sit beneath. The Pokémon visible in the carousel is the one that attacks and takes damage. |
+| **Mid-battle switching (free) + per-member HP** | 4,6 | Switching via the carousel costs no turn. Each party member keeps its own HP through the battle; all are persisted at battle end. A faster enemy's opening strike hits the Pokémon the player entered with. When the active Pokémon faints the next healthy one is sent out; the player blacks out only when the whole party faints. |
+| **Focus is a trainer property, persisted** | 4,7,11 | The Focus meter belongs to the trainer (not a Pokémon): one battle-wide meter shown in a neutral strip, carrying across switches *and* battles, persisted in game state. |
 
 # **1. Vision and Design Philosophy**
 
@@ -160,7 +162,7 @@ When the player enters the Dungeon or advances to the next wild Pokémon, an enc
 
 ## **2.5 The Lead Pokémon**
 
-At any time one party Pokémon is the **Lead** — the one that fights. All others are Reserves. The Lead is chosen in town or in the Dungeon by tapping a party member in the party strip; it is shown with a larger sprite and a highlighted frame. (There is no in-battle Switch action in the live build — the Lead is committed before the battle begins.)
+At any time one party Pokémon is the **Lead** — the one that fights. All others are Reserves. The Lead is chosen in town or in the Dungeon by tapping a party member in the party strip; it is shown with a larger sprite and a highlighted frame. The Lead the player enters with is the one a faster opponent's opening strike targets. During battle the player can freely switch which party member is active using the carousel on the Pokémon panel (see §4.6).
 
 If the Lead faints (HP reaches 0) the player blacks out and returns to town. No Pokédollars are lost, but the fainted Pokémon is kept at 0 HP — the player must heal it at the Pokémon Center (free) before battling again.
 
@@ -204,7 +206,9 @@ The richer curriculum from earlier versions — multiplication, division, order 
 
 ## **4.1 Battle Structure**
 
-Battles are turn-based. Each turn the player chooses one of four actions: **Attack**, **Ball** (throw a Poké Ball), **Potion** (use a healing item), or **Flee**. Turn order is decided by Speed (see §4.6).
+Battles are turn-based. The screen stacks three regions: the **opponent panel** on top, then the **active Pokémon's panel** (its details, a left/right party **carousel**, and its move list), and finally the **Ball / Potion / Flee** buttons. A neutral **Focus** strip sits between the opponent and the active-Pokémon panels (see §4.4).
+
+Each turn the player picks one of the active Pokémon's moves (the puzzle then resolves the attack), or instead throws a **Ball**, uses a **Potion**, **Flees**, or **switches** to another party member via the carousel (switching is free — see §4.6). Turn order between the two combatants is decided by Speed (see §4.6).
 
 ## **4.2 Damage Formula**
 
@@ -229,20 +233,24 @@ Status moves (move power 0) deal a small fixed chip of damage and additionally a
 
 ## **4.4 Focus Meter and Charged Critical Hits**
 
-The Focus Meter has five pips. Each consecutive correct answer fills one pip. At five pips, the next correct answer triggers a **Charged Critical Hit (×2 damage)** and discharges the meter. Any wrong answer resets the meter to zero. This rewards sustained accuracy without requiring the child to understand the mechanic explicitly.
+Focus is a property of the **trainer**, not of any Pokémon — a single battle-wide meter shown in a neutral strip between the opponent and active-Pokémon panels. Each consecutive correct answer fills one of five pips; at five pips the next correct answer triggers a **Charged Critical Hit (×2 damage)** and discharges the meter. Any wrong answer resets it to zero.
+
+Because Focus is the trainer's accuracy streak, it **carries across party switches and across battles**, and it is **persisted in game state** (`Trainer.focus`). A hot streak is never lost by switching Pokémon or leaving the dungeon — only a wrong answer or discharging the crit resets it. This rewards sustained accuracy without requiring the child to understand the mechanic explicitly.
 
 ## **4.5 Status Moves**
 
 Status moves (e.g. Growl) deal a small fixed chip of damage and apply a persistent battle stat modifier — for example, lowering the enemy's Attack or raising the player's Defense. The affected stat updates visibly on the combatant's stat chips (reduced enemy stats shown in red, player buffs in green), and a short message names the effect. A wrong answer softens the effect rather than nullifying it.
 
-## **4.6 Turn Order — Speed**
+## **4.6 Turn Order and Switching**
 
-The faster Pokémon strikes first; ties go to the player. The matchup bar shows **"YOU GO FIRST"** or **"ENEMY GOES FIRST"** accordingly.
+**Turn order** is decided by Speed; ties go to the player.
 
 * If the **player is faster or tied**: each turn the player's move lands first, then the wild Pokémon counterattacks.
-* If the **wild Pokémon is faster**: it takes one clearly-labelled **opening strike** at the very start of the battle (before the player acts), with a "Wild *X* attacked!" banner. Thereafter every turn follows the same player-attacks-then-enemy-counters rhythm. This keeps the speed advantage meaningful (the enemy lands one extra hit over the fight) while ensuring the player's own action never appears to damage themselves.
+* If the **wild Pokémon is faster**: it takes one clearly-labelled **opening strike** at the very start of the battle (before the player acts), hitting the Pokémon the player **entered with**, with a "Wild *X* attacked!" banner. Thereafter every turn follows the same player-attacks-then-enemy-counters rhythm. This keeps the speed advantage meaningful (the enemy lands one extra hit over the fight) while ensuring the player's own action never appears to damage themselves.
 
 Every point of incoming damage is attributed to the wild Pokémon with an on-screen banner, so it never reads as self-harm.
+
+**Switching — the party carousel.** The active Pokémon's panel has left/right arrows that cycle through the party; the Pokémon currently visible is the one that **attacks and receives damage**. Switching is **free** — it costs no turn and provokes no enemy attack. Each party member keeps its own HP, moves and PP across switches. The carousel is locked only during the opening strike (so that strike lands on the entered Pokémon) and while a puzzle is being answered. When the active Pokémon faints, the next healthy party member is sent out automatically; the player blacks out only once **every** party member has fainted (see §6.6).
 
 ## **4.7 EXP Distribution — Damage-Proportional and Incremental**
 
@@ -262,10 +270,12 @@ Consequences:
 
 ## **4.8 Battle UI Components**
 
-* **Opponent card**: name, level, type badge(s), rarity tag, HP bar, Atk/Def/Spd chips, bag icon (if carrying an item, once the item system is active).
-* **Player card**: name, level, type badge(s), rarity tag, HP bar, EXP bar, Focus Meter pips, Atk/Def/Spd chips (modified stats shown in colour).
-* **Matchup bar**: type effectiveness and the turn-order indicator (YOU/ENEMY GOES FIRST).
-* **Contextual panel**: Action / Move / Math / Ball / Potion / Catch — swaps based on the current decision.
+* **Opponent panel** (top): name, level, type badge(s), rarity tag, HP bar, Atk/Def/Spd chips, bag icon (if carrying an item, once the item system is active).
+* **Focus strip**: the battle-wide trainer Focus meter (five pips + `n/5` / CHARGED) — see §4.4.
+* **Active-Pokémon panel** (below): name, level, type badge(s), rarity tag, HP bar, EXP bar, Atk/Def/Spd chips (modified stats shown in colour). Carries left/right **carousel arrows** and a party-position dot row when the party has more than one member, and contains the **move list** ("Choose a move") for the active Pokémon. (Focus is *not* shown here — it belongs to the trainer.)
+* **Secondary actions**: Ball / Potion / Flee, beneath the active-Pokémon panel.
+* **Move-type cue**: a super-effective move shows a small `×2 vs <TYPE>` tag next to its name.
+* **Contextual panel**: the move list / Math / Ball / Potion / Catch view swaps in below the panels based on the current decision.
 * **Damage floaters**: animated numbers over the relevant combatant after each hit; the wild Pokémon's hits also raise an attribution banner over the player.
 * **Sprites**: the battle uses the animated "walk" sprite with a drop shadow; out-of-battle screens use the "idle" sprite (also enlarged with a drop shadow).
 
@@ -394,7 +404,8 @@ All Pokémon evolve automatically at a species-specific level. Evolution cannot 
 
 * The party holds up to `maxPartySize` Pokémon. *(Implementation note: party-size growth was previously tied to boss floors, which have been removed. A new growth trigger — e.g. a trainer-level or catch-count milestone — is to be defined; the live build currently uses a fixed starting size.)*
 * The **PC Box** is unlimited. Box Pokémon earn nothing — only party Pokémon grow.
-* The **Lead** is the active fighter (see §2.5). EXP follows the damage-proportional rule in §4.7.
+* The **Lead** is the Pokémon the player enters battle with; during battle any party member can be made active via the carousel (see §4.6). EXP follows the damage-proportional rule in §4.7.
+* **Per-member HP in battle.** Each party member keeps its own HP as the player switches; every member's HP is persisted at battle end (a member that fainted stays fainted at 0 HP). When the active member faints the next healthy one is sent out automatically; the player blacks out only when the whole party has fainted — at which point all members are returned to town at 0 HP to be healed at the Pokémon Center.
 
 ## **6.7 Catching**
 
@@ -481,7 +492,7 @@ Party members are shown as cards with an enlarged, drop-shadowed sprite, name/le
 
 ## **8.4 Battle Screen**
 
-See §4.8. The first action button is labelled **Attack** (formerly "Fight"). The ball view includes the catch-chance indicator and the already-caught indicator.
+See §4.1 and §4.8 for the layout: opponent panel on top, the trainer **Focus** strip, the active Pokémon's panel (party **carousel** + move list), then Ball / Potion / Flee. The ball view includes the catch-chance indicator and the already-caught indicator.
 
 ## **8.5 Identification / Equip Screens (Phase 2)**
 
@@ -501,7 +512,7 @@ Every simplified mechanic has a documented extension path, now triggered by **Po
 | Speed / turn order | Faster acts first (live) | — | Full speed display each turn |
 | Party size | Fixed (growth trigger TBD) | New milestone TBD | Up to 6 Pokémon |
 | Status conditions | Status moves modify stats | Later | Catch-rate and battle modifiers |
-| Mid-battle switching | Lead chosen pre-battle | Later | In-battle Switch action (v1.3 design) |
+| Mid-battle switching | Free carousel switch (live) | — | Switch as a costed turn action (v1.3 design) |
 | Trainer battles / Gyms | Removed | Later | Math-boss encounters |
 
 ## **9.1 Difficulty (live build)**
@@ -530,7 +541,7 @@ The damage formula (§4.2) is evaluated by the engine. Item Bonus is zero while 
 
 ## **11.4 Save State**
 
-Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caught Pokémon, party, lead, max party size, Pokédollars, Pokéballs, potions, stats, and the **rarity bag** — the remaining rarity tickets, see §6.2), the active trainer id, and settings. Each owned Pokémon stores its species id, total EXP, current HP, and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
+Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caught Pokémon, party, lead, max party size, Pokédollars, Pokéballs, potions, stats, the **rarity bag** — the remaining rarity tickets, see §6.2 — and the **Focus** meter, see §4.4), the active trainer id, and settings. Each owned Pokémon stores its species id, total EXP, current HP (every party member's HP is written back at battle end), and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
 
 ## **11.5 Build & Deployment**
 
@@ -550,7 +561,7 @@ Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caug
 | Partial credit (75%) | Yes | Wrong/expired answers |
 | Damage formula | Yes | Item Bonus = 0 until activation |
 | STAB ×1.5 | Yes | Move type matches attacker type |
-| Charged crit ×2 | Yes | Five-pip Focus meter |
+| Charged crit ×2 | Yes | Five-pip trainer Focus meter (persisted; carries across switches + battles) |
 | Status moves (stat modifiers) | Yes | Shown on stat chips, coloured |
 | Speed-based turn order | Yes | Faster first; enemy opening strike |
 | Incremental damage-proportional EXP | Yes | Kept by weakener even if enemy is caught |
@@ -561,7 +572,7 @@ Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caug
 | Pokémon rarity (5 tiers) | Yes | From capture rate; shown as a tag |
 | All 151 Gen-1 Pokémon | Yes | Config in `pokemon.json` |
 | Rarity-bag encounters | Yes | Persisted 100-ticket bag (55/27/12/5/1); every rarity guaranteed per 100; no level bands |
-| Lead via party strip | Yes | No in-battle Switch action |
+| Lead via party strip + battle carousel | Yes | Free mid-battle switching; per-member HP |
 | Blackout → fainted Pokémon at 0 HP, no money lost | Yes | Heal at the Pokémon Center before re-entering |
 | Trainer Card (Correct/Streak/Caught/Top Lv) | Yes | Top Lv persisted |
 | PC Box | Yes | Unlimited; box Pokémon don't grow |

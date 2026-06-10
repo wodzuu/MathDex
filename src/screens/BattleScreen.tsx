@@ -166,13 +166,14 @@ export default function BattleScreen() {
   const endBattle = useBattleStore((s) => s.endBattle);
 
   const trainer = useActiveTrainer();
-  const { addCaughtPokemon, adjustPotions, adjustPokeballs, recordMathAttempt, updatePokemon } = useGameStore(
+  const { addCaughtPokemon, adjustPotions, adjustPokeballs, recordMathAttempt, updatePokemon, setFocus } = useGameStore(
     useShallow((gs) => ({
       addCaughtPokemon:   gs.addCaughtPokemon,
       adjustPotions:      gs.adjustPotions,
       adjustPokeballs:    gs.adjustPokeballs,
       recordMathAttempt:  gs.recordMathAttempt,
       updatePokemon:      gs.updatePokemon,
+      setFocus:           gs.setFocus,
     }))
   );
 
@@ -219,7 +220,8 @@ export default function BattleScreen() {
     }
     return 82;
   })();
-  const initFocusPips = battle ? battle.focusPips : 2;
+  // Focus is a persisted trainer property — start the battle from the saved value.
+  const initFocusPips = battle ? (trainer.focus ?? 0) : 2;
 
   // Display info
   const playerName      = playerSpecies?.name.toUpperCase() ?? 'PIKACHU';
@@ -236,6 +238,10 @@ export default function BattleScreen() {
     const progress = playerPokemon.totalExp - expToLevel(lvl);
     return range > 0 ? Math.max(0, Math.min(100, Math.round((progress / range) * 100))) : 0;
   })();
+  // EXP remaining until the next level (matches the dungeon party card).
+  const expToNext = playerPokemon
+    ? Math.max(0, expToLevel(levelFromExp(playerPokemon.totalExp) + 1) - playerPokemon.totalExp)
+    : 0;
 
   // ── Component state ─────────────────────────────────────────────────────────
   const [panel, setPanel]               = useState<Panel>('moves');
@@ -268,9 +274,9 @@ export default function BattleScreen() {
   const [selectedBall, setSelectedBall] = useState<BallOption | null>(null);
   const [catchPuzzle, setCatchPuzzle]   = useState<MathPuzzle | null>(null);
   const [catchResult, setCatchResult]   = useState<'caught' | 'escaped' | null>(null);
-  const [movePp, setMovePp]             = useState<Record<string, number>>(
-    () => Object.fromEntries(activeMoves.map((m) => [m.moveId, m.currentPp]))
-  );
+  // Party carousel: switching is locked until a faster enemy's opening strike has
+  // landed, so that strike always hits the Pokémon the player entered with.
+  const [canSwitch, setCanSwitch]       = useState(playerGoesFirst);
   // Track enemy HP in a ref to read synchronously inside resolveAttack
   const enemyHpRef = useRef(initEnemyHp);
 
@@ -280,6 +286,11 @@ export default function BattleScreen() {
   const resultRef    = useRef<'ok' | 'no' | null>(null);
   const focusPipsRef = useRef(initFocusPips);
   const playerHpPctRef = useRef(initPlayerHp);
+  // Mid-battle party switching: mirror of the active fighter id + a per-member
+  // HP% stash so each Pokémon's HP is preserved as the player flips the carousel.
+  const activeIdRef = useRef(battle?.activePlayerInstanceId ?? '');
+  const hpStashRef  = useRef<Record<string, number>>({});
+  const seededRef   = useRef(false);
   // Guards resolveAttack against re-entry: each puzzle resolves exactly once.
   // resolveAttack is recreated every render (stats are fresh objects), so the
   // timer-expiry effect can otherwise fire it repeatedly. Reset on new puzzle.
@@ -301,8 +312,28 @@ export default function BattleScreen() {
   useEffect(() => { resultRef.current    = result; }, [result]);
   useEffect(() => { puzzleRef.current    = currentPuzzle; }, [currentPuzzle]);
   useEffect(() => { focusPipsRef.current = focusPips; }, [focusPips]);
+  // Persist the Focus meter to the trainer so it survives battles + sessions.
+  useEffect(() => { if (battle) setFocus(focusPips); }, [focusPips, battle, setFocus]);
   useEffect(() => { playerHpPctRef.current = playerHpPct; }, [playerHpPct]);
   useEffect(() => () => { if (tiRef.current) clearInterval(tiRef.current); }, []);
+
+  // Seed the per-member HP% stash from each party Pokémon's stored HP, once.
+  useEffect(() => {
+    if (seededRef.current || !battle) return;
+    seededRef.current = true;
+    const gs = useGameStore.getState();
+    const t  = gs.trainers.find((x) => x.id === gs.activeTrainerId);
+    for (const id of (t?.party ?? [])) {
+      const pk = t?.caughtPokemon.find((p) => p.instanceId === id);
+      if (!pk) continue;
+      const spec  = getSpecies(pk.speciesId);
+      const maxHp = spec ? calcHp(spec.baseStats.hp, levelFromExp(pk.totalExp)) : pk.currentHp;
+      hpStashRef.current[id] = maxHp > 0 ? Math.min(100, Math.max(0, Math.round(pk.currentHp / maxHp * 100))) : 0;
+    }
+  }, [battle]);
+
+  // Keep the active-fighter id mirror in sync as the player switches.
+  useEffect(() => { if (battle) activeIdRef.current = battle.activePlayerInstanceId; }, [battle]);
 
   // ── Incremental EXP award ────────────────────────────────────────────────────
   // Grant a slice of EXP to the currently-active Pokémon for damage it just dealt.
@@ -341,6 +372,54 @@ export default function BattleScreen() {
     });
   }, []);
 
+  // ── Party switching + HP persistence ─────────────────────────────────────────
+
+  // Persist every party member's battle-end HP from the stash (fainted = 0).
+  const persistAllHp = useCallback(() => {
+    const gs = useGameStore.getState();
+    const t  = gs.trainers.find((x) => x.id === gs.activeTrainerId);
+    if (!t) return;
+    hpStashRef.current[activeIdRef.current] = playerHpPctRef.current;
+    for (const id of t.party) {
+      const pk = t.caughtPokemon.find((p) => p.instanceId === id);
+      if (!pk) continue;
+      const spec = getSpecies(pk.speciesId);
+      if (!spec) continue;
+      const maxHp = calcHp(spec.baseStats.hp, levelFromExp(pk.totalExp));
+      const pct   = hpStashRef.current[id];
+      if (pct === undefined) continue;
+      gs.updatePokemon(id, { currentHp: Math.max(0, Math.min(maxHp, Math.round(pct / 100 * maxHp))) });
+    }
+  }, []);
+
+  // First party member (other than excludeId) that still has HP. null = all fainted.
+  const firstAlive = useCallback((excludeId?: string): string | null => {
+    const gs = useGameStore.getState();
+    const t  = gs.trainers.find((x) => x.id === gs.activeTrainerId);
+    for (const id of (t?.party ?? [])) {
+      if (id === excludeId) continue;
+      if ((hpStashRef.current[id] ?? 0) > 0) return id;
+    }
+    return null;
+  }, []);
+
+  // Make `id` the active fighter (carousel switch). Free — costs no turn.
+  const switchTo = useCallback((id: string) => {
+    const bt = useBattleStore.getState().battle;
+    if (!bt || id === activeIdRef.current) return;
+    hpStashRef.current[activeIdRef.current] = playerHpPctRef.current;
+    useBattleStore.getState().switchActive(id);
+    activeIdRef.current = id;
+    const incoming = hpStashRef.current[id];
+    const hp = incoming !== undefined ? incoming : 100;
+    setPlayerHpPct(hp);
+    playerHpPctRef.current = hp;
+    setPanel('moves');
+    setResult(null);
+    setSelectedMove(null);
+    setPuzzle(null);
+  }, []);
+
   // ── Victory / flee navigation ───────────────────────────────────────────────
 
   const handleVictory = useCallback(() => {
@@ -352,20 +431,10 @@ export default function BattleScreen() {
     }
 
     const gs = useGameStore.getState();
-    const activeTrainer = gs.trainers.find(t => t.id === gs.activeTrainerId)!;
 
-    // EXP was already granted incrementally per hit — here we only persist the
-    // active Pokémon's battle-damaged HP and pay out Pokédollars.
-    const activeId = currentBattle.activePlayerInstanceId;
-    const activePk = activeTrainer.caughtPokemon.find((p) => p.instanceId === activeId);
-    if (activePk) {
-      const spec = getSpecies(activePk.speciesId);
-      if (spec) {
-        const lvl   = levelFromExp(activePk.totalExp);
-        const maxHp = calcHp(spec.baseStats.hp, lvl);
-        gs.updatePokemon(activeId, { currentHp: Math.max(1, Math.round(playerHpPctRef.current / 100 * maxHp)) });
-      }
-    }
+    // EXP was already granted incrementally per hit — here we persist every party
+    // member's battle HP (fainted reserves stay fainted) and pay out Pokédollars.
+    persistAllHp();
 
     const pokeReward = Math.floor(enemyLevel * 12);
     const expGains   = buildExpGains();
@@ -373,27 +442,13 @@ export default function BattleScreen() {
     endBattle();
     navigate('/dungeon', { state: { battleOutcome: 'victory', expGains, pokeReward } });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endBattle, navigate, enemyLevel, buildExpGains]);
+  }, [endBattle, navigate, enemyLevel, buildExpGains, persistAllHp]);
 
   const handleFlee = useCallback(() => {
-    const currentBattle = useBattleStore.getState().battle;
-    if (currentBattle) {
-      const gs = useGameStore.getState();
-      const activeTrainer = gs.trainers.find(t => t.id === gs.activeTrainerId)!;
-      const currentParty  = getPartyPokemon(activeTrainer);
-      const activePk = currentParty.find((p) => p.instanceId === currentBattle.activePlayerInstanceId);
-      if (activePk) {
-        const spec = getSpecies(activePk.speciesId);
-        if (spec) {
-          const lvl = levelFromExp(activePk.totalExp);
-          const maxHp = calcHp(spec.baseStats.hp, lvl);
-          gs.updatePokemon(activePk.instanceId, { currentHp: Math.max(1, Math.round(playerHpPctRef.current / 100 * maxHp)) });
-        }
-      }
-    }
+    if (useBattleStore.getState().battle) persistAllHp();
     endBattle();
     navigate('/dungeon', { state: { battleOutcome: 'fled' } });
-  }, [endBattle, navigate]);
+  }, [endBattle, navigate, persistAllHp]);
 
   // ── Blackout — active Pokémon fainted ────────────────────────────────────────
   // Shows a brief blackout screen, then returns to town. Everything is kept
@@ -401,14 +456,14 @@ export default function BattleScreen() {
   // the player sees it must be healed at the Pokémon Center before battling again.
   const handleBlackout = useCallback(() => {
     if (tiRef.current) clearInterval(tiRef.current);
-    const bt = useBattleStore.getState().battle;
-    if (bt) useGameStore.getState().updatePokemon(bt.activePlayerInstanceId, { currentHp: 0 });
+    // Every party member has fainted — persist them all (at 0 HP).
+    if (useBattleStore.getState().battle) persistAllHp();
     setBlackout(true);
     setTimeout(() => {
       endBattle();
       navigate('/', { state: { blackedOut: true } });
     }, 2200);
-  }, [endBattle, navigate]);
+  }, [endBattle, navigate, persistAllHp]);
 
   // ── Enemy attack ─────────────────────────────────────────────────────────────
   // The wild Pokémon strikes the player. Applies damage, shows the attribution
@@ -434,6 +489,7 @@ export default function BattleScreen() {
     const newPlayerHp = Math.max(0, playerHpPctRef.current - enemyDamagePct);
     setPlayerHpPct(newPlayerHp);
     playerHpPctRef.current = newPlayerHp;
+    hpStashRef.current[activeIdRef.current] = newPlayerHp;   // keep the stash in sync
     // Attribute the hit to the wild Pokémon so it never reads as self-damage.
     setEnemyTurnMsg(`Wild ${enemyName} attacked!`);
     setTimeout(() => setEnemyTurnMsg(null), 1400);
@@ -460,10 +516,16 @@ export default function BattleScreen() {
     const t = setTimeout(() => {
       if (openingStrikeRef.current) return;   // fire exactly once (StrictMode-safe)
       openingStrikeRef.current = true;
-      if (enemyAttack()) handleBlackout();
+      // The strike hits the Pokémon the player entered with (still the active one,
+      // since switching is locked until now).
+      if (enemyAttack()) {
+        const next = firstAlive(activeIdRef.current);
+        if (next) switchTo(next); else handleBlackout();
+      }
+      setCanSwitch(true);   // unlock the carousel now the opening strike has landed
     }, 650);
     return () => clearTimeout(t);
-  }, [battle, playerGoesFirst, enemyAttack, handleBlackout]);
+  }, [battle, playerGoesFirst, enemyAttack, handleBlackout, firstAlive, switchTo]);
 
   // ── Attack resolution ───────────────────────────────────────────────────────
 
@@ -576,11 +638,16 @@ export default function BattleScreen() {
       return;
     }
     setTimeout(() => {
-      if (enemyAttack()) { handleBlackout(); return; }
+      if (enemyAttack()) {
+        // Active Pokémon fainted — send out the next healthy one, or black out.
+        const next = firstAlive(activeIdRef.current);
+        if (next) switchTo(next); else handleBlackout();
+        return;
+      }
       nextTurn();
     }, 1200);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeEnemyTypes, activePlayerTypes, enemyMaxHp, playerMaxHp, playerStats, enemyStats, handleVictory, handleBlackout, recordMathAttempt, awardExp, enemyAttack]);
+  }, [activeEnemyTypes, activePlayerTypes, enemyMaxHp, playerMaxHp, playerStats, enemyStats, handleVictory, handleBlackout, recordMathAttempt, awardExp, enemyAttack, firstAlive, switchTo]);
 
   // Timer expiry — attack math
   useEffect(() => {
@@ -599,8 +666,7 @@ export default function BattleScreen() {
   // ── Pick move → generate puzzle → start timer ───────────────────────────────
 
   function handlePickMove(slot: MoveSlot) {
-    if ((movePp[slot.moveId] ?? slot.currentPp) === 0) return;
-    setMovePp((prev) => ({ ...prev, [slot.moveId]: Math.max(0, (prev[slot.moveId] ?? slot.currentPp) - 1) }));
+    if (slot.currentPp === 0) return;
 
     // Persist the PP decrement to this Pokémon's stored move list (per move, per Pokémon)
     if (battle && playerPokemon) {
@@ -698,12 +764,8 @@ export default function BattleScreen() {
     if (caught) {
       setTimeout(() => {
         if (battle) {
-          // Persist the active Pokémon's battle-damaged HP (catching shouldn't heal it)
-          if (playerPokemon && playerMaxHp) {
-            updatePokemon(playerPokemon.instanceId, {
-              currentHp: Math.max(1, Math.round(playerHpPctRef.current / 100 * playerMaxHp)),
-            });
-          }
+          // Persist every party member's battle HP (catching shouldn't heal them).
+          persistAllHp();
           addCaughtPokemon({
             speciesId: battle.enemy.speciesId,
             totalExp:  battle.enemy.totalExp,
@@ -720,6 +782,7 @@ export default function BattleScreen() {
         const newPlayerHp = Math.max(0, playerHpPctRef.current - enemyDmg);
         setPlayerHpPct(newPlayerHp);
         playerHpPctRef.current = newPlayerHp;
+        hpStashRef.current[activeIdRef.current] = newPlayerHp;
         setEnemyTurnMsg(`Wild ${enemyName} attacked!`);
         setTimeout(() => setEnemyTurnMsg(null), 1400);
         const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDmg / 100 * playerMaxHp)) : enemyDmg;
@@ -728,7 +791,9 @@ export default function BattleScreen() {
         setTimeout(() => setFloats((f) => f.filter((x) => x.id !== pfId)), 1800);
         const actualHp = playerMaxHp ? Math.round(newPlayerHp / 100 * playerMaxHp) : newPlayerHp;
         if (actualHp <= 0) {
-          handleBlackout();   // active Pokémon fainted while trying to catch
+          // Active Pokémon fainted while catching — send out the next one or black out.
+          const next = firstAlive(activeIdRef.current);
+          if (next) switchTo(next); else handleBlackout();
           return;
         }
         setPanel('moves');
@@ -753,6 +818,16 @@ export default function BattleScreen() {
   // Whether this wild species is already registered in the player's collection —
   // shown in the ball-throwing view so the player knows if it's a new catch.
   const alreadyCaught = !!battle && trainer.caughtPokemon.some((p) => p.speciesId === battle.enemy.speciesId);
+
+  // ── Party carousel ───────────────────────────────────────────────────────────
+  const activeId      = battle?.activePlayerInstanceId ?? '';
+  const activeIdx     = party.findIndex((p) => p.instanceId === activeId);
+  const hasParty      = party.length > 1 && activeIdx >= 0;
+  const prevId        = hasParty ? party[(activeIdx - 1 + party.length) % party.length].instanceId : null;
+  const nextId        = hasParty ? party[(activeIdx + 1) % party.length].instanceId : null;
+  // Switching is allowed only on the move-select view, once the opening strike (if
+  // any) has landed.
+  const switchEnabled = hasParty && panel === 'moves' && canSwitch;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -780,77 +855,9 @@ export default function BattleScreen() {
 
       <div style={{ padding: '0 12px' }}>
 
-        {/* ── Arena ── */}
-        <div style={{ border: `2px solid ${D.border}`, borderRadius: 16, margin: '12px 0 10px', overflow: 'hidden' }}>
-
-          {/* Player section — top */}
-          <div style={{ background: 'linear-gradient(180deg,#1a2a0e,#0d1a06)', padding: '14px 14px 12px', borderLeft: `3px solid ${D.yellow}`, position: 'relative' }}>
-            <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 14, alignItems: 'center' }}>
-              <img src={getSpriteUrl(playerDexNumber)} alt={playerName} style={{ width: 64, height: 64, imageRendering: 'pixelated', objectFit: 'contain', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.7))', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.white }}>{playerName}</span>
-                  <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>Lv{playerLevel}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {activePlayerTypes.map((t) => <TypeBadge key={t} type={t} />)}
-                  <RarityBadge rarity={playerRarity} />
-                </div>
-                <HPBar
-                  pct={playerHpPct}
-                  current={playerMaxHp ? Math.max(0, Math.round(playerHpPct / 100 * playerMaxHp)) : undefined}
-                  max={playerMaxHp ?? undefined}
-                />
-                {/* EXP bar */}
-                <div style={{ height: 3, background: '#111', borderRadius: 2, marginTop: 5, overflow: 'hidden' }}>
-                  <div style={{ width: `${expBarPct}%`, height: '100%', background: D.blue, transition: 'width .5s' }} />
-                </div>
-                {/* Focus pips — full meter = next correct hit is a 2× charged crit */}
-                <div style={{ display: 'flex', gap: 4, marginTop: 7, alignItems: 'center' }}>
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: i < focusPips ? D.yellow : '#111', border: `2px solid ${i < focusPips ? '#a07800' : D.border}`, boxShadow: i < focusPips ? `0 0 6px ${D.yellow}80` : 'none', transition: 'all .2s' }} />
-                  ))}
-                  {focusPips >= 5 ? (
-                    <span className="pulsing" style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: D.yellow, marginLeft: 4 }}>⚡ CHARGED!</span>
-                  ) : (
-                    <span style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: D.muted, marginLeft: 4 }}>FOCUS</span>
-                  )}
-                </div>
-                {playerStats && (
-                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                    {([
-                      { label: 'Atk', val: playerStats.attack,                              col: D.white },
-                      { label: 'Def', val: Math.round(playerStats.defense * playerDefMult), col: playerDefMult > 1 ? D.green : D.white },
-                      { label: 'Spd', val: playerStats.speed,                               col: D.white },
-                    ] as const).map(({ label, val, col }) => (
-                      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 6, padding: '3px 8px' }}>
-                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: col }}>{val}</span>
-                        <span style={{ fontFamily: FONT_UI, fontSize: 10, color: D.muted, fontWeight: 700 }}>{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            {/* Damage received — floats over the player avatar (top-right) */}
-            {floats.filter((f) => f.target === 'player').map((f) => (
-              <div key={f.id} style={{ position: 'absolute', top: 10, right: 24, fontFamily: FONT_PIXEL, fontSize: 14, fontWeight: 700, pointerEvents: 'none', color: D.red, animation: 'floatDmg 1.8s ease-out forwards', textShadow: '0 2px 6px #000', zIndex: 10, textAlign: 'right' }}>
-                -{f.amount}
-              </div>
-            ))}
-            {/* Attribution banner — makes clear the wild Pokémon dealt this damage */}
-            {enemyTurnMsg && (
-              <div className="fade-up" style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: FONT_PIXEL, fontSize: 8, color: D.white, background: 'rgba(40,0,0,.8)', border: `1px solid ${D.red}`, borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 11 }}>
-                {enemyTurnMsg}
-              </div>
-            )}
-          </div>
-
-          {/* Divider */}
-          <div style={{ height: 3, background: 'linear-gradient(90deg,#1a3a6a,#2a4a10,#1a3a6a)' }} />
-
-          {/* Enemy section — bottom */}
-          <div style={{ background: 'linear-gradient(180deg,#1a3a6a,#0d2040)', padding: '10px 14px 14px', position: 'relative' }}>
+        {/* ── Opponent panel (top) ── */}
+        <div style={{ border: `2px solid ${D.border}`, borderRadius: 16, margin: '12px 0 8px', overflow: 'hidden', background: 'linear-gradient(180deg,#1a3a6a,#0d2040)', position: 'relative' }}>
+          <div style={{ padding: '10px 14px 14px' }}>
             <div style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted, letterSpacing: 1.5, marginBottom: 8, opacity: 0.7 }}>
               WILD POKÉMON
             </div>
@@ -886,75 +893,175 @@ export default function BattleScreen() {
                 )}
               </div>
             </div>
-            {/* Damage dealt — floats over the enemy avatar */}
-            {floats.filter((f) => f.target === 'enemy').map((f) => (
-              <div key={f.id} style={{ position: 'absolute', top: 10, right: 20, fontFamily: FONT_PIXEL, fontSize: f.crit ? 18 : 14, fontWeight: 700, pointerEvents: 'none', color: f.crit ? '#ff7b00' : f.correct ? D.yellow : D.red, animation: 'floatDmg 1.8s ease-out forwards', textShadow: '0 2px 6px #000', zIndex: 10, textAlign: 'right' }}>
-                {f.crit && <div style={{ fontSize: 8, color: '#ff7b00' }}>⚡CRITICAL!</div>}
-                -{f.amount}
-              </div>
-            ))}
-            {/* Status-move message */}
-            {statusMsg && (
-              <div className="fade-up" style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: FONT_PIXEL, fontSize: 8, color: D.white, background: 'rgba(0,0,0,.7)', border: `1px solid ${D.yellow}`, borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 11 }}>
-                {statusMsg}
-              </div>
-            )}
           </div>
-
+          {/* Damage dealt — floats over the enemy avatar */}
+          {floats.filter((f) => f.target === 'enemy').map((f) => (
+            <div key={f.id} style={{ position: 'absolute', top: 10, right: 20, fontFamily: FONT_PIXEL, fontSize: f.crit ? 18 : 14, fontWeight: 700, pointerEvents: 'none', color: f.crit ? '#ff7b00' : f.correct ? D.yellow : D.red, animation: 'floatDmg 1.8s ease-out forwards', textShadow: '0 2px 6px #000', zIndex: 10, textAlign: 'right' }}>
+              {f.crit && <div style={{ fontSize: 8, color: '#ff7b00' }}>⚡CRITICAL!</div>}
+              -{f.amount}
+            </div>
+          ))}
+          {/* Status-move message */}
+          {statusMsg && (
+            <div className="fade-up" style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: FONT_PIXEL, fontSize: 8, color: D.white, background: 'rgba(0,0,0,.7)', border: `1px solid ${D.yellow}`, borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 11 }}>
+              {statusMsg}
+            </div>
+          )}
         </div>
 
-        {/* ── MOVE PANEL (moves + Ball/Potion/Flee) ── */}
-        {panel === 'moves' && (
-          <div className="fade-up">
-            <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.muted, marginBottom: 8 }}>Choose a move</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-              {activeMoves.map((slot) => {
-                const currentPp = movePp[slot.moveId] ?? slot.currentPp;
-                const outOfPp   = currentPp === 0;
-                const tc        = typeColors(slot.type);
-                // The enemy type this move is ×2 against (if any) — shown so the
-                // player sees WHY it's super effective. Simplified chart has only ×2.
-                const seType    = slot.power > 0
-                  ? activeEnemyTypes.find((t) => getTypeMultiplier(slot.type, t) === 2)
-                  : undefined;
-                return (
-                  <button key={slot.moveId} onClick={() => handlePickMove(slot)} disabled={outOfPp} style={{ background: tc.bg, border: `2px solid ${tc.bdr}`, borderRadius: 12, padding: '10px 12px', cursor: outOfPp ? 'not-allowed' : 'pointer', textAlign: 'left', fontFamily: FONT_UI, transition: 'all .15s', opacity: outOfPp ? 0.35 : 1, position: 'relative' }}
-                    onMouseEnter={(e) => { if (!outOfPp) { e.currentTarget.style.opacity = '.8'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-                    onMouseLeave={(e) => { e.currentTarget.style.opacity = outOfPp ? '0.35' : '1'; e.currentTarget.style.transform = 'none'; }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: tc.fg }}>{slot.name}</span>
-                      {seType && (
-                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, fontWeight: 800, color: '#7bd49a', background: 'rgba(72,199,116,.14)', border: '1px solid #2f7d4f', borderRadius: 4, padding: '2px 5px', lineHeight: 1, whiteSpace: 'nowrap' }}>
-                          ×2 vs {seType.toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <TypeBadge type={slot.type} />
-                      <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>PP {currentPp}/{slot.maxPp}</span>
-                    </div>
-                    <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{slot.power > 0 ? `PWR ${slot.power}` : 'STATUS'}</span>
-                  </button>
-                );
-              })}
+        {/* ── Trainer Focus meter (battle-wide; carries across switches) ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: D.card, border: `1px solid ${focusPips >= 5 ? D.yellow : D.border}`, borderRadius: 10, padding: '7px 12px', margin: '0 0 8px' }}>
+          <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted, letterSpacing: 1, flexShrink: 0 }}>FOCUS</span>
+          <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} style={{ width: 11, height: 11, borderRadius: '50%', background: i < focusPips ? D.yellow : '#111', border: `2px solid ${i < focusPips ? '#a07800' : D.border}`, boxShadow: i < focusPips ? `0 0 6px ${D.yellow}80` : 'none', transition: 'all .2s' }} />
+            ))}
+          </div>
+          {focusPips >= 5
+            ? <span className="pulsing" style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.yellow, flexShrink: 0 }}>⚡ CHARGED!</span>
+            : <span style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: D.muted, flexShrink: 0 }}>{focusPips}/5</span>}
+        </div>
+
+        {/* ── My Pokémon panel (below) — carousel + moves ── */}
+        <div style={{ border: `2px solid ${D.border}`, borderRadius: 16, margin: '0 0 10px', overflow: 'hidden', background: 'linear-gradient(180deg,#1a2a0e,#0d1a06)', borderLeft: `3px solid ${D.yellow}` }}>
+
+          {/* Header — details + carousel; arrows centre on this region only */}
+          <div style={{ position: 'relative' }}>
+
+          {/* Carousel arrows */}
+          {hasParty && (
+            <>
+              <button onClick={() => prevId && switchTo(prevId)} disabled={!switchEnabled} aria-label="Previous Pokémon"
+                style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', width: 30, height: 48, borderRadius: 10, background: 'rgba(0,0,0,.4)', border: `1px solid ${D.border}`, color: switchEnabled ? D.white : '#3a4a2a', fontSize: 22, fontWeight: 900, lineHeight: 1, cursor: switchEnabled ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 12, opacity: switchEnabled ? 1 : 0.35 }}>‹</button>
+              <button onClick={() => nextId && switchTo(nextId)} disabled={!switchEnabled} aria-label="Next Pokémon"
+                style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 30, height: 48, borderRadius: 10, background: 'rgba(0,0,0,.4)', border: `1px solid ${D.border}`, color: switchEnabled ? D.white : '#3a4a2a', fontSize: 22, fontWeight: 900, lineHeight: 1, cursor: switchEnabled ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 12, opacity: switchEnabled ? 1 : 0.35 }}>›</button>
+            </>
+          )}
+
+          <div key={activeId} className="fade-up" style={{ padding: hasParty ? '14px 38px 12px' : '14px 14px 12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 14, alignItems: 'center' }}>
+              <img src={getSpriteUrl(playerDexNumber)} alt={playerName} style={{ width: 64, height: 64, imageRendering: 'pixelated', objectFit: 'contain', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.7))', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.white }}>{playerName}</span>
+                  <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>Lv{playerLevel}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {activePlayerTypes.map((t) => <TypeBadge key={t} type={t} />)}
+                  <RarityBadge rarity={playerRarity} />
+                </div>
+                <HPBar
+                  pct={playerHpPct}
+                  current={playerMaxHp ? Math.max(0, Math.round(playerHpPct / 100 * playerMaxHp)) : undefined}
+                  max={playerMaxHp ?? undefined}
+                />
+                {/* EXP bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
+                  <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.blue, minWidth: 14 }}>XP</span>
+                  <div style={{ flex: 1, height: 3, background: '#111', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ width: `${expBarPct}%`, height: '100%', background: D.blue, transition: 'width .5s' }} />
+                  </div>
+                  <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted, minWidth: 44, textAlign: 'right' }}>
+                    {expToNext > 0 ? `-${expToNext}` : 'MAX'}
+                  </span>
+                </div>
+                {playerStats && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                    {([
+                      { label: 'Atk', val: playerStats.attack,                              col: D.white },
+                      { label: 'Def', val: Math.round(playerStats.defense * playerDefMult), col: playerDefMult > 1 ? D.green : D.white },
+                      { label: 'Spd', val: playerStats.speed,                               col: D.white },
+                    ] as const).map(({ label, val, col }) => (
+                      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 6, padding: '3px 8px' }}>
+                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: col }}>{val}</span>
+                        <span style={{ fontFamily: FONT_UI, fontSize: 10, color: D.muted, fontWeight: 700 }}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            {/* Secondary actions — Ball / Potion / Flee */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              {([
-                { label: 'BALL',                img: getBallSpriteUrl('pokeball'),   icon: '🔴', col: typeColors('Water').fg, bg: typeColors('Water').bg, bdr: typeColors('Water').bdr, action: () => setPanel('ball')   },
-                { label: `POTION ×${totalPotions}`, img: getItemSpriteUrl('potion'), icon: '🧪', col: D.green,                bg: '#0a1a0a',               bdr: '#1a4020',              action: () => setPanel('potion') },
-                { label: 'FLEE',                img: undefined,                      icon: '🏃', col: D.muted,                bg: D.card2,                 bdr: D.border,               action: handleFlee               },
-              ] as const).map((btn, i) => (
-                <button key={i} onClick={btn.action} style={{ background: btn.bg, border: `2px solid ${btn.bdr}`, borderRadius: 12, padding: '10px 6px', cursor: 'pointer', fontFamily: FONT_UI, fontSize: 12, fontWeight: 900, color: btn.col, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, transition: 'opacity .15s' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '.8')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
-                  {btn.img
-                    ? <img src={btn.img} alt={btn.label} style={{ width: 24, height: 24, imageRendering: 'pixelated', objectFit: 'contain' }} />
-                    : <span style={{ fontSize: 20 }}>{btn.icon}</span>}
-                  {btn.label}
-                </button>
+          </div>
+
+          {/* Party position indicator */}
+          {hasParty && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 5, padding: '0 0 8px' }}>
+              {party.map((p, i) => (
+                <div key={p.instanceId} style={{ width: 6, height: 6, borderRadius: '50%', background: i === activeIdx ? D.yellow : '#3a4a2a' }} />
               ))}
             </div>
+          )}
+
+          {/* Damage received — floats over the player avatar */}
+          {floats.filter((f) => f.target === 'player').map((f) => (
+            <div key={f.id} style={{ position: 'absolute', top: 10, right: 44, fontFamily: FONT_PIXEL, fontSize: 14, fontWeight: 700, pointerEvents: 'none', color: D.red, animation: 'floatDmg 1.8s ease-out forwards', textShadow: '0 2px 6px #000', zIndex: 10, textAlign: 'right' }}>
+              -{f.amount}
+            </div>
+          ))}
+          {/* Attribution banner — makes clear the wild Pokémon dealt this damage */}
+          {enemyTurnMsg && (
+            <div className="fade-up" style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: FONT_PIXEL, fontSize: 8, color: D.white, background: 'rgba(40,0,0,.8)', border: `1px solid ${D.red}`, borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 11 }}>
+              {enemyTurnMsg}
+            </div>
+          )}
+          </div>{/* end header */}
+
+          {/* Move list — part of this Pokémon's panel */}
+          {panel === 'moves' && (
+            <div className="fade-up" style={{ padding: '0 12px 12px' }}>
+              <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.muted, marginBottom: 8 }}>Choose a move</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {activeMoves.map((slot) => {
+                  const currentPp = slot.currentPp;
+                  const outOfPp   = currentPp === 0;
+                  const tc        = typeColors(slot.type);
+                  // The enemy type this move is ×2 against (if any) — shown so the
+                  // player sees WHY it's super effective. Simplified chart has only ×2.
+                  const seType    = slot.power > 0
+                    ? activeEnemyTypes.find((t) => getTypeMultiplier(slot.type, t) === 2)
+                    : undefined;
+                  return (
+                    <button key={slot.moveId} onClick={() => handlePickMove(slot)} disabled={outOfPp} style={{ background: tc.bg, border: `2px solid ${tc.bdr}`, borderRadius: 12, padding: '10px 12px', cursor: outOfPp ? 'not-allowed' : 'pointer', textAlign: 'left', fontFamily: FONT_UI, transition: 'all .15s', opacity: outOfPp ? 0.35 : 1, position: 'relative' }}
+                      onMouseEnter={(e) => { if (!outOfPp) { e.currentTarget.style.opacity = '.8'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = outOfPp ? '0.35' : '1'; e.currentTarget.style.transform = 'none'; }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: tc.fg }}>{slot.name}</span>
+                        {seType && (
+                          <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, fontWeight: 800, color: '#7bd49a', background: 'rgba(72,199,116,.14)', border: '1px solid #2f7d4f', borderRadius: 4, padding: '2px 5px', lineHeight: 1, whiteSpace: 'nowrap' }}>
+                            ×2 vs {seType.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <TypeBadge type={slot.type} />
+                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>PP {currentPp}/{slot.maxPp}</span>
+                      </div>
+                      <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{slot.power > 0 ? `PWR ${slot.power}` : 'STATUS'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>{/* end my-Pokémon panel */}
+
+        {/* ── Ball / Potion / Flee ── */}
+        {panel === 'moves' && (
+          <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+            {([
+              { label: 'BALL',                img: getBallSpriteUrl('pokeball'),   icon: '🔴', col: typeColors('Water').fg, bg: typeColors('Water').bg, bdr: typeColors('Water').bdr, action: () => setPanel('ball')   },
+              { label: `POTION ×${totalPotions}`, img: getItemSpriteUrl('potion'), icon: '🧪', col: D.green,                bg: '#0a1a0a',               bdr: '#1a4020',              action: () => setPanel('potion') },
+              { label: 'FLEE',                img: undefined,                      icon: '🏃', col: D.muted,                bg: D.card2,                 bdr: D.border,               action: handleFlee               },
+            ] as const).map((btn, i) => (
+              <button key={i} onClick={btn.action} style={{ background: btn.bg, border: `2px solid ${btn.bdr}`, borderRadius: 12, padding: '10px 6px', cursor: 'pointer', fontFamily: FONT_UI, fontSize: 12, fontWeight: 900, color: btn.col, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, transition: 'opacity .15s' }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '.8')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
+                {btn.img
+                  ? <img src={btn.img} alt={btn.label} style={{ width: 24, height: 24, imageRendering: 'pixelated', objectFit: 'contain' }} />
+                  : <span style={{ fontSize: 20 }}>{btn.icon}</span>}
+                {btn.label}
+              </button>
+            ))}
           </div>
         )}
 

@@ -44,6 +44,7 @@ export function createNewGame(): GameState {
       topicAccuracy:          {},
     },
     rarityBag: createRarityBag(),
+    focus:     0,
   };
 
   return {
