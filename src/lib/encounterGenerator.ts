@@ -52,6 +52,7 @@ export function generateEncounter(
   const level = pickLevel(partyHighestLevel);
   const entry = pickSpecies(rarity);
   return {
+    id:          `enc-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
     speciesId:   entry.speciesId,
     speciesName: entry.speciesName,
     dexNumber:   entry.dexNumber,

@@ -37,7 +37,7 @@ export default function TownScreen() {
 
   const trainer = useActiveTrainer();
   const healParty = useGameStore(s => s.healParty);
-  const rollEncounter = useDungeonStore((s) => s.rollEncounter);
+  const rollAll = useDungeonStore((s) => s.rollAll);
 
   // PWA update prompt — shown at the top when a new version is waiting.
   const needRefresh = usePwaStore((s) => s.needRefresh);
@@ -60,9 +60,9 @@ export default function TownScreen() {
 
   // ── Enter dungeon ──────────────────────────────────────────────────────────
   const handleEnterDungeon = useCallback(() => {
-    rollEncounter(getPartyHighestLevel(trainer), itemActive);
+    rollAll(getPartyHighestLevel(trainer), itemActive);
     navigate('/dungeon');
-  }, [trainer, itemActive, rollEncounter, navigate]);
+  }, [trainer, itemActive, rollAll, navigate]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (

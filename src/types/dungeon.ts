@@ -4,6 +4,8 @@ import type { PokeType, PokemonRarity } from './pokemon';
 // The dungeon is an infinite stream of single wild encounters (no floors/rooms).
 
 export interface EncounterData {
+  /** Unique id for this encounter instance — React key + slot identity. */
+  id: string;
   speciesId: string;
   /** Denormalized for display without a data lookup. */
   speciesName: string;

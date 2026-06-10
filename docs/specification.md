@@ -168,24 +168,30 @@ If the Lead faints (HP reaches 0) the player blacks out and returns to town. No 
 
 # **3. Mathematics Curriculum**
 
-In the live build every battle and catch puzzle is an **addition** problem. Difficulty is a function of the **opponent's level** — there are no floor tiers. The same generator is used for attacking and for throwing a Poké Ball, so a catch is exactly as hard as a hit at the same opponent level.
+In the live build every battle and catch puzzle is **addition** (early levels) or **subtraction** (later levels). Difficulty is a function of the **opponent's level** — there are no floor tiers. The same generator is used for attacking and for throwing a Poké Ball, so a catch is exactly as hard as a hit at the same opponent level.
 
-## **3.1 Addition Curriculum by Opponent Level**
+## **3.1 Curriculum by Opponent Level**
 
-| Opponent level | Problem | Result range |
+| Opponent level | Operation | Problem |
 | :---- | :---- | :---- |
-| 1 | addition of two positive numbers | up to 10 |
-| 2 | addition of two positive numbers | up to 14 |
-| 3 | addition of two positive numbers | between 10 and 20 |
-| 4 | addition where one addend is 0–9 | up to 50 |
-| 5 | addition of two positive numbers | between 20 and 50 |
-| 6+ | addition of two positive numbers | between 40 and 100 |
+| 1–2 | addition | result up to 10 |
+| 3 | addition | result between 10 and 20 |
+| 4 | addition | result up to 50, with one addend in 0–9 |
+| 5 | addition | result between 20 and 50 |
+| 6 | addition | result between 40 and 100 |
+| 7 | subtraction | operands up to 10, no negative result |
+| 8 | subtraction | operands up to 20, no negative result |
+| 9 | subtraction | operands up to 50, no negative result, **no borrowing** (each digit of the subtrahend ≤ the minuend's) |
+| 10 | subtraction | operands up to 50, no negative result, **borrowing required** (subtrahend's units digit > the minuend's) |
+| 11 | subtraction | operands up to 10, negative results allowed |
+| 12 | subtraction | operands up to 20, negative results allowed |
+| 13+ | subtraction | operands up to 50, negative results allowed |
 
-The order of the two addends is randomised for variety. Every problem has exactly one whole-number answer.
+For addition the order of the two addends is randomised for variety; subtraction operands keep their order (`a − b`). Every problem has exactly one whole-number answer (which may be negative at levels 11+, entered with a leading `−`).
 
 ## **3.2 Difficulty Scaling**
 
-* **Number size** grows with opponent level per the table above.
+* **Operation & number size** grow with opponent level per the table above — addition first, then subtraction (no-borrow → borrow → signed results).
 * **Time pressure**: the battle puzzle timer is `battleTimerSeconds(level)` — 8 seconds at level 1, decreasing linearly to 4 seconds at level 40 and above.
 * All puzzles accept the exact integer answer.
 
@@ -195,12 +201,12 @@ The order of the two addends is randomised for variety. Every problem has exactl
 * Catch puzzles: correct = full catch accuracy; incorrect or expired = 75% of catch accuracy.
 * No puzzle produces a zero outcome. The child always makes progress.
 
-| Pedagogical note: Spaced repetition occurs naturally through play. A child grinding encounters solves dozens of addition problems per session without perceiving it as drilling. |
+| Pedagogical note: Spaced repetition occurs naturally through play. A child grinding encounters solves dozens of addition and subtraction problems per session without perceiving it as drilling. |
 | :---- |
 
 ## **3.4 Extension Path (not in the live build)**
 
-The richer curriculum from earlier versions — multiplication, division, order of operations, fractions, percentages, and introductory algebra — remains a documented extension path. It would be re-introduced as additional opponent-level bands (e.g. multiplication appearing once opponents pass a threshold), reusing the same level-driven generator.
+The richer curriculum from earlier versions — multiplication, division, order of operations, fractions, percentages, and introductory algebra — remains a documented extension path, layered on after the addition/subtraction bands as additional opponent-level tiers reusing the same level-driven generator.
 
 # **4. Battle System**
 
@@ -504,7 +510,7 @@ Every simplified mechanic has a documented extension path, now triggered by **Po
 
 | Mechanic | Simplified core | Extension trigger | Full version |
 | :---- | :---- | :---- | :---- |
-| Math curriculum | Addition only, level-banded | Opponent level thresholds | Multiplication → division → order of ops → fractions → percentages → algebra, as new level bands |
+| Math curriculum | Addition then subtraction, level-banded | Opponent level thresholds | Multiplication → division → order of ops → fractions → percentages → algebra, as new level bands |
 | Item system | Hidden until Pokémon level 20 | First Pokémon level 20 | Drops, slots, identification, equip |
 | Item slots | 1 / 2 / 3 at lv 20 / 36 / 50 | Pokémon level | Multi-item optimisation |
 | Type chart | 6 types | Opponent level | Full 18-type chart |
@@ -556,7 +562,7 @@ Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caug
 | Turn-based battles | Yes | Actions: Attack, Ball, Potion, Flee |
 | Endless wild encounters | Yes | One opponent at a time; no floors/rooms/map |
 | Opponent level = party-high ±1 | Yes | Drives difficulty and rewards |
-| Addition curriculum by level | Yes | See §3 |
+| Addition + subtraction curriculum by level | Yes | See §3 |
 | Level-based battle timer | Yes | 8 s → 4 s |
 | Partial credit (75%) | Yes | Wrong/expired answers |
 | Damage formula | Yes | Item Bonus = 0 until activation |
@@ -584,16 +590,22 @@ Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caug
 | Party-size growth | Not yet | Trigger to be redefined |
 | TMs / stones / trainer battles / multiplayer | No | Long-term extensions |
 
-## **12.2 Addition Curriculum at a Glance**
+## **12.2 Curriculum at a Glance**
 
-| Opponent level | Result range | Notes |
+| Opponent level | Operation | Notes |
 | :---- | :---- | :---- |
-| 1 | up to 10 | |
-| 2 | up to 14 | |
-| 3 | 10–20 | |
-| 4 | up to 50 | one addend 0–9 |
-| 5 | 20–50 | |
-| 6+ | 40–100 | |
+| 1–2 | addition | result up to 10 |
+| 3 | addition | result 10–20 |
+| 4 | addition | result up to 50, one addend 0–9 |
+| 5 | addition | result 20–50 |
+| 6 | addition | result 40–100 |
+| 7 | subtraction | operands ≤ 10, no negative |
+| 8 | subtraction | operands ≤ 20, no negative |
+| 9 | subtraction | operands ≤ 50, no negative, no borrow |
+| 10 | subtraction | operands ≤ 50, no negative, borrow required |
+| 11 | subtraction | operands ≤ 10, negatives allowed |
+| 12 | subtraction | operands ≤ 20, negatives allowed |
+| 13+ | subtraction | operands ≤ 50, negatives allowed |
 
 ## **12.3 Type Chart — Simplified Core (6 Types)**
 

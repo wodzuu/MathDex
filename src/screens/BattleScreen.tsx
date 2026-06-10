@@ -93,6 +93,44 @@ function softenFactor(factor: number, correct: boolean): number {
   return correct ? factor : 1 + (factor - 1) / 2;
 }
 
+/** Minimal stat shape the enemy-damage helper needs. */
+interface AtkDefStats { attack: number; defense: number; spAtk: number; spDef: number }
+
+/**
+ * Damage one of the enemy's moves would deal to the active player Pokémon
+ * (Accuracy = 1, no crit). Status moves (power 0) use a small fixed chip, just
+ * like the player's. Shared by the enemy's attack and the opponent-card range
+ * indicator so the shown range matches the hits that land.
+ */
+function enemyMoveDamage(
+  moveId: string,
+  enemyS: AtkDefStats,
+  playerS: AtkDefStats,
+  enemyTypes: readonly PokeType[],
+  playerTypes: readonly PokeType[],
+  level: number,
+  enemyAtkMult: number,
+  playerDefMult: number,
+): number {
+  const mv      = getMove(moveId);
+  const power   = mv ? (mv.power > 0 ? mv.power : 20) : 40;
+  const special = mv?.category === 'special';
+  const type    = mv?.type;
+  const mult    = (type ? effectiveMultiplier(type, playerTypes) : 1) as 0 | 0.5 | 1 | 2;
+  const stab: 1 | 1.5 = type && enemyTypes.some((t) => t === type) ? 1.5 : 1;
+  return calcDamage({
+    movePower:          power,
+    itemBonus:          0,
+    attackerAtk:        Math.max(1, (special ? enemyS.spAtk : enemyS.attack) * enemyAtkMult),
+    defenderDef:        Math.max(1, (special ? playerS.spDef : playerS.defense) * playerDefMult),
+    attackerLevel:      level,
+    typeMultiplier:     mult,
+    stabMultiplier:     stab,
+    critMultiplier:     1,
+    accuracyMultiplier: 1,
+  });
+}
+
 // ── Demo data — used when no active battle in the store ───────────────────────
 
 const DEMO_ENEMY_TYPES: readonly PokeType[] = ['Water'];
@@ -471,27 +509,27 @@ export default function BattleScreen() {
   // per-turn counterattack and the faster-enemy opening strike.
   const enemyAttack = useCallback((): boolean => {
     let enemyDamagePct = 5;
+    let moveName = '';
     if (enemyStats && playerStats && playerMaxHp) {
-      const enemyDmg = calcDamage({
-        movePower:          40,
-        itemBonus:          0,
-        // Apply status-move modifiers: enemy ATK debuff + player DEF buff.
-        attackerAtk:        Math.max(1, enemyStats.attack   * enemyAtkMultRef.current),
-        defenderDef:        Math.max(1, playerStats.defense * playerDefMultRef.current),
-        attackerLevel:      enemyLevel,
-        typeMultiplier:     1,
-        stabMultiplier:     1,
-        critMultiplier:     1,
-        accuracyMultiplier: 1,
-      });
+      // The wild Pokémon picks one of its own moves at random.
+      const enemyMoves = useBattleStore.getState().battle?.enemy.moves ?? [];
+      const picked = enemyMoves.length ? enemyMoves[Math.floor(Math.random() * enemyMoves.length)] : null;
+      moveName = picked ? (getMove(picked.moveId)?.name ?? '') : '';
+      const enemyDmg = enemyMoveDamage(
+        picked?.moveId ?? '',
+        enemyStats, playerStats,
+        enemySpecies?.types ?? [], activePlayerTypes,
+        enemyLevel,
+        enemyAtkMultRef.current, playerDefMultRef.current,   // status-move modifiers
+      );
       enemyDamagePct = Math.max(1, Math.min(100, Math.round((enemyDmg / playerMaxHp) * 100)));
     }
     const newPlayerHp = Math.max(0, playerHpPctRef.current - enemyDamagePct);
     setPlayerHpPct(newPlayerHp);
     playerHpPctRef.current = newPlayerHp;
     hpStashRef.current[activeIdRef.current] = newPlayerHp;   // keep the stash in sync
-    // Attribute the hit to the wild Pokémon so it never reads as self-damage.
-    setEnemyTurnMsg(`Wild ${enemyName} attacked!`);
+    // Attribute the hit (and the move) to the wild Pokémon so it never reads as self-damage.
+    setEnemyTurnMsg(moveName ? `Wild ${enemyName} used ${moveName}!` : `Wild ${enemyName} attacked!`);
     setTimeout(() => setEnemyTurnMsg(null), 1400);
     // Float the damage received over the player's avatar.
     const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDamagePct / 100 * playerMaxHp)) : enemyDamagePct;
@@ -503,21 +541,25 @@ export default function BattleScreen() {
     const actualHp = playerMaxHp ? Math.round(newPlayerHp / 100 * playerMaxHp) : newPlayerHp;
     return actualHp <= 0;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enemyStats, playerStats, playerMaxHp, enemyLevel, enemyName]);
+  }, [enemyStats, playerStats, playerMaxHp, enemyLevel, enemyName, enemySpecies, activePlayerTypes]);
 
   // ── Faster-enemy opening strike ──────────────────────────────────────────────
   // When the wild Pokémon is faster it gets one free hit at the very start of the
   // battle — clearly the enemy "going first" — before the player acts. Thereafter
-  // every turn is the intuitive player-attacks-then-enemy-counters loop, so the
-  // player's own move never appears to damage themselves.
+  // every turn is the intuitive player-attacks-then-enemy-counters loop.
+  //
+  // The decision is fixed to the Pokémon the player ENTERED with (captured once at
+  // mount), so it does NOT change if the player later switches to a slower party
+  // member — a fast lead means no one is struck by speed, even after switching.
+  const enteredGoesFirstRef = useRef(playerGoesFirst);
   const openingStrikeRef = useRef(false);
   useEffect(() => {
-    if (!battle || playerGoesFirst) return;
+    if (!battle || enteredGoesFirstRef.current) return;
     const t = setTimeout(() => {
       if (openingStrikeRef.current) return;   // fire exactly once (StrictMode-safe)
       openingStrikeRef.current = true;
-      // The strike hits the Pokémon the player entered with (still the active one,
-      // since switching is locked until now).
+      // The strike hits the Pokémon the player entered with (switching is locked
+      // until now, so the active Pokémon is still the entered one).
       if (enemyAttack()) {
         const next = firstAlive(activeIdRef.current);
         if (next) switchTo(next); else handleBlackout();
@@ -525,7 +567,7 @@ export default function BattleScreen() {
       setCanSwitch(true);   // unlock the carousel now the opening strike has landed
     }, 650);
     return () => clearTimeout(t);
-  }, [battle, playerGoesFirst, enemyAttack, handleBlackout, firstAlive, switchTo]);
+  }, [battle, enemyAttack, handleBlackout, firstAlive, switchTo]);
 
   // ── Attack resolution ───────────────────────────────────────────────────────
 
@@ -814,10 +856,23 @@ export default function BattleScreen() {
 
   const mathBg      = result === 'ok' ? '#0d2a10' : result === 'no' ? '#2a0d0d' : D.card;
   const totalPotions = potions.potion + potions.superPotion + potions.hyperPotion;
+  const totalBalls   = (trainer.pokeballs.pokeball ?? 0) + (trainer.pokeballs.greatBall ?? 0) + (trainer.pokeballs.ultraBall ?? 0);
 
   // Whether this wild species is already registered in the player's collection —
   // shown in the ball-throwing view so the player knows if it's a new catch.
   const alreadyCaught = !!battle && trainer.caughtPokemon.some((p) => p.speciesId === battle.enemy.speciesId);
+
+  // Damage the opponent's moves could deal to the *current* active Pokémon — the
+  // min/max across its whole moveset (matches the random move it actually picks).
+  const enemyDmgRange = (() => {
+    if (!battle || !enemyStats || !playerStats) return null;
+    const enemyTypes = enemySpecies?.types ?? [];
+    const dmgs = battle.enemy.moves.map((m) =>
+      enemyMoveDamage(m.moveId, enemyStats, playerStats, enemyTypes, activePlayerTypes, enemyLevel, enemyAtkMult, playerDefMult),
+    );
+    if (!dmgs.length) return null;
+    return { min: Math.min(...dmgs), max: Math.max(...dmgs) };
+  })();
 
   // ── Party carousel ───────────────────────────────────────────────────────────
   const activeId      = battle?.activePlayerInstanceId ?? '';
@@ -889,6 +944,15 @@ export default function BattleScreen() {
                         <span style={{ fontFamily: FONT_UI, fontSize: 10, color: D.muted, fontWeight: 700 }}>{label}</span>
                       </div>
                     ))}
+                  </div>
+                )}
+                {/* Damage this opponent can hit the active Pokémon for (range over its moves) */}
+                {enemyDmgRange && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7 }}>
+                    <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>HITS YOU FOR</span>
+                    <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, fontWeight: 800, color: D.red }}>
+                      {enemyDmgRange.min === enemyDmgRange.max ? `DMG ${enemyDmgRange.min}` : `DMG ${enemyDmgRange.min}–${enemyDmgRange.max}`}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1020,6 +1084,22 @@ export default function BattleScreen() {
                   const seType    = slot.power > 0
                     ? activeEnemyTypes.find((t) => getTypeMultiplier(slot.type, t) === 2)
                     : undefined;
+                  // Pre-computed damage vs the current enemy, assuming a correct
+                  // answer (Accuracy = 1). Every other factor is known up front:
+                  // power, atk/def, type, STAB, level, and the charged-crit state.
+                  const dmgPreview = (playerStats && enemyStats)
+                    ? calcDamage({
+                        movePower:          slot.power > 0 ? slot.power : 20,
+                        itemBonus:          0,
+                        attackerAtk:        slot.category === 'special' ? playerStats.spAtk : playerStats.attack,
+                        defenderDef:        Math.max(1, (slot.category === 'special' ? enemyStats.spDef : enemyStats.defense) * enemyDefMult),
+                        attackerLevel:      playerLevel,
+                        typeMultiplier:     effectiveMultiplier(slot.type, activeEnemyTypes),
+                        stabMultiplier:     activePlayerTypes.some((t) => t === slot.type) ? 1.5 : 1,
+                        critMultiplier:     focusPips >= 5 ? 2 : 1,
+                        accuracyMultiplier: 1,
+                      })
+                    : null;
                   return (
                     <button key={slot.moveId} onClick={() => handlePickMove(slot)} disabled={outOfPp} style={{ background: tc.bg, border: `2px solid ${tc.bdr}`, borderRadius: 12, padding: '10px 12px', cursor: outOfPp ? 'not-allowed' : 'pointer', textAlign: 'left', fontFamily: FONT_UI, transition: 'all .15s', opacity: outOfPp ? 0.35 : 1, position: 'relative' }}
                       onMouseEnter={(e) => { if (!outOfPp) { e.currentTarget.style.opacity = '.8'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
@@ -1036,7 +1116,12 @@ export default function BattleScreen() {
                         <TypeBadge type={slot.type} />
                         <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>PP {currentPp}/{slot.maxPp}</span>
                       </div>
-                      <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{slot.power > 0 ? `PWR ${slot.power}` : 'STATUS'}</span>
+                      <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>
+                        {slot.power > 0 ? `PWR ${slot.power}` : 'STATUS'}
+                        {dmgPreview !== null && (
+                          <> | <span style={{ color: focusPips >= 5 ? '#ff7b00' : D.yellow }}>DMG {dmgPreview}</span></>
+                        )}
+                      </span>
                     </button>
                   );
                 })}
@@ -1049,7 +1134,7 @@ export default function BattleScreen() {
         {panel === 'moves' && (
           <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
             {([
-              { label: 'BALL',                img: getBallSpriteUrl('pokeball'),   icon: '🔴', col: typeColors('Water').fg, bg: typeColors('Water').bg, bdr: typeColors('Water').bdr, action: () => setPanel('ball')   },
+              { label: `BALL ×${totalBalls}`, img: getBallSpriteUrl('pokeball'),   icon: '🔴', col: typeColors('Water').fg, bg: typeColors('Water').bg, bdr: typeColors('Water').bdr, action: () => setPanel('ball')   },
               { label: `POTION ×${totalPotions}`, img: getItemSpriteUrl('potion'), icon: '🧪', col: D.green,                bg: '#0a1a0a',               bdr: '#1a4020',              action: () => setPanel('potion') },
               { label: 'FLEE',                img: undefined,                      icon: '🏃', col: D.muted,                bg: D.card2,                 bdr: D.border,               action: handleFlee               },
             ] as const).map((btn, i) => (
