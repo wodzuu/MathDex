@@ -442,8 +442,14 @@ Single currency — Pokédollars (₽).
 
 | Source | Amount | Available from |
 | :---- | :---- | :---- |
-| Wild Pokémon **defeated** | ⌊opponent level × 12⌋ | Start of game |
+| Wild Pokémon **defeated** | `max(20, ⌊opponent level × 12 × rarityMult⌋)` | Start of game |
 | Selling identified items | 30% of estimated item value | Item system activation |
+
+The reward scales with **level and rarity** (rarer opponents pay more), with a small floor so early commons still pay something:
+
+| Rarity | Common | Uncommon | Rare | Epic | Legendary |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| `rarityMult` | ×1.0 | ×1.5 | ×2.0 | ×3.0 | ×5.0 |
 
 Money is awarded **only on defeat** — never on catch or flee.
 
@@ -624,7 +630,7 @@ Pairs involving any type outside these six default to ×1.
 
 | Category | Detail | Amount / Price |
 | :---- | :---- | :---- |
-| Income | Wild Pokémon **defeated** | ⌊opponent level × 12⌋ |
+| Income | Wild Pokémon **defeated** | `max(20, ⌊level × 12 × rarityMult⌋)` (Common ×1 → Legendary ×5) |
 | Income | Selling identified items (Phase 2) | 30% of item value |
 | Spending | Potion / Super / Hyper | ₽300 / ₽700 / ₽1200 |
 | Spending | Poké / Great / Ultra Ball | ₽200 / ₽600 / ₽1200 |

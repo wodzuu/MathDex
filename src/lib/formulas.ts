@@ -7,7 +7,7 @@
  * Spec references inline on each function.
  */
 
-import type { BaseStats } from '../types/pokemon';
+import type { BaseStats, PokemonRarity } from '../types/pokemon';
 
 // ── Stat formula ──────────────────────────────────────────────────────────────
 // Spec §6.1: Stat at level N = floor((2 × Base + 15) × N ÷ 100) + 5
@@ -180,4 +180,21 @@ export function catchProbability(
 
 export function pokeDollarsAfterBlackout(current: number): number {
   return Math.floor(current / 2);
+}
+
+// ── Pokédollars earned on defeat ──────────────────────────────────────────────
+// Spec §7.2: reward scales with opponent level and rarity (rarer = bigger payout),
+// with a small floor so early commons still pay something.
+
+const MONEY_RARITY_MULT: Record<PokemonRarity, number> = {
+  Common:    1,
+  Uncommon:  1.5,
+  Rare:      2,
+  Epic:      3,
+  Legendary: 5,
+};
+
+/** Pokédollars earned for defeating a wild Pokémon of the given level + rarity. */
+export function moneyReward(opponentLevel: number, rarity: PokemonRarity): number {
+  return Math.max(20, Math.floor(opponentLevel * 12 * (MONEY_RARITY_MULT[rarity] ?? 1)));
 }

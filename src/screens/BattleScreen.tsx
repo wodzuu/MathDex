@@ -8,7 +8,7 @@ import type { Pokeballs, Potions } from '../types/gameState';
 import { D, FONT_PIXEL, FONT_UI, typeColors } from '../styles/tokens';
 import { getMove } from '../data/moves';
 import { getSpecies } from '../data/species';
-import { calcHp, calcAllStats, calcDamage, catchProbability, hpZone, expGained, levelFromExp, expToLevel } from '../lib/formulas';
+import { calcHp, calcAllStats, calcDamage, catchProbability, hpZone, expGained, levelFromExp, expToLevel, moneyReward } from '../lib/formulas';
 import { getSpriteUrl, getBallSpriteUrl, getItemSpriteUrl } from '../lib/sprites';
 import RarityBadge from '../components/RarityBadge';
 import { generateBattlePuzzle, effectiveMultiplier, getTypeMultiplier } from '../lib/mathProblemGenerator';
@@ -476,7 +476,8 @@ export default function BattleScreen() {
     // member's battle HP (fainted reserves stay fainted) and pay out Pokédollars.
     persistAllHp();
 
-    const pokeReward = Math.floor(enemyLevel * 12);
+    const enemyRarityForReward = getSpecies(currentBattle.enemy.speciesId)?.rarity ?? 'Common';
+    const pokeReward = moneyReward(enemyLevel, enemyRarityForReward);
     const expGains   = buildExpGains();
     gs.earnPokeDollars(pokeReward);
     endBattle();
@@ -1125,23 +1126,27 @@ export default function BattleScreen() {
                     <button key={slot.moveId} onClick={() => handlePickMove(slot)} disabled={outOfPp} style={{ background: tc.bg, border: `2px solid ${tc.bdr}`, borderRadius: 12, padding: '10px 12px', cursor: outOfPp ? 'not-allowed' : 'pointer', textAlign: 'left', fontFamily: FONT_UI, transition: 'all .15s', opacity: outOfPp ? 0.35 : 1, position: 'relative' }}
                       onMouseEnter={(e) => { if (!outOfPp) { e.currentTarget.style.opacity = '.8'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
                       onMouseLeave={(e) => { e.currentTarget.style.opacity = outOfPp ? '0.35' : '1'; e.currentTarget.style.transform = 'none'; }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: tc.fg }}>{slot.name}</span>
-                        {seType && (
-                          <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, fontWeight: 800, color: '#7bd49a', background: 'rgba(72,199,116,.14)', border: '1px solid #2f7d4f', borderRadius: 4, padding: '2px 5px', lineHeight: 1, whiteSpace: 'nowrap' }}>
-                            ×2 vs {seType.toUpperCase()}
-                          </span>
-                        )}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 5 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: tc.fg }}>{slot.name}</span>
+                          {seType && (
+                            <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, fontWeight: 800, color: '#7bd49a', background: 'rgba(72,199,116,.14)', border: '1px solid #2f7d4f', borderRadius: 4, padding: '2px 5px', lineHeight: 1, whiteSpace: 'nowrap' }}>
+                              ×2 vs {seType.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted, flexShrink: 0, whiteSpace: 'nowrap', marginTop: 3 }}>{currentPp}/{slot.maxPp}</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <div style={{ marginBottom: 4 }}>
                         <TypeBadge type={slot.type} />
-                        <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>PP {currentPp}/{slot.maxPp}</span>
                       </div>
                       <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>
-                        {slot.power > 0 ? `PWR ${slot.power}` : 'STATUS'}
-                        {dmgPreview !== null && (
-                          <> | <span style={{ color: focusPips >= 5 ? '#ff7b00' : D.yellow }}>DMG {dmgPreview}</span></>
-                        )}
+                        {dmgPreview !== null ? (
+                          <>
+                            {slot.power === 0 && 'STATUS | '}
+                            <span style={{ color: focusPips >= 5 ? '#ff7b00' : D.yellow }}>DMG {dmgPreview}</span>
+                          </>
+                        ) : (slot.power > 0 ? `PWR ${slot.power}` : 'STATUS')}
                       </span>
                     </button>
                   );
