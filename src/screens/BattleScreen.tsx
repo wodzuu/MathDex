@@ -254,7 +254,9 @@ export default function BattleScreen() {
   const initPlayerHp = (() => {
     if (battle && playerPokemon && playerSpecies) {
       const maxHp = calcHp(playerSpecies.baseStats.hp, playerLevel);
-      return Math.min(100, Math.max(1, Math.round((playerPokemon.currentHp / maxHp) * 100)));
+      // 0 HP → exactly 0% (fainted); otherwise show at least 1% so a barely-alive
+      // Pokémon never reads as fainted.
+      return playerPokemon.currentHp <= 0 ? 0 : Math.min(100, Math.max(1, Math.round((playerPokemon.currentHp / maxHp) * 100)));
     }
     return 82;
   })();
@@ -366,7 +368,7 @@ export default function BattleScreen() {
       if (!pk) continue;
       const spec  = getSpecies(pk.speciesId);
       const maxHp = spec ? calcHp(spec.baseStats.hp, levelFromExp(pk.totalExp)) : pk.currentHp;
-      hpStashRef.current[id] = maxHp > 0 ? Math.min(100, Math.max(0, Math.round(pk.currentHp / maxHp * 100))) : 0;
+      hpStashRef.current[id] = (pk.currentHp <= 0 || maxHp <= 0) ? 0 : Math.min(100, Math.max(1, Math.round(pk.currentHp / maxHp * 100)));
     }
   }, [battle]);
 
@@ -709,6 +711,7 @@ export default function BattleScreen() {
 
   function handlePickMove(slot: MoveSlot) {
     if (slot.currentPp === 0) return;
+    if (playerFainted) return;   // a fainted Pokémon can't attack
 
     // Persist the PP decrement to this Pokémon's stored move list (per move, per Pokémon)
     if (battle && playerPokemon) {
@@ -878,11 +881,27 @@ export default function BattleScreen() {
   const activeId      = battle?.activePlayerInstanceId ?? '';
   const activeIdx     = party.findIndex((p) => p.instanceId === activeId);
   const hasParty      = party.length > 1 && activeIdx >= 0;
-  const prevId        = hasParty ? party[(activeIdx - 1 + party.length) % party.length].instanceId : null;
-  const nextId        = hasParty ? party[(activeIdx + 1) % party.length].instanceId : null;
-  // Switching is allowed only on the move-select view, once the opening strike (if
-  // any) has landed.
-  const switchEnabled = hasParty && panel === 'moves' && canSwitch;
+
+  // Battle HP% of a party member (the active one's is live; others come from the
+  // stash). Used to skip fainted members in the carousel and to block attacks.
+  const memberHpPct = (id: string) => (id === activeId ? playerHpPctRef.current : (hpStashRef.current[id] ?? 100));
+  // Is the active Pokémon fainted? A fainted Pokémon must not attack.
+  const playerCurrentHp = playerMaxHp ? Math.round(playerHpPct / 100 * playerMaxHp) : 0;
+  const playerFainted   = !!battle && playerCurrentHp <= 0;
+  // Switch to the next/previous *healthy* party member (skips fainted ones).
+  const switchDir = (dir: 1 | -1) => {
+    if (!hasParty) return;
+    const n = party.length;
+    for (let step = 1; step <= n; step++) {
+      const idx = (((activeIdx + dir * step) % n) + n) % n;
+      const id  = party[idx].instanceId;
+      if (id !== activeId && memberHpPct(id) > 0) { switchTo(id); return; }
+    }
+  };
+  const anyOtherAlive = hasParty && party.some((p) => p.instanceId !== activeId && memberHpPct(p.instanceId) > 0);
+  // Switching is allowed on the move-select view (once any opening strike has
+  // landed) whenever there is another healthy Pokémon to send out.
+  const switchEnabled = hasParty && panel === 'moves' && canSwitch && anyOtherAlive;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -995,9 +1014,9 @@ export default function BattleScreen() {
           {/* Carousel arrows */}
           {hasParty && (
             <>
-              <button onClick={() => prevId && switchTo(prevId)} disabled={!switchEnabled} aria-label="Previous Pokémon"
+              <button onClick={() => switchDir(-1)} disabled={!switchEnabled} aria-label="Previous Pokémon"
                 style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', width: 30, height: 48, borderRadius: 10, background: 'rgba(0,0,0,.4)', border: `1px solid ${D.border}`, color: switchEnabled ? D.white : '#3a4a2a', fontSize: 22, fontWeight: 900, lineHeight: 1, cursor: switchEnabled ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 12, opacity: switchEnabled ? 1 : 0.35 }}>‹</button>
-              <button onClick={() => nextId && switchTo(nextId)} disabled={!switchEnabled} aria-label="Next Pokémon"
+              <button onClick={() => switchDir(1)} disabled={!switchEnabled} aria-label="Next Pokémon"
                 style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 30, height: 48, borderRadius: 10, background: 'rgba(0,0,0,.4)', border: `1px solid ${D.border}`, color: switchEnabled ? D.white : '#3a4a2a', fontSize: 22, fontWeight: 900, lineHeight: 1, cursor: switchEnabled ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 12, opacity: switchEnabled ? 1 : 0.35 }}>›</button>
             </>
           )}
@@ -1073,11 +1092,13 @@ export default function BattleScreen() {
           {/* Move list — part of this Pokémon's panel */}
           {panel === 'moves' && (
             <div className="fade-up" style={{ padding: '0 12px 12px' }}>
-              <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.muted, marginBottom: 8 }}>Choose a move</div>
+              <div style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: playerFainted ? D.red : D.muted, marginBottom: 8 }}>
+                {playerFainted ? `${playerName} fainted — switch Pokémon! ‹ ›` : 'Choose a move'}
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {activeMoves.map((slot) => {
                   const currentPp = slot.currentPp;
-                  const outOfPp   = currentPp === 0;
+                  const outOfPp   = currentPp === 0 || playerFainted;
                   const tc        = typeColors(slot.type);
                   // The enemy type this move is ×2 against (if any) — shown so the
                   // player sees WHY it's super effective. Simplified chart has only ×2.
