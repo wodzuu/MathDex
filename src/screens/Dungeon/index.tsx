@@ -326,16 +326,18 @@ export default function DungeonScreen() {
   const handleReturnToTown = useCallback(() => navigate('/'), [navigate]);
 
   // Stat comparison rows (higher value wins, highlighted green).
-  const statRows = matchup
-    ? ([
-        { label: 'Health',  p: matchup.player.health,  w: matchup.wild.health,  dmg: false },
+  // `pText`/`wText` override the displayed cell while p/w stay numeric for the
+  // win/lose highlight — used by Health to show MAX(CURRENT) for the party side.
+  const statRows: { label: string; p: number; w: number; dmg: boolean; pText?: string }[] = matchup
+    ? [
+        { label: 'Health',  p: matchup.player.health,  w: matchup.wild.health,  dmg: false, pText: `${matchup.player.maxHp}(${matchup.player.health})` },
         { label: 'Attack',  p: matchup.player.attack,  w: matchup.wild.attack,  dmg: false },
         { label: 'Sp. Atk', p: matchup.player.spAtk,   w: matchup.wild.spAtk,   dmg: false },
         { label: 'Defense', p: matchup.player.defense, w: matchup.wild.defense, dmg: false },
         { label: 'Sp. Def', p: matchup.player.spDef,   w: matchup.wild.spDef,   dmg: false },
         { label: 'Min DMG', p: matchup.player.minDmg,  w: matchup.wild.minDmg,  dmg: true  },
         { label: 'Max DMG', p: matchup.player.maxDmg,  w: matchup.wild.maxDmg,  dmg: true  },
-      ] as const)
+      ]
     : [];
 
   const cls = (mine: number, theirs: number) =>
@@ -443,7 +445,7 @@ export default function DungeonScreen() {
               {statRows.map((row) => (
                 <div key={row.label} className={`${s.statRow} ${row.dmg ? s.statRowDmg : ''}`}>
                   <span className={s.statLabel}>{row.label}</span>
-                  <span className={`${s.statValP} ${cls(row.p, row.w)}`}>{row.p}</span>
+                  <span className={`${s.statValP} ${cls(row.p, row.w)}`}>{row.pText ?? row.p}</span>
                   <span className={`${s.statValW} ${cls(row.w, row.p)}`}>{row.w}</span>
                 </div>
               ))}

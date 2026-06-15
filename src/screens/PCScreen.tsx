@@ -8,13 +8,26 @@
  * Both lists render with the shared PartyMemberCard (same panel as Town).
  */
 
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useGameStore, useActiveTrainer, getPcBoxPokemon } from '../store/gameStore';
 import { usePartyDisplay, type PartyDisplayPokemon } from '../hooks/usePartyDisplay';
 import PartyMemberCard from '../components/PartyMemberCard';
 import { D, FONT_PIXEL, FONT_UI } from '../styles/tokens';
+
+// ── PC Box sorting ────────────────────────────────────────────────────────────
+
+type SortKey = 'level' | 'maxHp' | 'attack' | 'defense' | 'speed';
+type SortDir = 'asc' | 'desc';
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'level',   label: 'Level'  },
+  { key: 'maxHp',   label: 'Max HP' },
+  { key: 'attack',  label: 'Atk'    },
+  { key: 'defense', label: 'Def'    },
+  { key: 'speed',   label: 'Spd'    },
+];
 
 // ── Row: shared party card + an action button ─────────────────────────────────
 
@@ -74,6 +87,21 @@ export default function PCScreen() {
   const partyFull  = partyDisplay.length >= maxPartySize;
   const partyAlone = partyDisplay.length <= 1;
 
+  // PC Box sort — by level descending by default. Re-clicking a key flips direction.
+  const [sortKey, setSortKey] = useState<SortKey>('level');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = useCallback((key: SortKey) => {
+    if (key === sortKey) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    else { setSortKey(key); setSortDir('desc'); }
+  }, [sortKey]);
+
+  const sortedBox = useMemo(() => {
+    const arr = [...boxDisplay];
+    arr.sort((a, b) => (sortDir === 'asc' ? a[sortKey] - b[sortKey] : b[sortKey] - a[sortKey]));
+    return arr;
+  }, [boxDisplay, sortKey, sortDir]);
+
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', minHeight: '100vh', fontFamily: FONT_UI, color: D.white, background: D.darker }}>
 
@@ -131,6 +159,31 @@ export default function PCScreen() {
           <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted, letterSpacing: 2 }}>PC BOX</div>
           <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{boxDisplay.length} Pokémon</div>
         </div>
+
+        {/* Sort toolbar — selected key shows a direction arrow + accent colour. */}
+        {boxDisplay.length > 1 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontFamily: FONT_UI, fontSize: 12, fontWeight: 800, color: D.muted }}>Sort by:</span>
+            {SORT_OPTIONS.map((o) => {
+              const selected = o.key === sortKey;
+              return (
+                <button
+                  key={o.key}
+                  onClick={() => handleSort(o.key)}
+                  style={{
+                    fontFamily: FONT_UI, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                    padding: '5px 10px', borderRadius: 8, transition: 'all .15s',
+                    background: selected ? '#1a1400' : 'transparent',
+                    color: selected ? D.yellow : D.muted,
+                    border: `1px solid ${selected ? D.yellow : 'transparent'}`,
+                  }}
+                >
+                  {o.label}{selected ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div style={{ background: D.card, border: `2px solid ${D.border}`, borderRadius: 16, margin: '0 14px 80px', overflow: 'hidden' }}>
@@ -143,7 +196,7 @@ export default function PCScreen() {
             </div>
           </div>
         ) : (
-          boxDisplay.map((pk) => (
+          sortedBox.map((pk) => (
             <PCRow
               key={pk.instanceId}
               pk={pk}
