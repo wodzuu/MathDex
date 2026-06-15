@@ -72,8 +72,6 @@ export default function TownScreen() {
         <div className={s.mapWrap}>
           <img className={s.map} src={MAP_URL} alt="Pallet Town" />
 
-          <div className={s.moneyChip}>₽{trainer.pokeDollars.toLocaleString()}</div>
-
           {/* Forest path → dungeon */}
           <button
             className={s.hotspot}
@@ -87,7 +85,7 @@ export default function TownScreen() {
           {/* Pokémon Center → heal + PC */}
           <button
             className={s.hotspot}
-            style={{ top: '33%', left: '45%', width: '40%', height: '19%' }}
+            style={{ top: '37%', left: '42%', width: '33%', height: '16%' }}
             onClick={enterCenter}
             aria-label="Pokémon Center — heal party and manage Pokémon"
           >
@@ -97,7 +95,7 @@ export default function TownScreen() {
           {/* Poké Mart → shop */}
           <button
             className={s.hotspot}
-            style={{ top: '52%', left: '14%', width: '40%', height: '15%' }}
+            style={{ top: '50%', left: '18%', width: '35%', height: '14%' }}
             onClick={() => navigate('/mart')}
             aria-label="Poké Mart — buy items"
           >
@@ -108,7 +106,7 @@ export default function TownScreen() {
           {itemActive && (
             <button
               className={s.hotspot}
-              style={{ top: '67%', left: '17%', width: '66%', height: '23%' }}
+              style={{ top: '67%', left: '20%', width: '60%', height: '20%' }}
               onClick={() => navigate('/identify')}
               aria-label="Oak's Lab — identify items"
             >

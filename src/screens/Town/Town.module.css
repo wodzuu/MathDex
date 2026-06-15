@@ -69,22 +69,6 @@
   display: block;
 }
 
-/* Money HUD chip, top-right over the art */
-.moneyChip {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: rgba(10, 18, 32, 0.82);
-  border: 2px solid #FFCB05;
-  border-radius: 10px;
-  padding: 5px 10px;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 12px;
-  color: #FFCB05;
-  pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-}
-
 /* Transparent tappable region over a building / path. Faint persistent ring
    advertises tappability; brightens + reveals a tag on hover/press. */
 .hotspot {
