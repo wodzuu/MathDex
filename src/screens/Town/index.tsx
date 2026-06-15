@@ -1,74 +1,65 @@
 /**
- * Town screen — the hub the player returns to between dungeon runs.
+ * Town hub — an illustrated map of Pallet Town with clickable areas.
  *
- * Visual reference: reference/mathdex_mockups.jsx  TownScreen({ phase })
+ * Areas (transparent hotspots over the artwork):
+ *   Forest path    → generate encounters, enter the dungeon (/dungeon)
+ *   Pokémon Center → heal the whole party, then open party / PC Box (/pc)
+ *   Poké Mart      → buy Potions and Balls (/mart)
+ *   Oak's Lab      → identify items (/identify) — only once the item system unlocks
  *
- * Locations:
- *   🏥 Pokémon Center — free full heal + PP restore
- *   🛒 Pokémart       — buy Potions and Balls (stub nav)
- *   🔬 Oak's Lab      — identify items (locked until itemSystemActive)
- *   💻 PC Terminal    — party / PC Box management (stub nav)
- *   ⬇️ Dungeon Entrance — generate floor, navigate to /dungeon
+ * The header and party listing of the old hub are gone: the map is the view.
+ * Build info + project link sit under the map; the Trainer Card is pinned to
+ * the bottom of the screen.
+ *
+ * The map artwork lives at public/town-map.png (portrait ~9:16).
  */
 
-import { useCallback, useState } from 'react';
-import { useNavigate }           from 'react-router-dom';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useGameStore, useActiveTrainer, isItemSystemActive, getPartyHighestLevel } from '../../store/gameStore';
 import { useDungeonStore } from '../../store/dungeonStore';
 import { usePwaStore } from '../../store/pwaStore';
-import { usePartyDisplay } from '../../hooks/usePartyDisplay';
-import PartyMemberCard from '../../components/PartyMemberCard';
 
 import s from './Town.module.css';
 
+const MAP_URL = `${import.meta.env.BASE_URL}town-map.png`;
+
 // Build timestamp injected by Vite (set by the GitHub Pages workflow). Formatted
-// to "YYYY-MM-DD HH:mm UTC" for the Town footer.
+// to "YYYY-MM-DD HH:mm UTC" for the footer.
 const BUILD_TIME_LABEL = (() => {
   const d = new Date(__BUILD_TIME__);
   return isNaN(d.getTime()) ? __BUILD_TIME__ : `${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 })();
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export default function TownScreen() {
   const navigate = useNavigate();
-  const [healFlash, setHealFlash] = useState(false);
 
-  const trainer = useActiveTrainer();
-  const healParty = useGameStore(s => s.healParty);
-  const rollAll = useDungeonStore((s) => s.rollAll);
+  const trainer   = useActiveTrainer();
+  const healParty = useGameStore((st) => st.healParty);
+  const rollAll   = useDungeonStore((st) => st.rollAll);
 
-  // PWA update prompt — shown at the top when a new version is waiting.
-  const needRefresh = usePwaStore((s) => s.needRefresh);
-  const updateApp   = usePwaStore((s) => s.update);
+  const needRefresh = usePwaStore((st) => st.needRefresh);
+  const updateApp   = usePwaStore((st) => st.update);
 
-  // ── Party display ──────────────────────────────────────────────────────────
-  const displayParty = usePartyDisplay(trainer.party, trainer.caughtPokemon);
-
-  // ── Derived ────────────────────────────────────────────────────────────────
   const itemActive = isItemSystemActive(trainer);
-  const totalPotions =
-    trainer.potions.potion + trainer.potions.superPotion + trainer.potions.hyperPotion;
 
-  // ── Pokémon Center heal ────────────────────────────────────────────────────
-  const handleHeal = useCallback(() => {
-    healParty();
-    setHealFlash(true);
-    setTimeout(() => setHealFlash(false), 1200);
-  }, [healParty]);
-
-  // ── Enter dungeon ──────────────────────────────────────────────────────────
-  const handleEnterDungeon = useCallback(() => {
+  // Forest → stock the dungeon and head in.
+  const enterDungeon = useCallback(() => {
     rollAll(getPartyHighestLevel(trainer), itemActive);
     navigate('/dungeon');
   }, [trainer, itemActive, rollAll, navigate]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Pokémon Center → full heal, then party / PC Box management.
+  const enterCenter = useCallback(() => {
+    healParty();
+    navigate('/pc');
+  }, [healParty, navigate]);
+
   return (
     <div className={s.screen}>
 
-      {/* ══ PWA UPDATE PANEL ══════════════════════════════════════════════ */}
+      {/* PWA update prompt */}
       {needRefresh && (
         <button className={s.updatePanel} onClick={updateApp}>
           <span className={s.updatePanelIcon}>⬆️</span>
@@ -76,145 +67,57 @@ export default function TownScreen() {
         </button>
       )}
 
-      {/* ══ HEADER ════════════════════════════════════════════════════════ */}
-      <div className={s.header}>
-        <div className={s.headerRow}>
-          <div>
-            <div className={s.townLabel}>TOWN HUB</div>
-            <div className={s.townName}>Oak Island</div>
-          </div>
-          <div className={s.moneyCard}>
-            <div className={s.moneyLabel}>POKÉDOLLARS</div>
-            <div className={s.moneyValue}>₽{trainer.pokeDollars.toLocaleString()}</div>
-          </div>
-        </div>
-      </div>
+      <div className={s.scroll}>
+        {/* ── Illustrated map with hotspots ── */}
+        <div className={s.mapWrap}>
+          <img className={s.map} src={MAP_URL} alt="Pallet Town" />
 
-      <div className={s.content}>
+          <div className={s.moneyChip}>₽{trainer.pokeDollars.toLocaleString()}</div>
 
-        {/* ══ PARTY STRIP (no outer frame) ══════════════════════════════════ */}
-        <div style={{ margin: '12px 0 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div className={s.partyCardLabel}>PARTY</div>
-          {displayParty.map((pk) => (
-            <PartyMemberCard key={pk.instanceId} pk={pk} />
-          ))}
-        </div>
-
-        {/* ══ PHASE NOTICE — only once the item system unlocks ══════════════ */}
-        {itemActive && (
-          <div className={`${s.phaseNotice} ${s.phaseNoticePhase2}`}>
-            ✨ <strong>Item system active!</strong>{' '}
-            <span style={{ color: '#8892b8', fontWeight: 600 }}>
-              Wild Pokémon now carry items.
-            </span>
-          </div>
-        )}
-
-        {/* ══ LOCATIONS ═════════════════════════════════════════════════════ */}
-        <div className={s.sectionLabel}>LOCATIONS</div>
-
-        <div className={s.locationGrid}>
-          {/* Pokémon Center */}
+          {/* Forest path → dungeon */}
           <button
-            className={s.locationTile}
-            onClick={handleHeal}
-            style={{ border: healFlash ? '2px solid #48c774' : undefined }}
+            className={s.hotspot}
+            style={{ top: '3%', left: '30%', width: '42%', height: '27%' }}
+            onClick={enterDungeon}
+            aria-label="Forest — enter the dungeon"
           >
-            <span className={s.locationIcon}>🏥</span>
-            <span className={s.locationName}>Pokémon Center</span>
-            <span className={s.locationSub} style={{ color: '#CC0000' }}>
-              {healFlash ? 'Healed! ✓' : 'Heal party · Free'}
-            </span>
+            <span className={s.hotspotTag}>Forest →</span>
           </button>
 
-          {/* Pokémart */}
+          {/* Pokémon Center → heal + PC */}
           <button
-            className={s.locationTile}
+            className={s.hotspot}
+            style={{ top: '33%', left: '45%', width: '40%', height: '19%' }}
+            onClick={enterCenter}
+            aria-label="Pokémon Center — heal party and manage Pokémon"
+          >
+            <span className={s.hotspotTag}>Pokémon Center</span>
+          </button>
+
+          {/* Poké Mart → shop */}
+          <button
+            className={s.hotspot}
+            style={{ top: '52%', left: '14%', width: '40%', height: '15%' }}
             onClick={() => navigate('/mart')}
+            aria-label="Poké Mart — buy items"
           >
-            <span className={s.locationIcon}>🛒</span>
-            <span className={s.locationName}>Pokémart</span>
-            <span className={s.locationSub} style={{ color: '#6890F0' }}>
-              Potions &amp; Balls
-            </span>
+            <span className={s.hotspotTag}>Poké Mart</span>
           </button>
 
-          {/* Oak's Lab */}
-          <button
-            className={`${s.locationTile} ${!itemActive ? s.locked : ''}`}
-            disabled={!itemActive}
-            onClick={() => navigate('/identify')}
-          >
-            {!itemActive && <span className={s.lockIcon}>🔒</span>}
-            <span className={s.locationIcon}>🔬</span>
-            <span className={s.locationName}>Oak's Lab</span>
-            <span className={s.locationSub} style={{ color: '#FFCB05' }}>
-              {itemActive ? 'Identify items' : 'Reach Lv 20 to unlock'}
-            </span>
-          </button>
-
-          {/* PC Terminal */}
-          <button
-            className={s.locationTile}
-            onClick={() => navigate('/pc')}
-          >
-            <span className={s.locationIcon}>💻</span>
-            <span className={s.locationName}>PC Terminal</span>
-            <span className={s.locationSub} style={{ color: '#48c774' }}>
-              Party &amp; PC Box
-            </span>
-          </button>
+          {/* Oak's Lab → identify (hidden until the item system unlocks, spec §5.0) */}
+          {itemActive && (
+            <button
+              className={s.hotspot}
+              style={{ top: '67%', left: '17%', width: '66%', height: '23%' }}
+              onClick={() => navigate('/identify')}
+              aria-label="Oak's Lab — identify items"
+            >
+              <span className={s.hotspotTag}>Oak's Lab</span>
+            </button>
+          )}
         </div>
 
-        {/* ── Dungeon entrance (full width) ─────────────────────────────── */}
-        <button className={s.dungeonTile} onClick={handleEnterDungeon}>
-          <span className={s.dungeonTileIcon}>⬇️</span>
-          <div className={s.dungeonTileInfo}>
-            <div className={s.dungeonTileName}>Dungeon Entrance</div>
-            <div className={s.dungeonTileSub}>
-              {totalPotions > 0
-                ? `${totalPotions} Potion${totalPotions !== 1 ? 's' : ''} ready · Endless battles`
-                : 'No potions — heal first'}
-            </div>
-          </div>
-          <div
-            className={s.dungeonBadge}
-            style={{ background: '#180818', color: '#9070B8', border: '1px solid #301030' }}
-          >
-            ENTER →
-          </div>
-        </button>
-
-        {/* ══ TRAINER CARD ══════════════════════════════════════════════════ */}
-        <div className={s.sectionLabel}>TRAINER CARD</div>
-        <div className={s.trainerCard}>
-          <div className={s.trainerStat}>
-            <div className={s.trainerStatValue} style={{ color: '#48c774' }}>
-              {trainer.stats.totalProblemsSolved}
-            </div>
-            <div className={s.trainerStatLabel}>Correct</div>
-          </div>
-          <div className={s.trainerStat}>
-            <div className={s.trainerStatValue} style={{ color: '#FFCB05' }}>
-              {trainer.stats.longestStreak}×
-            </div>
-            <div className={s.trainerStatLabel}>Streak</div>
-          </div>
-          <div className={s.trainerStat}>
-            <div className={s.trainerStatValue} style={{ color: '#9070B8' }}>
-              {trainer.stats.totalCatches}
-            </div>
-            <div className={s.trainerStatLabel}>Caught</div>
-          </div>
-          <div className={s.trainerStat}>
-            <div className={s.trainerStatValue} style={{ color: '#6890F0' }}>
-              {trainer.stats.highestOpponentLevel ?? 0}
-            </div>
-            <div className={s.trainerStatLabel}>Top Lv</div>
-          </div>
-        </div>
-
-        {/* ══ FOOTER ════════════════════════════════════════════════════════ */}
+        {/* ── Build info + link (under the map) ── */}
         <div className={s.footer}>
           <div>Build {BUILD_TIME_LABEL}</div>
           <a
@@ -225,6 +128,26 @@ export default function TownScreen() {
           >
             Project page, licenses and source code
           </a>
+        </div>
+      </div>
+
+      {/* ── Trainer Card (glued to the bottom) ── */}
+      <div className={s.trainerCard}>
+        <div className={s.trainerStat}>
+          <div className={s.trainerStatValue} style={{ color: '#48c774' }}>{trainer.stats.totalProblemsSolved}</div>
+          <div className={s.trainerStatLabel}>Correct</div>
+        </div>
+        <div className={s.trainerStat}>
+          <div className={s.trainerStatValue} style={{ color: '#FFCB05' }}>{trainer.stats.longestStreak}×</div>
+          <div className={s.trainerStatLabel}>Streak</div>
+        </div>
+        <div className={s.trainerStat}>
+          <div className={s.trainerStatValue} style={{ color: '#9070B8' }}>{trainer.stats.totalCatches}</div>
+          <div className={s.trainerStatLabel}>Caught</div>
+        </div>
+        <div className={s.trainerStat}>
+          <div className={s.trainerStatValue} style={{ color: '#6890F0' }}>{trainer.stats.highestOpponentLevel ?? 0}</div>
+          <div className={s.trainerStatLabel}>Top Lv</div>
         </div>
       </div>
     </div>
