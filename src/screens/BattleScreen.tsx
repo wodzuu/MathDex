@@ -12,7 +12,6 @@ import { calcHp, calcAllStats, calcDamage, catchProbability, hpZone, expGained, 
 import { getSpriteUrl, getBallSpriteUrl, getItemSpriteUrl } from '../lib/sprites';
 import RarityBadge from '../components/RarityBadge';
 import { generateRankedPuzzle, effectiveMultiplier, getTypeMultiplier } from '../lib/mathProblemGenerator';
-import { MAX_MATH_RANK, MATH_WINDOW_SIZE } from '../data/curriculum';
 import { useBattleStore }  from '../store/battleStore';
 import { useGameStore, useActiveTrainer, getPartyPokemon }    from '../store/gameStore';
 import type { MathTopic } from '../types/math';
@@ -218,13 +217,8 @@ export default function BattleScreen() {
 
   const party        = getPartyPokemon(trainer);
 
-  // ── Math Rank (educational progression — decoupled from opponent level) ──────
-  const mathRank      = trainer.mathRank ?? 1;
-  const mathWindow    = trainer.mathWindow ?? [];
-  const windowFilled  = mathWindow.length;
-  const windowCorrect = mathWindow.filter(Boolean).length;
-  const windowPct     = windowFilled ? Math.round((windowCorrect / windowFilled) * 100) : 0;
-  const atMaxRank     = mathRank >= MAX_MATH_RANK;
+  // Math Rank drives puzzle difficulty but is hidden from the player — it just happens.
+  const mathRank = trainer.mathRank ?? 1;
 
   // ── Derive active context (real vs demo) ────────────────────────────────────
   const playerPokemon  = party.find((p) => p.instanceId === battle?.activePlayerInstanceId) ?? null;
@@ -1188,17 +1182,6 @@ export default function BattleScreen() {
         {/* ── MATH PUZZLE PANEL ── */}
         {panel === 'math' && selectedMove && currentPuzzle && (
           <div className="fade-up" style={{ background: mathBg, border: `3px solid ${D.yellow}`, borderRadius: 16, padding: 16, boxShadow: `4px 4px 0 ${D.yellow}40`, transition: 'background .4s' }}>
-            {/* Math Rank readout */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>
-                MATH RANK {mathRank}
-              </span>
-              {!currentPuzzle.isReview && !atMaxRank && (
-                <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: windowPct >= 80 ? D.green : D.muted }}>
-                  {windowPct}% · {windowFilled}/{MATH_WINDOW_SIZE}
-                </span>
-              )}
-            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
