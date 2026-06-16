@@ -7,6 +7,7 @@ import { levelFromExp, calcHp } from '../lib/formulas';
 import { drawFromBag } from '../lib/rarityBag';
 import { getSpecies } from '../data/species';
 import { getMove } from '../data/moves';
+import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK } from '../data/curriculum';
 
 // ── Exported helpers ──────────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ interface GameStoreState extends GameState {
 
   setMaxPartySize: (size: number)  => void;
 
-  recordMathAttempt:    (topic: MathTopic, correct: boolean) => void;
+  recordMathAttempt:    (topic: MathTopic, correct: boolean, isReview?: boolean) => void;
   incrementBattleCount: () => void;
   recordOpponentLevel:  (level: number) => void;
 
@@ -159,11 +160,30 @@ export const useGameStore = create<GameStoreState>()(
       setMaxPartySize: (size) =>
         set((s) => patchTrainer(s, () => ({ maxPartySize: size })), false, 'setMaxPartySize'),
 
-      recordMathAttempt: (topic, correct) =>
+      recordMathAttempt: (topic, correct, isReview = false) =>
         set((s) => patchTrainer(s, (t) => {
           const prev = t.stats.topicAccuracy[topic] ?? { attempted: 0, correct: 0 };
           const newStreak = correct ? t.stats.currentStreak + 1 : 0;
+
+          // Math Rank progression (spec §3): only current-rank challenges count
+          // toward the rolling window; review challenges are excluded. Rank up
+          // when a full window clears the threshold, then reset. Never demote.
+          let mathRank   = t.mathRank ?? 1;
+          let mathWindow = t.mathWindow ?? [];
+          if (!isReview && mathRank < MAX_MATH_RANK) {
+            mathWindow = [...mathWindow, correct].slice(-MATH_WINDOW_SIZE);
+            if (mathWindow.length >= MATH_WINDOW_SIZE) {
+              const rate = mathWindow.filter(Boolean).length / mathWindow.length;
+              if (rate >= MATH_RANKUP_THRESHOLD) {
+                mathRank += 1;
+                mathWindow = [];
+              }
+            }
+          }
+
           return {
+            mathRank,
+            mathWindow,
             stats: {
               ...t.stats,
               totalProblemsAttempted: t.stats.totalProblemsAttempted + 1,

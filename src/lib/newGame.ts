@@ -45,6 +45,8 @@ export function createNewGame(): GameState {
     },
     rarityBag: createRarityBag(),
     focus:     0,
+    mathRank:   1,
+    mathWindow: [],
   };
 
   return {

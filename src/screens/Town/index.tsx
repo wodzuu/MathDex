@@ -131,21 +131,27 @@ export default function TownScreen() {
 
       {/* ── Trainer Card (glued to the bottom) ── */}
       <div className={s.trainerCard}>
-        <div className={s.trainerStat}>
-          <div className={s.trainerStatValue} style={{ color: '#48c774' }}>{trainer.stats.totalProblemsSolved}</div>
-          <div className={s.trainerStatLabel}>Correct</div>
+        <div className={s.mathRankRow}>
+          <span className={s.mathRankLabel}>MATH RANK</span>
+          <span className={s.mathRankValue}>{trainer.mathRank ?? 1}</span>
         </div>
-        <div className={s.trainerStat}>
-          <div className={s.trainerStatValue} style={{ color: '#FFCB05' }}>{trainer.stats.longestStreak}×</div>
-          <div className={s.trainerStatLabel}>Streak</div>
-        </div>
-        <div className={s.trainerStat}>
-          <div className={s.trainerStatValue} style={{ color: '#9070B8' }}>{trainer.stats.totalCatches}</div>
-          <div className={s.trainerStatLabel}>Caught</div>
-        </div>
-        <div className={s.trainerStat}>
-          <div className={s.trainerStatValue} style={{ color: '#6890F0' }}>{trainer.stats.highestOpponentLevel ?? 0}</div>
-          <div className={s.trainerStatLabel}>Top Lv</div>
+        <div className={s.trainerStats}>
+          <div className={s.trainerStat}>
+            <div className={s.trainerStatValue} style={{ color: '#48c774' }}>{trainer.stats.totalProblemsSolved}</div>
+            <div className={s.trainerStatLabel}>Correct</div>
+          </div>
+          <div className={s.trainerStat}>
+            <div className={s.trainerStatValue} style={{ color: '#FFCB05' }}>{trainer.stats.longestStreak}×</div>
+            <div className={s.trainerStatLabel}>Streak</div>
+          </div>
+          <div className={s.trainerStat}>
+            <div className={s.trainerStatValue} style={{ color: '#9070B8' }}>{trainer.stats.totalCatches}</div>
+            <div className={s.trainerStatLabel}>Caught</div>
+          </div>
+          <div className={s.trainerStat}>
+            <div className={s.trainerStatValue} style={{ color: '#6890F0' }}>{trainer.stats.highestOpponentLevel ?? 0}</div>
+            <div className={s.trainerStatLabel}>Top Lv</div>
+          </div>
         </div>
       </div>
     </div>

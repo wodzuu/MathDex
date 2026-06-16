@@ -42,9 +42,14 @@ export interface MathPuzzle {
   equation: string;
   answer: number;
   topic: MathTopic;
-  /** Opponent level this puzzle was generated for (drives difficulty). */
+  /** Generator difficulty step this puzzle was built from (drives difficulty). */
   level: number;
   context: PuzzleContext;
+  /**
+   * True when this is an interleaved lower-rank *review* challenge (spec §3).
+   * Marked with a ⭐ in the UI and excluded from the rank-up window.
+   */
+  isReview?: boolean;
   /**
    * Seconds before the puzzle auto-submits at partial credit.
    * null for identification puzzles (always untimed). Spec §5.4.

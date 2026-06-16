@@ -11,7 +11,8 @@ import { getSpecies } from '../data/species';
 import { calcHp, calcAllStats, calcDamage, catchProbability, hpZone, expGained, levelFromExp, expToLevel, moneyReward } from '../lib/formulas';
 import { getSpriteUrl, getBallSpriteUrl, getItemSpriteUrl } from '../lib/sprites';
 import RarityBadge from '../components/RarityBadge';
-import { generateBattlePuzzle, effectiveMultiplier, getTypeMultiplier } from '../lib/mathProblemGenerator';
+import { generateRankedPuzzle, effectiveMultiplier, getTypeMultiplier } from '../lib/mathProblemGenerator';
+import { MAX_MATH_RANK, MATH_WINDOW_SIZE } from '../data/curriculum';
 import { useBattleStore }  from '../store/battleStore';
 import { useGameStore, useActiveTrainer, getPartyPokemon }    from '../store/gameStore';
 import type { MathTopic } from '../types/math';
@@ -216,6 +217,14 @@ export default function BattleScreen() {
   );
 
   const party        = getPartyPokemon(trainer);
+
+  // ── Math Rank (educational progression — decoupled from opponent level) ──────
+  const mathRank      = trainer.mathRank ?? 1;
+  const mathWindow    = trainer.mathWindow ?? [];
+  const windowFilled  = mathWindow.length;
+  const windowCorrect = mathWindow.filter(Boolean).length;
+  const windowPct     = windowFilled ? Math.round((windowCorrect / windowFilled) * 100) : 0;
+  const atMaxRank     = mathRank >= MAX_MATH_RANK;
 
   // ── Derive active context (real vs demo) ────────────────────────────────────
   const playerPokemon  = party.find((p) => p.instanceId === battle?.activePlayerInstanceId) ?? null;
@@ -662,7 +671,7 @@ export default function BattleScreen() {
       }
 
       // Record the math attempt against the active puzzle's topic
-      recordMathAttempt(puzzleRef.current?.topic ?? ('addition' as MathTopic), correct);
+      recordMathAttempt(puzzleRef.current?.topic ?? ('addition' as MathTopic), correct, puzzleRef.current?.isReview ?? false);
 
       return newEnemyHp <= 0;
     };
@@ -722,7 +731,7 @@ export default function BattleScreen() {
       updatePokemon(playerPokemon.instanceId, { moves: newMoves });
     }
 
-    const puzzle       = generateBattlePuzzle(enemyLevel);
+    const puzzle       = generateRankedPuzzle(mathRank);
     const initialTimer = puzzle.timeLimitSeconds ?? 6;
 
     setSelectedMove(slot);
@@ -774,7 +783,7 @@ export default function BattleScreen() {
 
   function handleSelectBall(ball: BallOption) {
     // Catch challenges use the same level-scaled difficulty as battle attacks.
-    const puzzle = generateBattlePuzzle(enemyLevel);
+    const puzzle = generateRankedPuzzle(mathRank);
     setSelectedBall(ball);
     setCatchPuzzle(puzzle);
     setCatchResult(null);
@@ -1179,13 +1188,27 @@ export default function BattleScreen() {
         {/* ── MATH PUZZLE PANEL ── */}
         {panel === 'math' && selectedMove && currentPuzzle && (
           <div className="fade-up" style={{ background: mathBg, border: `3px solid ${D.yellow}`, borderRadius: 16, padding: 16, boxShadow: `4px 4px 0 ${D.yellow}40`, transition: 'background .4s' }}>
+            {/* Math Rank readout */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>
+                MATH RANK {mathRank}
+              </span>
+              {!currentPuzzle.isReview && !atMaxRank && (
+                <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: windowPct >= 80 ? D.green : D.muted }}>
+                  {windowPct}% · {windowFilled}/{MATH_WINDOW_SIZE}
+                </span>
+              )}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <TypeBadge type={selectedMove.type} large />
                   <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{selectedMove.name.toUpperCase()}</span>
                 </div>
-                <div style={{ fontFamily: FONT_PIXEL, fontSize: 19, color: D.yellow, lineHeight: 1.8 }}>{currentPuzzle.equation}</div>
+                <div style={{ fontFamily: FONT_PIXEL, fontSize: 19, color: D.yellow, lineHeight: 1.8 }}>
+                  {currentPuzzle.isReview && <span title="Review challenge — keeps earlier skills sharp">⭐ </span>}
+                  {currentPuzzle.equation}
+                </div>
                 {isSuperEff && <div className="supereff-badge" style={{ marginTop: 8 }}>SUPER EFFECTIVE!</div>}
               </div>
               {/* Timer */}
@@ -1306,7 +1329,10 @@ export default function BattleScreen() {
                     <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{selectedBall.name.toUpperCase()}</span>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: zoneCol, display: 'inline-block' }} />
                   </div>
-                  <div style={{ fontFamily: FONT_PIXEL, fontSize: 19, color: D.yellow, lineHeight: 1.8 }}>{catchPuzzle.equation}</div>
+                  <div style={{ fontFamily: FONT_PIXEL, fontSize: 19, color: D.yellow, lineHeight: 1.8 }}>
+                    {catchPuzzle.isReview && <span title="Review challenge">⭐ </span>}
+                    {catchPuzzle.equation}
+                  </div>
                   <div style={{ fontSize: 12, color: D.muted, fontWeight: 700, marginTop: 6 }}>
                     Ball% + HP bonus% = effective catch rate
                   </div>

@@ -37,6 +37,19 @@ export interface Trainer {
    * Spec §4.4. Optional for backward compatibility (missing = 0).
    */
   focus?: number;
+  /**
+   * Math Rank — the educational progression, decoupled from Pokémon/opponent
+   * levels (spec §3). 1-based index into MATH_RANKS; only ever climbs. Optional
+   * for backward compatibility (missing = rank 1).
+   */
+  mathRank?: number;
+  /**
+   * Rolling window of the most recent *current-rank* challenge results (true =
+   * correct), capped at MATH_WINDOW_SIZE. Review challenges are excluded. When
+   * the window is full and the correct fraction ≥ MATH_RANKUP_THRESHOLD the rank
+   * advances and the window resets. Optional for backward compatibility.
+   */
+  mathWindow?: boolean[];
 }
 
 export interface Pokeballs {

@@ -23,6 +23,7 @@
 import type { MathPuzzle } from '../types/math';
 import type { PokeType } from '../types/pokemon';
 import { battleTimerSeconds } from './formulas';
+import { MATH_RANKS, MATH_REVIEW_FRACTION, clampMathRank } from '../data/curriculum';
 
 // ── Simplified 6-type effectiveness chart (spec §6.2) ────────────────────────
 // Only launch types have explicit entries; all other pairs default to ×1.
@@ -151,4 +152,19 @@ export function generateBattlePuzzle(level: number): MathPuzzle {
     context: 'battle',
     timeLimitSeconds,
   };
+}
+
+/**
+ * Generate a battle puzzle for the player's current MATH RANK (spec §3) — fully
+ * decoupled from opponent level. With probability MATH_REVIEW_FRACTION (and only
+ * above rank 1) the challenge is pulled from a uniformly-random LOWER rank as a
+ * review; review puzzles are flagged `isReview` so the caller excludes them from
+ * the rank-up window.
+ */
+export function generateRankedPuzzle(mathRank: number): MathPuzzle {
+  const rank      = clampMathRank(mathRank);
+  const isReview  = rank > 1 && Math.random() < MATH_REVIEW_FRACTION;
+  const drawnRank = isReview ? randInt(1, rank - 1) : rank;
+  const genLevel  = MATH_RANKS[drawnRank - 1].genLevel;
+  return { ...generateBattlePuzzle(genLevel), isReview };
 }

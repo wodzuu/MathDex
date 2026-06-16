@@ -4,13 +4,14 @@
 
 A Pokémon-Inspired Mathematics Learning Game
 
-*Full Game Design Specification  ·  v1.4*
+*Full Game Design Specification  ·  v1.5*
 
-*Revised: Dungeon floors removed. Difficulty now scales with opponent level. Pokémon rarity system added. Incremental damage-proportional EXP. Speed-based turn order. Addition-only curriculum re-tuned by level.*
+*Revised (v1.5): Math difficulty decoupled from opponent level into a mastery-gated **Math Rank** with a moving accuracy window and interleaved review (see §3).*
+*Earlier (v1.4): Dungeon floors removed; combat scales with opponent level; Pokémon rarity system; incremental damage-proportional EXP; speed-based turn order.*
 
 Target audience: ages 9–11
 
-Math scope: addition (single concept, re-tuned by opponent level)
+Math scope: addition then subtraction, advanced by a mastery-gated Math Rank (decoupled from Pokémon/opponent level)
 
 Genre: Endless wild-encounter RPG with level-driven progression
 
@@ -68,8 +69,8 @@ Changes made in implementation review (this is the version the live build reflec
 | Change | Affected sections | Rationale |
 | :---- | :---- | :---- |
 | **Dungeon floors removed entirely** | 2,3,4,7,8,9,11,12 | No floor map, no rooms, no stairs, no boss floors, no floor-based soft gating. The dungeon is now an endless stream of single wild encounters. Simpler to reason about; removes the spatial/navigation layer a young player did not need. |
-| **Difficulty scales with opponent level, not floor** | 2,3,4,11,12 | Every difficulty knob (math content, timer, enemy strength) is now a function of the wild Pokémon's level. The opponent's level itself tracks the player's strongest party member. |
-| **Curriculum reduced to addition, re-tuned by level** | 3 | All battle and catch puzzles are addition problems whose number ranges grow with opponent level (see §3). Multiplication/division/order-of-operations/fractions/percentages/algebra tiers are no longer used in the live build (retained only as an extension path). |
+| **Combat scales with opponent level, not floor** | 2,3,4,11,12 | Combat difficulty knobs (enemy strength, EXP, money) are a function of the wild Pokémon's level, which tracks the player's strongest party member. **Math difficulty is *not* — see below.** |
+| **Math difficulty decoupled into a mastery-gated Math Rank** | 3 | Battle/catch puzzles are driven by the player's **Math Rank**, not opponent level. The rank climbs only when the child masters the current skill over a moving accuracy window, with interleaved lower-rank review (see §3). This lets every player reach Pokémon Lv 100 without being forced past maths they haven't mastered. Live content is addition then subtraction; harder topics remain an extension path. |
 | **Pokémon rarity system added (5 tiers)** | 6,8 | Common / Uncommon / Rare / Epic / Legendary, derived from each species' capture rate (with an `is_legendary` override). Shown as a tag beside the Pokémon name in every view. |
 | **Rarity "bag" encounter selection** | 2,6,11 | Encounter rarity is drawn from a persisted 100-ticket shuffle bag (55/27/12/5/1 for Common/Uncommon/Rare/Epic/Legendary), refilled when empty. Every rarity is guaranteed to appear a fixed number of times per 100 encounters; rarity is decoupled from level (no level bands). Replaces the earlier weighted/level-banded roll. |
 | **All 151 Generation-1 Pokémon included** | 6,11 | Species config (types, base stats, capture rate, legendary flag) externalised to `src/data/pokemon.json`. |
@@ -168,34 +169,53 @@ If the Lead faints (HP reaches 0) the player blacks out and returns to town. No 
 
 # **3. Mathematics Curriculum**
 
-In the live build every battle and catch puzzle is **addition** (early levels) or **subtraction** (later levels). Difficulty is a function of the **opponent's level** — there are no floor tiers. The same generator is used for attacking and for throwing a Poké Ball, so a catch is exactly as hard as a hit at the same opponent level.
+Math difficulty is driven by the player's **Math Rank** — an educational progression that is **fully decoupled from Pokémon levels and opponent levels**. The intent is pedagogical: a child must *master* the current skill before the game advances them, no matter how strong their Pokémon become. A player can always reach Pokémon Lv 100 by playing; their Math Rank advances only by demonstrated skill. The same generator drives attacking and throwing a Poké Ball.
 
-## **3.1 Curriculum by Opponent Level**
+> **Rationale.** Previously difficulty tracked the opponent's level (party-high ±1), so levelling Pokémon dragged a child from addition into subtraction regardless of whether they could do addition. Decoupling fixes that: combat strength (damage/HP/EXP/money) still scales with opponent level, but the *maths* stays at the child's mastered level.
 
-| Opponent level | Operation | Problem |
+## **3.1 The Math Rank Ladder**
+
+`mathRank` is a 1-based index into `MATH_RANKS` (`src/data/curriculum.ts`); it only ever climbs (never demotes). Current ranks (extensible as new topics are generated):
+
+| Rank | Operation | Problem |
 | :---- | :---- | :---- |
-| 1–2 | addition | result up to 10 |
-| 3 | addition | result between 10 and 20 |
-| 4 | addition | result up to 50, with one addend in 0–9 |
-| 5 | addition | result between 20 and 50 |
-| 6 | addition | result between 40 and 100 |
-| 7 | subtraction | operands up to 10, no negative result |
-| 8 | subtraction | operands up to 20, no negative result |
-| 9 | subtraction | operands up to 50, no negative result, **no borrowing** (each digit of the subtrahend ≤ the minuend's) |
-| 10 | subtraction | operands up to 50, no negative result, **borrowing required** (subtrahend's units digit > the minuend's) |
-| 11 | subtraction | operands up to 10, negative results allowed |
-| 12 | subtraction | operands up to 20, negative results allowed |
-| 13+ | subtraction | operands up to 50, negative results allowed |
+| 1 | addition | result up to 10 |
+| 2 | addition | result between 10 and 20 |
+| 3 | addition | result up to 50, with one addend in 0–9 |
+| 4 | addition | result between 20 and 50 |
+| 5 | addition | result between 40 and 100 |
+| 6 | subtraction | operands up to 10, no negative result |
+| 7 | subtraction | operands up to 20, no negative result |
+| 8 | subtraction | operands up to 50, no negative result, **no borrowing** |
+| 9 | subtraction | operands up to 50, **borrowing required** |
+| 10 | subtraction | operands up to 10, negative results allowed |
+| 11 | subtraction | operands up to 20, negative results allowed |
+| 12 | subtraction | operands up to 50, negative results allowed |
 
-For addition the order of the two addends is randomised for variety; subtraction operands keep their order (`a − b`). Every problem has exactly one whole-number answer (which may be negative at levels 11+, entered with a leading `−`).
+For addition the order of the two addends is randomised; subtraction keeps order (`a − b`). Every problem has exactly one whole-number answer (which may be negative at ranks 10+). The skill labels above are **internal** (for the rank table and docs) — the UI shows only the rank **number**, never the operation/range.
 
-## **3.2 Difficulty Scaling**
+## **3.2 Mastery-Gated Rank-Up**
 
-* **Operation & number size** grow with opponent level per the table above — addition first, then subtraction (no-borrow → borrow → signed results).
-* **Time pressure**: the battle puzzle timer is `battleTimerSeconds(level)` — 8 seconds at level 1, decreasing linearly to 4 seconds at level 40 and above.
-* All puzzles accept the exact integer answer.
+Rank-up is gated by a **moving window of recent current-rank challenges** (tunable constants in `curriculum.ts`):
 
-## **3.3 Partial Credit Design**
+* `MATH_WINDOW_SIZE = 100` — the window scores the last 100 *current-rank* challenges.
+* `MATH_RANKUP_THRESHOLD = 0.80` — when the window is **full** and **≥ 80%** are correct, the rank advances by one and the window **resets**.
+* **Never demote.** A struggling child simply stays on the current rank, getting the repetition they need, until they are reliably accurate.
+* A full window is required, so each rank takes a **minimum of ~100 current-rank challenges** — deliberately strict for genuine mastery.
+
+The window persists in game state (`Trainer.mathWindow`). Time pressure is part of difficulty: the puzzle timer is `battleTimerSeconds(genLevel)` for the rank's generator step.
+
+## **3.3 Interleaved Review**
+
+To keep earlier skills sharp (spaced practice), each challenge has a `MATH_REVIEW_FRACTION = 0.30` chance of being a **review**: a problem pulled from a **uniformly-random lower rank** (rank 1 has no lower ranks → no review). Review challenges:
+
+* are flagged `isReview` and marked with a **⭐** in the UI;
+* still deal battle damage and count toward lifetime stats;
+* are **excluded from the rank-up window** — they never help or hurt advancement.
+
+So roughly 70% of challenges are at the current rank (the ones that count) and 30% are mixed-down review.
+
+## **3.4 Partial Credit Design**
 
 * Battle puzzles: correct = 100% move power; incorrect or time-expired = 75% power.
 * Catch puzzles: correct = full catch accuracy; incorrect or expired = 75% of catch accuracy.
@@ -204,9 +224,9 @@ For addition the order of the two addends is randomised for variety; subtraction
 | Pedagogical note: Spaced repetition occurs naturally through play. A child grinding encounters solves dozens of addition and subtraction problems per session without perceiving it as drilling. |
 | :---- |
 
-## **3.4 Extension Path (not in the live build)**
+## **3.5 Extension Path (not in the live build)**
 
-The richer curriculum from earlier versions — multiplication, division, order of operations, fractions, percentages, and introductory algebra — remains a documented extension path, layered on after the addition/subtraction bands as additional opponent-level tiers reusing the same level-driven generator.
+The richer curriculum from earlier versions — multiplication, division, order of operations, fractions, percentages, and introductory algebra — remains a documented extension path: append new entries to `MATH_RANKS` (and teach the generator the new operations) and they slot onto the top of the ladder automatically, gated by the same mastery window.
 
 # **4. Battle System**
 
@@ -421,7 +441,7 @@ The catch screen shows two visible inputs and one new informational panel:
 * **HP zone colour** — green (high HP, low catch), orange (below 50%, moderate), red (below 25%, high).
 * **Already-caught indicator** — a panel beside the chance indicator that tells the player whether this species is already in their collection ("New! You haven't caught *X* yet" vs "You've already caught *X*").
 
-The catch math is a level-scaled **addition** puzzle (identical difficulty to a battle hit at that opponent level). Catch success probability is computed by the engine from the species' capture rate, the ball's base rate, and the opponent's current HP, multiplied by the answer-accuracy factor (1.0 correct, 0.75 wrong). A successfully weakened-then-caught Pokémon lets the weakener keep its earned EXP (see §4.7).
+The catch math is a Math-Rank puzzle (identical difficulty to a battle hit — same Math Rank generator, including possible ⭐ review; see §3). Catch success probability is computed by the engine from the species' capture rate, the ball's base rate, and the opponent's current HP, multiplied by the answer-accuracy factor (1.0 correct, 0.75 wrong). A successfully weakened-then-caught Pokémon lets the weakener keep its earned EXP (see §4.7).
 
 # **7. Progression and Economy**
 
@@ -472,6 +492,7 @@ Medium-Fast curve: total EXP to reach level N = N³. The EXP value of an opponen
 
 Personal progress dashboard — no social features. The live build shows:
 
+* **Math Rank** — the current rank *number only* (e.g. "Math Rank 5"), the educational headline of the card. The skill label (e.g. "Addition to 100") is intentionally **not** surfaced in the UI — the child sees only the number, both here and on the battle puzzle (see §3).
 * **Correct** — total problems solved.
 * **Streak** — longest accuracy streak.
 * **Caught** — total Pokémon caught.
@@ -516,7 +537,7 @@ Every simplified mechanic has a documented extension path, now triggered by **Po
 
 | Mechanic | Simplified core | Extension trigger | Full version |
 | :---- | :---- | :---- | :---- |
-| Math curriculum | Addition then subtraction, level-banded | Opponent level thresholds | Multiplication → division → order of ops → fractions → percentages → algebra, as new level bands |
+| Math curriculum | Addition then subtraction, Math-Rank ladder | Mastery window (decoupled from level) | Multiplication → division → order of ops → fractions → percentages → algebra, appended to `MATH_RANKS` |
 | Item system | Hidden until Pokémon level 20 | First Pokémon level 20 | Drops, slots, identification, equip |
 | Item slots | 1 / 2 / 3 at lv 20 / 36 / 50 | Pokémon level | Multi-item optimisation |
 | Type chart | 6 types | Opponent level | Full 18-type chart |
@@ -579,7 +600,7 @@ Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caug
 | Incremental damage-proportional EXP | Yes | Kept by weakener even if enemy is caught |
 | Money on defeat only | Yes | ⌊level × 12⌋ |
 | Potions (+20/60/120) | Yes | Correct HP restoration |
-| Poké Balls (40/60/80%) | Yes | Catch math = level-scaled addition |
+| Poké Balls (40/60/80%) | Yes | Catch math = Math-Rank puzzle |
 | Already-caught indicator | Yes | In the ball view |
 | Pokémon rarity (5 tiers) | Yes | From capture rate; shown as a tag |
 | All 151 Gen-1 Pokémon | Yes | Config in `pokemon.json` |

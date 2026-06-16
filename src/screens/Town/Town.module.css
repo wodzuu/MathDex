@@ -140,6 +140,38 @@
   background: #22253a;
   border-top: 2px solid #3a3d5c;
   padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Math Rank row — the educational progression, decoupled from Pokémon level */
+.mathRankRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #3a3d5c;
+}
+
+.mathRankLabel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #8892b8;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+.mathRankValue {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: #FFCB05;
+  text-align: right;
+  line-height: 1.4;
+}
+
+.trainerStats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
