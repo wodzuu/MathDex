@@ -128,6 +128,25 @@ export function itemSlotCount(level: number): number {
   return 0;
 }
 
+// ── Party slots ─────────────────────────────────────────────────────────────
+// Spec §6.6: the party starts at 1 slot and grows to a maximum of 4, gated by
+// the trainer's STRONGEST owned Pokémon's level (consistent with level-driven
+// progression elsewhere). Tunable.
+
+export const MAX_PARTY_SIZE = 4;
+
+/** Strongest-Pokémon level required to reach each slot count (1-indexed). */
+export const PARTY_SLOT_LEVELS = [1, 5, 25, 45] as const; // slots 1, 2, 3, 4
+
+/** How many party slots are unlocked given the strongest owned Pokémon's level. */
+export function partySlotsForLevel(strongestLevel: number): number {
+  let slots = 1;
+  for (let i = 1; i < PARTY_SLOT_LEVELS.length; i++) {
+    if (strongestLevel >= PARTY_SLOT_LEVELS[i]) slots = i + 1;
+  }
+  return Math.min(MAX_PARTY_SIZE, slots);
+}
+
 // ── Battle timer ──────────────────────────────────────────────────────────────
 // 8 seconds at level 1, scaling down to 4 seconds at level 40+.
 

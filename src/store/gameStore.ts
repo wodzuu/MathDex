@@ -3,7 +3,7 @@ import { devtools } from 'zustand/middleware';
 import type { GameState, Trainer, OwnedPokemon, Pokeballs, Potions } from '../types/gameState';
 import type { MathTopic } from '../types/math';
 import type { EncounterData } from '../types/dungeon';
-import { levelFromExp, calcHp } from '../lib/formulas';
+import { levelFromExp, calcHp, partySlotsForLevel } from '../lib/formulas';
 import { getSpecies } from '../data/species';
 import { getMove } from '../data/moves';
 import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK } from '../data/curriculum';
@@ -31,6 +31,18 @@ export function isItemSystemActive(trainer: Trainer): boolean {
 export function getPartyHighestLevel(trainer: Trainer): number {
   const levels = getPartyPokemon(trainer).map(p => levelFromExp(p.totalExp));
   return levels.length ? Math.max(...levels) : 1;
+}
+
+/**
+ * Unlocked party slots (1–4), derived from the strongest OWNED Pokémon's level
+ * (party or box, so a strong boxed Pokémon still counts and can't soft-lock).
+ * Spec §6.6.
+ */
+export function getMaxPartySize(trainer: Trainer): number {
+  const strongest = trainer.caughtPokemon.reduce(
+    (m, p) => Math.max(m, levelFromExp(p.totalExp)), 1,
+  );
+  return partySlotsForLevel(strongest);
 }
 
 /** instanceId of the active fighter — the stored lead if valid, else party[0]. */
@@ -72,7 +84,6 @@ interface GameStoreState extends GameState {
   adjustPokeballs:  (key: keyof Pokeballs, delta: number) => void;
   adjustPotions:    (key: keyof Potions,   delta: number) => void;
 
-  setMaxPartySize: (size: number)  => void;
 
   recordMathAttempt:    (topic: MathTopic, correct: boolean, isReview?: boolean) => void;
   incrementBattleCount: () => void;
@@ -128,7 +139,7 @@ export const useGameStore = create<GameStoreState>()(
 
       withdrawPokemon: (instanceId) =>
         set((s) => patchTrainer(s, (t) => {
-          if (t.party.length >= t.maxPartySize || t.party.includes(instanceId)) return {};
+          if (t.party.length >= getMaxPartySize(t) || t.party.includes(instanceId)) return {};
           return { party: [...t.party, instanceId] };
         }), false, 'withdrawPokemon'),
 
@@ -163,9 +174,6 @@ export const useGameStore = create<GameStoreState>()(
         set((s) => patchTrainer(s, (t) => ({
           potions: { ...t.potions, [key]: Math.max(0, t.potions[key] + delta) },
         })), false, 'adjustPotions'),
-
-      setMaxPartySize: (size) =>
-        set((s) => patchTrainer(s, () => ({ maxPartySize: size })), false, 'setMaxPartySize'),
 
       recordMathAttempt: (topic, correct, isReview = false) =>
         set((s) => patchTrainer(s, (t) => {

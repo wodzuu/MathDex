@@ -11,9 +11,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useGameStore, useActiveTrainer, getPcBoxPokemon } from '../store/gameStore';
+import { useGameStore, useActiveTrainer, getPcBoxPokemon, getMaxPartySize } from '../store/gameStore';
 import { usePartyDisplay, type PartyDisplayPokemon } from '../hooks/usePartyDisplay';
 import PartyMemberCard from '../components/PartyMemberCard';
+import { MAX_PARTY_SIZE, PARTY_SLOT_LEVELS } from '../lib/formulas';
 import { D, FONT_PIXEL, FONT_UI } from '../styles/tokens';
 
 // ── PC Box sorting ────────────────────────────────────────────────────────────
@@ -74,7 +75,7 @@ export default function PCScreen() {
   const depositPokemon  = useGameStore(s => s.depositPokemon);
   const withdrawPokemon = useGameStore(s => s.withdrawPokemon);
 
-  const maxPartySize = trainer.maxPartySize;
+  const maxPartySize = getMaxPartySize(trainer);
   const boxIds       = getPcBoxPokemon(trainer).map(p => p.instanceId);
 
   // Display data via the shared hook. PC Terminal never marks a lead.
@@ -144,13 +145,28 @@ export default function PCScreen() {
           ))
         )}
 
-        {/* Empty slots */}
+        {/* Empty (unlocked) slots */}
         {Array.from({ length: maxPartySize - partyDisplay.length }).map((_, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: `1px solid ${D.border}`, opacity: 0.4 }}>
+          <div key={`empty-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: `1px solid ${D.border}`, opacity: 0.4 }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: D.card2, border: `2px dashed ${D.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>➕</div>
             <span style={{ fontSize: 13, color: D.muted, fontWeight: 700 }}>Empty slot</span>
           </div>
         ))}
+
+        {/* Locked slots — shown as placeholders with their unlock level */}
+        {Array.from({ length: MAX_PARTY_SIZE - maxPartySize }).map((_, i) => {
+          const slotNumber  = maxPartySize + i + 1;
+          const unlockLevel = PARTY_SLOT_LEVELS[slotNumber - 1];
+          return (
+            <div key={`locked-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: `1px solid ${D.border}`, opacity: 0.55 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: D.darker, border: `2px dashed ${D.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🔒</div>
+              <div>
+                <div style={{ fontSize: 13, color: D.muted, fontWeight: 800 }}>Locked slot</div>
+                <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.yellow, marginTop: 4 }}>Unlocks at Lv {unlockLevel}</div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* ── PC BOX ── */}

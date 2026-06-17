@@ -435,7 +435,16 @@ When an owned Pokémon evolves it keeps its EXP, current HP, and moves; only the
 
 ## **6.6 The Party and PC Box**
 
-* The party holds up to `maxPartySize` Pokémon. *(Implementation note: party-size growth was previously tied to boss floors, which have been removed. A new growth trigger — e.g. a trainer-level or catch-count milestone — is to be defined; the live build currently uses a fixed starting size.)*
+* The party **starts at 1 slot and grows to a maximum of 4**, gated by the trainer's **strongest owned Pokémon's level** (party *or* box, so a strong boxed Pokémon can't soft-lock you). Max party size is **derived**, not stored — it can't desync from progress. Thresholds (`partySlotsForLevel` / `PARTY_SLOT_LEVELS`, tunable):
+
+  | Slots | Strongest Pokémon level |
+  | :---- | :---- |
+  | 1 | start |
+  | 2 | 5 |
+  | 3 | 25 |
+  | 4 | 45 |
+
+  Locked slots are shown in the PC Terminal as placeholder rows with their unlock level, so the player can see what's coming. *(Replaces the removed boss-floor growth trigger.)*
 * The **PC Box** is unlimited. Box Pokémon earn nothing — only party Pokémon grow.
 * The **Lead** is the Pokémon the player enters battle with; during battle any party member can be made active via the carousel (see §4.6). EXP follows the damage-proportional rule in §4.7.
 * **Per-member HP in battle.** Each party member keeps its own HP as the player switches; every member's HP is persisted at battle end (a member that fainted stays fainted at 0 HP). When the active member faints the next healthy one is sent out automatically; the player blacks out only when the whole party has fainted — at which point all members are returned to town at 0 HP to be healed at the Pokémon Center.
@@ -581,7 +590,7 @@ The damage formula (§4.2) is evaluated by the engine. Item Bonus is zero while 
 
 ## **11.4 Save State**
 
-Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caught Pokémon, party, lead, max party size, Pokédollars, Pokéballs, potions, stats, the **encounter pity** counters, see §6.2 — and the **Focus** meter, see §4.4), the active trainer id, and settings. Each owned Pokémon stores its species id, total EXP, current HP (every party member's HP is written back at battle end), and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
+Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caught Pokémon, party, lead, Pokédollars, Pokéballs, potions, stats, the **encounter pity** counters, see §6.2 — and the **Focus** meter, see §4.4), the active trainer id, and settings. (Max party size is **derived** from the strongest Pokémon's level — see §6.6 — not stored.) Each owned Pokémon stores its species id, total EXP, current HP (every party member's HP is written back at battle end), and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
 
 ## **11.5 Build & Deployment**
 

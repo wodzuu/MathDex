@@ -17,8 +17,6 @@ export interface Trainer {
   party: string[];
   /** instanceId of the active fighter. Falls back to party[0] if unset/invalid. */
   leadInstanceId?: string;
-  /** 2–6; grows as boss floors are cleared. */
-  maxPartySize: number;
   pokeDollars: number;
   pokeballs: Pokeballs;
   potions: Potions;

@@ -28,7 +28,6 @@ export function createNewGame(): GameState {
     caughtPokemon:  [pikachu],
     party:          [pikachu.instanceId],
     leadInstanceId: pikachu.instanceId,
-    maxPartySize:   2,
     pokeDollars:   500,
     pokeballs:     { pokeball: 5, greatBall: 0, ultraBall: 0 },
     // (no floors — difficulty scales with opponent level)
