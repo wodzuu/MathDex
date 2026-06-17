@@ -1,5 +1,4 @@
 import type { MathTopic } from './math';
-import type { RarityBag } from './pokemon';
 
 export interface GameState {
   version: number;
@@ -25,12 +24,6 @@ export interface Trainer {
   potions: Potions;
   stats: TrainerStats;
   /**
-   * Remaining tickets in the rarity shuffle-bag (spec §6.2). Optional for
-   * backward compatibility with saves made before the bag existed — a missing
-   * bag is treated as empty and refilled on first draw.
-   */
-  rarityBag?: RarityBag;
-  /**
    * Trainer Focus meter (0–5). A battle-wide combo of consecutive correct
    * answers that powers the charged critical hit; it belongs to the trainer
    * (not a Pokémon), carries across switches and battles, and is persisted.
@@ -50,6 +43,19 @@ export interface Trainer {
    * advances and the window resets. Optional for backward compatibility.
    */
   mathWindow?: boolean[];
+  /**
+   * Encounter pity counters (spec §6.2) — encounters since the last spawn of a
+   * Rare / Epic / Legendary, used to guarantee rarer Pokémon on a schedule.
+   * Optional for backward compatibility (missing = all zero).
+   */
+  encounterPity?: EncounterPity;
+}
+
+/** Per-tier "encounters since last spawn" counters for the pity guarantee. */
+export interface EncounterPity {
+  rare: number;
+  epic: number;
+  legendary: number;
 }
 
 export interface Pokeballs {

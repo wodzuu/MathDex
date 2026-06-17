@@ -411,7 +411,16 @@ export default function BattleScreen() {
     return Object.entries(expAccRef.current).map(([instanceId, rec]) => {
       const pk = t?.caughtPokemon.find((p) => p.instanceId === instanceId);
       const newLevel = pk ? levelFromExp(pk.totalExp) : rec.oldLevel;
-      return { instanceId, name: rec.name, dexNumber: rec.dexNumber, expAdded: rec.expAdded, oldLevel: rec.oldLevel, newLevel };
+      // The Pokémon evolved this battle if its species name changed from the one
+      // captured when EXP first accrued (updatePokemon evolves by level).
+      const curSpec = pk ? getSpecies(pk.speciesId) : null;
+      const evolved = !!curSpec && curSpec.name !== rec.name;
+      return {
+        instanceId, name: rec.name, dexNumber: rec.dexNumber,
+        expAdded: rec.expAdded, oldLevel: rec.oldLevel, newLevel,
+        evolvedToName: evolved ? curSpec!.name      : undefined,
+        evolvedToDex:  evolved ? curSpec!.dexNumber : undefined,
+      };
     });
   }, []);
 

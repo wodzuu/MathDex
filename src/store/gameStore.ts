@@ -2,12 +2,13 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { GameState, Trainer, OwnedPokemon, Pokeballs, Potions } from '../types/gameState';
 import type { MathTopic } from '../types/math';
-import type { PokemonRarity } from '../types/pokemon';
+import type { EncounterData } from '../types/dungeon';
 import { levelFromExp, calcHp } from '../lib/formulas';
-import { drawFromBag } from '../lib/rarityBag';
 import { getSpecies } from '../data/species';
 import { getMove } from '../data/moves';
 import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK } from '../data/curriculum';
+import { speciesAtLevel } from '../lib/evolution';
+import { pickLevel, pickEncounterSpecies, buildEncounter, EMPTY_PITY } from '../lib/encounterGenerator';
 
 // ── Exported helpers ──────────────────────────────────────────────────────────
 
@@ -77,8 +78,8 @@ interface GameStoreState extends GameState {
   incrementBattleCount: () => void;
   recordOpponentLevel:  (level: number) => void;
 
-  /** Draw the next encounter rarity from the persisted shuffle-bag. Spec §6.2. */
-  drawEncounterRarity:  () => PokemonRarity;
+  /** Roll one stage-gated, rarity-weighted wild encounter (advances pity). Spec §6.2. */
+  rollEncounter:        (partyHighestLevel: number, itemSystemActive: boolean) => EncounterData;
 
   /** Set the trainer's persisted Focus meter (0–5). Spec §4.4. */
   setFocus: (focus: number) => void;
@@ -95,9 +96,15 @@ export const useGameStore = create<GameStoreState>()(
 
       updatePokemon: (instanceId, patch) =>
         set((s) => patchTrainer(s, (t) => ({
-          caughtPokemon: t.caughtPokemon.map(p =>
-            p.instanceId !== instanceId ? p : { ...p, ...patch }
-          ),
+          caughtPokemon: t.caughtPokemon.map(p => {
+            if (p.instanceId !== instanceId) return p;
+            const merged = { ...p, ...patch };
+            // Level-driven evolution (spec §6.4): after any change (usually an
+            // EXP gain), advance to the form this level has earned. Chains
+            // multiple steps if several thresholds were crossed at once.
+            const evolvedId = speciesAtLevel(merged.speciesId, levelFromExp(merged.totalExp));
+            return evolvedId === merged.speciesId ? merged : { ...merged, speciesId: evolvedId };
+          }),
         })), false, 'updatePokemon'),
 
       addCaughtPokemon: (pokemon) => {
@@ -210,12 +217,13 @@ export const useGameStore = create<GameStoreState>()(
           return { stats: { ...t.stats, highestOpponentLevel: best } };
         }), false, 'recordOpponentLevel'),
 
-      drawEncounterRarity: () => {
-        const s = get();
+      rollEncounter: (partyHighestLevel, itemSystemActive) => {
+        const level  = pickLevel(partyHighestLevel);
+        const s      = get();
         const active = s.trainers.find(t => t.id === s.activeTrainerId);
-        const { rarity, bag } = drawFromBag(active?.rarityBag);
-        set((st) => patchTrainer(st, () => ({ rarityBag: bag })), false, 'drawEncounterRarity');
-        return rarity;
+        const { species, pity } = pickEncounterSpecies(level, active?.encounterPity ?? EMPTY_PITY);
+        set((st) => patchTrainer(st, () => ({ encounterPity: pity })), false, 'rollEncounter');
+        return buildEncounter(species, level, itemSystemActive);
       },
 
       setFocus: (focus) =>

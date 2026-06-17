@@ -1,6 +1,6 @@
 import type { GameState, Trainer, OwnedPokemon } from '../types/gameState';
 import { expToLevel, calcHp } from './formulas';
-import { createRarityBag } from './rarityBag';
+import { EMPTY_PITY } from './encounterGenerator';
 import { getSpecies } from '../data/species';
 
 export function createNewGame(): GameState {
@@ -43,10 +43,10 @@ export function createNewGame(): GameState {
       highestOpponentLevel:   0,
       topicAccuracy:          {},
     },
-    rarityBag: createRarityBag(),
-    focus:     0,
-    mathRank:   1,
-    mathWindow: [],
+    focus:         0,
+    mathRank:      1,
+    mathWindow:    [],
+    encounterPity: { ...EMPTY_PITY },
   };
 
   return {

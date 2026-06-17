@@ -59,12 +59,6 @@ export interface SpeciesEvolution {
 export type PokemonRarity = 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary';
 
 /**
- * The "rarity bag" — remaining tickets per rarity for the shuffle-bag encounter
- * randomiser (spec §6.2). Drawn without replacement; refilled when empty.
- */
-export type RarityBag = Record<PokemonRarity, number>;
-
-/**
  * Static species definition — the blueprint for a type of Pokémon.
  * Lives in src/data/species.ts. Never mutated at runtime.
  */

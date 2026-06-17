@@ -41,6 +41,9 @@ interface ExpGainEntry {
   expAdded:   number;
   oldLevel:   number;
   newLevel:   number;
+  /** Set when the Pokémon evolved this battle (spec §6.4). */
+  evolvedToName?: string;
+  evolvedToDex?:  number;
 }
 
 interface OutcomeBanner {
@@ -109,13 +112,18 @@ function OutcomeBanner({ banner, onClose }: { banner: OutcomeBanner; onClose: ()
         )}
       </div>
       {banner.expGains.map((g) => (
-        <div key={g.instanceId} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          <img src={getIdleSpriteUrl(g.dexNumber)} alt={g.name} style={{ width: 22, height: 22, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }} />
+        <div key={g.instanceId} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+          <img src={getIdleSpriteUrl(g.evolvedToDex ?? g.dexNumber)} alt={g.evolvedToName ?? g.name} style={{ width: 22, height: 22, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }} />
           <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 12, fontWeight: 800, color: '#f0f4ff', textTransform: 'capitalize' }}>{g.name}</span>
           <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: '#6890F0' }}>+{g.expAdded} EXP</span>
           {g.newLevel > g.oldLevel && (
             <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: '#F8D030', background: '#1a1400', border: '1px solid #F8D030', borderRadius: 5, padding: '2px 5px' }}>
               LV{g.newLevel}!
+            </span>
+          )}
+          {g.evolvedToName && (
+            <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: '#78C850', background: '#0a2008', border: '1px solid #78C850', borderRadius: 5, padding: '2px 5px', textTransform: 'capitalize' }}>
+              🧬 → {g.evolvedToName}!
             </span>
           )}
         </div>

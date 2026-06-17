@@ -12,16 +12,17 @@
 import { create }   from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { EncounterData } from '../types/dungeon';
-import { generateEncounter } from '../lib/encounterGenerator';
 import { useGameStore } from './gameStore';
 
 /** How many opponents are offered at once. */
 export const ENCOUNTER_SLOTS = 3;
 
-/** Roll one encounter, drawing its rarity from the persisted shuffle-bag (§6.2). */
+/**
+ * Roll one encounter via the game store, which stage-gates by level,
+ * rarity-weights the pick, and advances the pity counters (§6.2).
+ */
 function rollOne(partyHighestLevel: number, itemSystemActive: boolean): EncounterData {
-  const rarity = useGameStore.getState().drawEncounterRarity();
-  return generateEncounter(partyHighestLevel, itemSystemActive, rarity);
+  return useGameStore.getState().rollEncounter(partyHighestLevel, itemSystemActive);
 }
 
 interface DungeonState {
