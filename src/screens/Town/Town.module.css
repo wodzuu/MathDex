@@ -71,49 +71,103 @@
 
 /* Transparent tappable region over a building / path. Faint persistent ring
    advertises tappability; brightens + reveals a tag on hover/press. */
-.hotspot {
+
+/* ── Forest hotspot — the top forest + path; tap to enter the dungeon ─────── */
+.forestHotspot {
   position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 36%;
   background: transparent;
-  border: 2px solid rgba(255, 203, 5, 0.28);
-  border-radius: 14px;
+  border: none;
   cursor: pointer;
   padding: 0;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 
-.hotspot:hover,
-.hotspot:focus-visible,
-.hotspot:active {
-  background: rgba(255, 203, 5, 0.18);
-  border-color: rgba(255, 203, 5, 0.95);
-  box-shadow: 0 0 14px rgba(255, 203, 5, 0.45);
+.forestHotspot:hover,
+.forestHotspot:focus-visible,
+.forestHotspot:active {
+  background: rgba(255, 203, 5, 0.12);
   outline: none;
 }
 
-.hotspotTag {
+/* Persistent call-to-action pill near the path mouth (always visible). */
+.forestTag {
   font-family: 'Press Start 2P', monospace;
   font-size: 8px;
   color: #0a1220;
   background: #FFCB05;
-  border-radius: 6px;
-  padding: 4px 7px;
-  margin-bottom: 8px;
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.15s, transform 0.15s;
-  pointer-events: none;
+  border: 2px solid #a07800;
+  border-radius: 8px;
+  padding: 5px 9px;
+  margin-bottom: 10px;
   white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  animation: forestPulse 1.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
-.hotspot:hover .hotspotTag,
-.hotspot:focus-visible .hotspotTag,
-.hotspot:active .hotspotTag {
-  opacity: 1;
-  transform: translateY(0);
+@keyframes forestPulse {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+/* ── Building panels on the grass ────────────────────────────────────────── */
+.grassPanels {
+  position: absolute;
+  top: 44%;
+  left: 7%;
+  right: 7%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.locTile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: rgba(20, 23, 42, 0.9);
+  border: 2px solid #3a3d5c;
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.locTile:hover,
+.locTile:active {
+  transform: translateY(-2px);
+  border-color: #FFCB05;
+}
+
+.locIcon { font-size: 28px; flex-shrink: 0; }
+
+.locText { display: flex; flex-direction: column; min-width: 0; }
+
+.locName {
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  color: #f0f4ff;
+  line-height: 1.2;
+}
+
+.locSub {
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 2px;
+  /* colour applied inline per location */
 }
 
 /* ── Build footer (under the map) ────────────────────────────────────────── */
@@ -134,47 +188,24 @@
 
 .footerLink:hover { color: #c0c8e8; }
 
-/* ── Trainer Card (glued to the bottom) ──────────────────────────────────── */
+/* ── Trainer Card — overlaid in front of the backdrop, below the panels ───── */
 .trainerCard {
-  flex-shrink: 0;
-  background: #22253a;
-  border-top: 2px solid #3a3d5c;
-  padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Math Rank row — the educational progression, decoupled from Pokémon level */
-.mathRankRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #3a3d5c;
-}
-
-.mathRankLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  color: #8892b8;
-  letter-spacing: 1px;
-  flex-shrink: 0;
-}
-
-.mathRankValue {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 9px;
-  color: #FFCB05;
-  text-align: right;
-  line-height: 1.4;
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  bottom: 3%;
+  background: rgba(20, 23, 42, 0.9);
+  border: 2px solid #3a3d5c;
+  border-radius: 16px;
+  padding: 12px 8px;
+  backdrop-filter: blur(2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .trainerStats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
 }
 
 .trainerStat { text-align: center; }

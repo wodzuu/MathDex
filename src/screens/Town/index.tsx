@@ -1,17 +1,14 @@
 /**
- * Town hub — an illustrated map of Pallet Town with clickable areas.
+ * Town hub — a forest backdrop (public/forest.png) split into two zones:
  *
- * Areas (transparent hotspots over the artwork):
- *   Forest path    → generate encounters, enter the dungeon (/dungeon)
- *   Pokémon Center → heal the whole party, then open party / PC Box (/pc)
- *   Poké Mart      → buy Potions and Balls (/mart)
- *   Oak's Lab      → identify items (/identify) — only once the item system unlocks
+ *   Top (forest + path)  → tapping enters the dungeon (/dungeon).
+ *   Grass (lower)        → building panels:
+ *       Pokémon Center → heal the whole party, then party / PC Box (/pc)
+ *       Poké Mart      → buy Potions and Balls (/mart)
+ *       Oak's Lab      → identify items (/identify) — only once the item system unlocks
  *
- * The header and party listing of the old hub are gone: the map is the view.
- * Build info + project link sit under the map; the Trainer Card is pinned to
- * the bottom of the screen.
- *
- * The map artwork lives at public/town-map.png (portrait ~9:16).
+ * Build info + project link sit under the backdrop; the Trainer Card is pinned
+ * to the bottom of the screen.
  */
 
 import { useCallback } from 'react';
@@ -23,7 +20,7 @@ import { usePwaStore } from '../../store/pwaStore';
 
 import s from './Town.module.css';
 
-const MAP_URL = `${import.meta.env.BASE_URL}town-map.png`;
+const TOWN_URL = `${import.meta.env.BASE_URL}town.png`;
 
 // Build timestamp injected by Vite (set by the GitHub Pages workflow). Formatted
 // to "YYYY-MM-DD HH:mm UTC" for the footer.
@@ -68,54 +65,77 @@ export default function TownScreen() {
       )}
 
       <div className={s.scroll}>
-        {/* ── Illustrated map with hotspots ── */}
+        {/* ── Forest backdrop: forest = dungeon, grass = building panels ── */}
         <div className={s.mapWrap}>
-          <img className={s.map} src={MAP_URL} alt="Pallet Town" />
+          <img className={s.map} src={TOWN_URL} alt="Town" />
 
-          {/* Forest path → dungeon */}
+          {/* Top forest + path → enter the dungeon */}
           <button
-            className={s.hotspot}
-            style={{ top: '3%', left: '30%', width: '42%', height: '27%' }}
+            className={s.forestHotspot}
             onClick={enterDungeon}
             aria-label="Forest — enter the dungeon"
           >
-            <span className={s.hotspotTag}>Forest →</span>
+            <span className={s.forestTag}>🌲 Enter the Forest →</span>
           </button>
 
-          {/* Pokémon Center → heal + PC */}
-          <button
-            className={s.hotspot}
-            style={{ top: '37%', left: '42%', width: '33%', height: '16%' }}
-            onClick={enterCenter}
-            aria-label="Pokémon Center — heal party and manage Pokémon"
-          >
-            <span className={s.hotspotTag}>Pokémon Center</span>
-          </button>
-
-          {/* Poké Mart → shop */}
-          <button
-            className={s.hotspot}
-            style={{ top: '50%', left: '18%', width: '35%', height: '14%' }}
-            onClick={() => navigate('/mart')}
-            aria-label="Poké Mart — buy items"
-          >
-            <span className={s.hotspotTag}>Poké Mart</span>
-          </button>
-
-          {/* Oak's Lab → identify (hidden until the item system unlocks, spec §5.0) */}
-          {itemActive && (
-            <button
-              className={s.hotspot}
-              style={{ top: '67%', left: '20%', width: '60%', height: '20%' }}
-              onClick={() => navigate('/identify')}
-              aria-label="Oak's Lab — identify items"
-            >
-              <span className={s.hotspotTag}>Oak's Lab</span>
+          {/* Building panels, sitting on the grass */}
+          <div className={s.grassPanels}>
+            <button className={s.locTile} onClick={enterCenter}>
+              <span className={s.locIcon}>🏥</span>
+              <span className={s.locText}>
+                <span className={s.locName}>Pokémon Center</span>
+                <span className={s.locSub} style={{ color: '#48c774' }}>Heal · Party &amp; PC Box</span>
+              </span>
             </button>
-          )}
+
+            <button className={s.locTile} onClick={() => navigate('/mart')}>
+              <span className={s.locIcon}>🛒</span>
+              <span className={s.locText}>
+                <span className={s.locName}>Poké Mart</span>
+                <span className={s.locSub} style={{ color: '#6890F0' }}>Potions &amp; Balls</span>
+              </span>
+            </button>
+
+            {/* Oak's Lab unlocks with the item system (spec §5.0) */}
+            {itemActive && (
+              <button className={s.locTile} onClick={() => navigate('/identify')}>
+                <span className={s.locIcon}>🔬</span>
+                <span className={s.locText}>
+                  <span className={s.locName}>Oak's Lab</span>
+                  <span className={s.locSub} style={{ color: '#FFCB05' }}>Identify items</span>
+                </span>
+              </button>
+            )}
+          </div>
+
+          {/* ── Trainer Card — overlaid on the grass, below the panels ── */}
+          <div className={s.trainerCard}>
+            <div className={s.trainerStats}>
+              <div className={s.trainerStat}>
+                <div className={s.trainerStatValue} style={{ color: '#FFCB05' }}>{trainer.mathRank ?? 1}</div>
+                <div className={s.trainerStatLabel}>Math Rank</div>
+              </div>
+              <div className={s.trainerStat}>
+                <div className={s.trainerStatValue} style={{ color: '#48c774' }}>{trainer.stats.totalProblemsSolved}</div>
+                <div className={s.trainerStatLabel}>Correct</div>
+              </div>
+              <div className={s.trainerStat}>
+                <div className={s.trainerStatValue} style={{ color: '#FFCB05' }}>{trainer.stats.longestStreak}×</div>
+                <div className={s.trainerStatLabel}>Streak</div>
+              </div>
+              <div className={s.trainerStat}>
+                <div className={s.trainerStatValue} style={{ color: '#9070B8' }}>{trainer.stats.totalCatches}</div>
+                <div className={s.trainerStatLabel}>Caught</div>
+              </div>
+              <div className={s.trainerStat}>
+                <div className={s.trainerStatValue} style={{ color: '#6890F0' }}>{trainer.stats.highestOpponentLevel ?? 0}</div>
+                <div className={s.trainerStatLabel}>Top Lv</div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* ── Build info + link (under the map) ── */}
+        {/* ── Build info + link ── */}
         <div className={s.footer}>
           <div>Build {BUILD_TIME_LABEL}</div>
           <a
@@ -126,32 +146,6 @@ export default function TownScreen() {
           >
             Project page, licenses and source code
           </a>
-        </div>
-      </div>
-
-      {/* ── Trainer Card (glued to the bottom) ── */}
-      <div className={s.trainerCard}>
-        <div className={s.mathRankRow}>
-          <span className={s.mathRankLabel}>MATH RANK</span>
-          <span className={s.mathRankValue}>{trainer.mathRank ?? 1}</span>
-        </div>
-        <div className={s.trainerStats}>
-          <div className={s.trainerStat}>
-            <div className={s.trainerStatValue} style={{ color: '#48c774' }}>{trainer.stats.totalProblemsSolved}</div>
-            <div className={s.trainerStatLabel}>Correct</div>
-          </div>
-          <div className={s.trainerStat}>
-            <div className={s.trainerStatValue} style={{ color: '#FFCB05' }}>{trainer.stats.longestStreak}×</div>
-            <div className={s.trainerStatLabel}>Streak</div>
-          </div>
-          <div className={s.trainerStat}>
-            <div className={s.trainerStatValue} style={{ color: '#9070B8' }}>{trainer.stats.totalCatches}</div>
-            <div className={s.trainerStatLabel}>Caught</div>
-          </div>
-          <div className={s.trainerStat}>
-            <div className={s.trainerStatValue} style={{ color: '#6890F0' }}>{trainer.stats.highestOpponentLevel ?? 0}</div>
-            <div className={s.trainerStatLabel}>Top Lv</div>
-          </div>
         </div>
       </div>
     </div>
