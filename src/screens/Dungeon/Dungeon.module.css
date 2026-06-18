@@ -1,1118 +1,234 @@
 /*
- * Dungeon screen styles.
+ * Dungeon screen — painted "battle stage" matchup picker.
  *
- * Colour tokens (from src/styles/tokens.ts):
- *   darker  #0a1220   navy    #0F1B2D   card    #22253a   card2   #2a2d45
- *   border  #3a3d5c   border2 #4a4d6c   yellow  #FFCB05   red     #CC0000
- *   green   #48c774   blue    #3B4CCA   muted   #8892b8   white   #f0f4ff
- *
- * Dynamic/type-dependent colours stay as inline styles in the component.
- * Everything else lives here.
+ * Palette tokens (src/styles/tokens.ts):
+ *   darker #0a1220  card #22253a  border #3a3d5c  yellow #FFCB05
+ *   green #48c774  red #CC0000  muted #8892b8  white #f0f4ff
  */
 
-/* ── Screen wrapper ──────────────────────────────────────────────────────── */
 .screen {
-  background: #0a1220;
+  position: relative;
+  max-width: 420px;
+  margin: 0 auto;
   min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: transparent;
   font-family: 'Nunito', sans-serif;
 }
 
-/* ── Top bar ─────────────────────────────────────────────────────────────── */
-/* Greenish gradient to reinforce the "underground" mood from the mockup */
-.topBar {
-  background: linear-gradient(180deg, #0d1a0d, #0a1220);
-  border-bottom: 2px solid #3a3d5c;
-  padding: 12px 14px;
-}
-
-.topBarMeta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.floorLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  color: #FFCB05;
-  letter-spacing: 2px;
-  margin-bottom: 4px;
-}
-
-.floorNumber {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 13px;
-  color: #f0f4ff;
-}
-
-.topBarRight {
-  display: flex;
-  gap: 12px;
-}
-
-.econGroup {
-  text-align: right;
-}
-
-.econLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  color: #8892b8;
-  margin-bottom: 2px;
-}
-
-.econValue {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 12px;
-  /* colour applied inline: green when > 1 potion, red otherwise */
-}
-
-/* ── Party HP strip ──────────────────────────────────────────────────────── */
-.partyStrip {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.partyRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Sprite circle — size/border/shadow applied inline (type-dependent) */
-.sprite {
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-}
-.spriteLead    { width: 30px; height: 30px; font-size: 16px; }
-.spriteReserve { width: 24px; height: 24px; font-size: 13px; }
-
-.partyInfo {
-  flex: 1;
-  min-width: 0;
-}
-
-.partyNameRow {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 2px;
-}
-
-.partyName     { font-weight: 800; }
-.partyNameLead { font-size: 12px; color: #f0f4ff; }
-.partyNameRes  { font-size: 10px; color: #8892b8; }
-
-.lvLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  color: #8892b8;
-}
-
-.hpBarRow {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.hpBarLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 6px;
-  color: #f0f4ff;
-}
-
-.hpTrack {
-  flex: 1;
-  background: #111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.hpTrackLead    { height: 7px; }
-.hpTrackReserve { height: 5px; }
-
-.hpFill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.4s;
-  /* width + background colour applied inline */
-}
-
-.hpPct {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 6px;
-  /* colour applied inline */
-}
-
-.warn {
-  font-size: 10px;
-}
-
-.leadBadge {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  color: #FFCB05;
-  background: #1a1400;
-  border: 1px solid #FFCB05;
-  border-radius: 4px;
-  padding: 2px 5px;
-  flex-shrink: 0;
-}
-
-/* ── Main content section ────────────────────────────────────────────────── */
-.section {
-  padding: 16px 14px 0;
-}
-
-/* ── Encounter-stream layout (replaces map view) ────────────────────────── */
-.encounterContent {
-  padding: 10px 14px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* ── Floor complete card ─────────────────────────────────────────────────── */
-.floorComplete {
-  background: #22253a;
-  border: 2px solid #FFCB05;
-  border-radius: 16px;
-  padding: 24px 16px 20px;
-  text-align: center;
-}
-
-.floorCompleteEmoji { font-size: 44px; margin-bottom: 10px; }
-
-.floorCompleteTitle {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 11px;
-  color: #FFCB05;
-  margin-bottom: 8px;
-}
-
-.floorCompleteText {
-  font-size: 13px;
-  color: #8892b8;
-  font-weight: 700;
-  line-height: 1.6;
-  margin-bottom: 20px;
-}
-
-.floorCompleteBtns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-/* ── Inline encounter card (wraps arena + buttons, no Sheet overlay) ─────── */
-.encounterCard {
-  background: #22253a;
-  border: 2px solid #3a3d5c;
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.encounterCardBody {
-  padding: 14px;
-}
-
-/* ── Floor progress row ──────────────────────────────────────────────────── */
-.progressRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.progressText {
-  font-size: 12px;
-  font-weight: 800;
-  color: #8892b8;
-}
-
-.descendBtn {
-  background: #48c774;
-  border: none;
-  border-radius: 8px;
-  padding: 5px 12px;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  color: #0a1220;
-  cursor: pointer;
-}
-
-/* ── Room path ───────────────────────────────────────────────────────────── */
-.roomPathOuter {
-  position: relative;
-  padding: 0 8px;
-  margin-bottom: 20px;
-}
-
-/* Horizontal connector line behind the nodes */
-.connector {
+/* Forest backdrop, behind everything — shown at full width (no side crop) */
+.bg {
   position: absolute;
-  top: 36px;            /* matches mockup — sits in upper portion of nodes */
-  left: 32px;
-  right: 32px;
-  height: 3px;
-  background: linear-gradient(90deg, #3a3d5c, #4a4d6c, #3a3d5c);
-  border-radius: 2px;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
   z-index: 0;
-}
-
-.roomsRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  position: relative;
-  z-index: 1;
-}
-
-.roomCol {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  max-width: 74px; /* nodeSize(66) + 8 */
-}
-
-/* Player position marker slot — always takes up space even when empty */
-.playerMarkerSlot {
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.playerArrow {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  color: #FFCB05;
-}
-
-/* Room node button — bg/border colour applied inline (type-dependent) */
-.roomNode {
-  width: 66px;
-  height: 66px;
-  border-radius: 14px;
-  border-width: 2px;
-  border-style: solid;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  position: relative;
-  transition: transform 0.2s, filter 0.2s, opacity 0.2s;
-  cursor: pointer;
-  background: none; /* overridden inline */
-}
-
-.roomNode:disabled {
-  cursor: default;
-}
-
-.roomNode:not(:disabled):hover {
-  transform: translateY(-2px);
-}
-
-.checkmark {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 16px;
-  color: #48c774;
-}
-
-/* Yellow ! badge — top-right corner of mandatory rooms */
-.mandatoryBadge {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #FFCB05;
-  border: 2px solid #0a1220;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 7px;
-  color: #0a1220;
-  font-weight: 900;
   pointer-events: none;
 }
 
-/* Room labels below nodes */
-.roomLabelWrap {
-  text-align: center;
-  width: 100%;
-}
-
-.roomNameLabel {
-  font-size: 11px;
-  font-weight: 800;
-  margin-bottom: 3px;
-  line-height: 1.3;
-}
-
-.stairsLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-}
-
-.chestTitle {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  color: #FFCB05;
-  margin-bottom: 3px;
-}
-
-.optionalTag {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 6px;
-  color: #8892b8;
-}
-
-.roomSublabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 6px;
-  color: #8892b8;
-  margin-top: 3px;
-}
-
-/* ── Legend ──────────────────────────────────────────────────────────────── */
-.legend {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
-
-.legendItem {
-  font-size: 11px;
-  font-weight: 700;
-  color: #8892b8;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.legendDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-/* ── Next-floor hint card ────────────────────────────────────────────────── */
-.nextFloorCard {
-  background: #22253a;
-  border: 1px solid #3a3d5c;
-  border-radius: 12px;
-  padding: 10px 14px;
-  margin-bottom: 14px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.nextFloorIcon { font-size: 20px; }
-
-.nextFloorLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  color: #8892b8;
-  margin-bottom: 4px;
-}
-
-.nextFloorText {
-  font-size: 12px;
-  font-weight: 700;
-  color: #8892b8;
-}
-
-/* ── Return-to-town button ───────────────────────────────────────────────── */
-.returnBtn {
-  width: 100%;
-  padding: 12px;
-  font-family: 'Nunito', sans-serif;
-  font-size: 14px;
-  font-weight: 900;
-  text-transform: uppercase;
-  background: transparent;
-  color: #8892b8;
-  border: 2px solid #3a3d5c;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-  margin-bottom: 24px;
-}
-
-.returnBtn:hover {
-  border-color: #f0f4ff;
-  color: #f0f4ff;
-}
-
-/* ── Bottom-sheet overlay ────────────────────────────────────────────────── */
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 200;
+.content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  min-height: 100dvh;
 }
 
-.sheet {
-  /* background + borderTop applied inline: colour changes per overlay type */
-  border-radius: 24px 24px 0 0;
-  max-width: 420px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 0 14px 28px;
-}
-
-.handle {
-  width: 42px;
-  height: 5px;
-  opacity: 0.6;
-  border-radius: 3px;
-  margin: 12px auto 16px;
-  /* background applied inline: yellow or green */
-}
-
-/* ── Encounter overlay — pre-battle arena ───────────────────────────────── */
-.arena {
-  background: linear-gradient(180deg, #1a3a6a 0%, #0d2040 46%, #1a2a0e 46%, #0d1a06 100%);
-  border: 2px solid #3a3d5c;
-  border-radius: 16px;
-  padding: 18px 16px;
-  position: relative;
-  min-height: 160px;
-  margin-bottom: 14px;
-  overflow: hidden;
-}
-
-.enemyNamebox {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background: #22253a;
-  border: 2px solid #3a3d5c;
-  border-radius: 10px;
-  padding: 7px 11px;
-  min-width: 148px;
-}
-
-.enemyNameRow {
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  gap: 8px;
+  padding: 12px 12px 0;
 }
-
-.enemyNameText {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  color: #f0f4ff;
-}
-
-.enemyLvText {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  color: #8892b8;
-}
-
-.enemySprite {
-  position: absolute;
-  top: 8px;
-  right: 14px;
-  font-size: 52px;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7));
-  z-index: 1;
-  line-height: 1;
-}
-
-.playerSprite {
-  position: absolute;
-  bottom: 14px;
-  left: 20px;
-  font-size: 44px;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
-  z-index: 1;
-  line-height: 1;
-}
-
-.arenaShadowEnemy {
-  position: absolute;
-  top: 38%;
-  left: 16%;
-  width: 26%;
-  height: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 50%;
-  filter: blur(3px);
-}
-
-.arenaShadowPlayer {
-  position: absolute;
-  top: 73%;
-  right: 8%;
-  width: 30%;
-  height: 9px;
-  background: rgba(0, 0, 0, 0.35);
-  border-radius: 50%;
-  filter: blur(4px);
-}
-
-/* Info strip (encounter info below arena) */
-.infoStrip {
-  background: #2a2d45;
-  border: 1px solid #3a3d5c;
-  border-radius: 12px;
-  padding: 10px 14px;
-  margin-bottom: 14px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.infoIcon    { font-size: 26px; }
-.infoContent { flex: 1; }
-
-.infoTitle {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 10px;
-  color: #f0f4ff;
-  margin-bottom: 5px;
-}
-
-.infoBadges { display: flex; gap: 6px; align-items: center; }
-
-.infoDrops      { text-align: right; }
-.infoDropsLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  color: #8892b8;
-  margin-bottom: 3px;
-}
-.dropIcon { font-size: 18px; }
-
-/* Fight / flee action buttons */
-.preBtns { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
-
-.fightBtn {
-  padding: 13px;
-  font-family: 'Nunito', sans-serif;
-  font-size: 15px;
-  font-weight: 900;
-  text-transform: uppercase;
-  background: #FFCB05;
-  color: #0a1220;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  box-shadow: 0 4px 0 #a07800;
-}
-
-.fleeBtn {
-  padding: 11px;
-  font-family: 'Nunito', sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  background: transparent;
-  color: #8892b8;
-  border: 2px solid #3a3d5c;
-  border-radius: 12px;
-  cursor: pointer;
-}
-
-/* ── Encounter overlay — fighting phase ─────────────────────────────────── */
-.fightingHeader {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 9px;
-  color: #8892b8;
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.hpCardGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-
-.hpCard {
-  background: #22253a;
-  border: 2px solid #3a3d5c;
-  border-radius: 12px;
-  padding: 10px 12px;
-}
-
-.hpCardName {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  color: #8892b8;
-  margin-bottom: 5px;
-}
-
-.hpCardRow   { display: flex; align-items: center; gap: 5px; }
-.hpCardLabel { font-family: 'Press Start 2P', monospace; font-size: 6px; color: #f0f4ff; }
-
-.hpCardTrack {
-  flex: 1;
-  height: 7px;
-  background: #111;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.hpCardFill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.4s;
-}
-
-.hpCardPct { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #8892b8; }
-
-.fightHint {
-  font-size: 12px;
-  color: #8892b8;
-  text-align: center;
-  margin-bottom: 10px;
-  font-weight: 700;
-}
-
-.fightingBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-.attackBtn {
-  padding: 12px;
-  font-family: 'Nunito', sans-serif;
-  font-size: 14px;
-  font-weight: 900;
-  text-transform: uppercase;
-  background: #FFCB05;
-  color: #0a1220;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  box-shadow: 0 4px 0 #a07800;
-}
-
-.potionBtn {
-  padding: 11px;
-  font-family: 'Nunito', sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  background: #0a1a0a;
-  color: #48c774;
-  border: 2px solid #48c774;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.potionBtn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* ── Encounter overlay — victory phase ──────────────────────────────────── */
-.wonContent { text-align: center; }
-.wonEmoji   { font-size: 40px; margin-bottom: 8px; }
-
-.wonTitle {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 12px;
-  color: #FFCB05;
-  margin-bottom: 6px;
-}
-
-.wonDefeated {
-  font-size: 13px;
-  color: #8892b8;
-  margin-bottom: 4px;
-  font-weight: 700;
-}
-
-.wonRewards {
-  font-size: 12px;
-  color: #48c774;
-  margin-bottom: 16px;
-  font-weight: 700;
-}
-
-/* ── Shared full-width CTA buttons ───────────────────────────────────────── */
-.ctaYellow {
-  width: 100%;
-  padding: 13px;
-  font-family: 'Nunito', sans-serif;
-  font-size: 15px;
-  font-weight: 900;
-  text-transform: uppercase;
-  background: #FFCB05;
-  color: #0a1220;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  box-shadow: 0 4px 0 #a07800;
-}
-
-.ctaGreen {
-  width: 100%;
-  padding: 13px;
-  font-family: 'Nunito', sans-serif;
-  font-size: 15px;
-  font-weight: 900;
-  text-transform: uppercase;
-  background: #48c774;
-  color: #0a1220;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  box-shadow: 0 4px 0 #1a6a1a;
-}
-
-/* ── Chest overlay ───────────────────────────────────────────────────────── */
-.chestCenter  { text-align: center; margin-bottom: 16px; }
-.chestEmoji   { font-size: 52px; margin-bottom: 8px; }
-.chestHeader  {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 11px;
-  color: #FFCB05;
-  margin-bottom: 6px;
-}
-.chestBody    { font-size: 13px; color: #8892b8; font-weight: 700; line-height: 1.6; }
-
-.itemPreview  {
-  background: #2a2d45;
-  border: 2px solid #3a3d5c;
-  border-radius: 12px;
-  padding: 10px 14px;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.itemPreviewIcon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.itemPreviewName {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 9px;
-  color: #f0f4ff;
-  margin-bottom: 4px;
-}
-
-/* ── Stairs overlay ──────────────────────────────────────────────────────── */
-.stairsCenter  { text-align: center; margin-bottom: 16px; }
-.stairsEmoji   { font-size: 48px; margin-bottom: 8px; }
-.stairsHeader  {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 11px;
-  color: #48c774;
-  margin-bottom: 8px;
-}
-.stairsBody    { font-size: 13px; color: #8892b8; font-weight: 700; line-height: 1.7; }
-
-.stairsBtns { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
 
 .backBtn {
-  padding: 11px;
+  background: rgba(20, 23, 42, 0.85);
+  border: 2px solid #3a3d5c;
+  border-radius: 12px;
+  padding: 7px 13px;
+  color: #e6ebff;
   font-family: 'Nunito', sans-serif;
   font-size: 13px;
   font-weight: 800;
-  background: transparent;
-  color: #8892b8;
-  border: 2px solid #3a3d5c;
-  border-radius: 12px;
   cursor: pointer;
 }
 
-/* ── Loot drop overlay ───────────────────────────────────────────────────── */
-.lootCenter { text-align: center; margin-bottom: 14px; }
-.lootHeader {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 10px;
-  color: #FFCB05;
-  margin-bottom: 6px;
-}
-.lootBody { font-size: 13px; color: #8892b8; font-weight: 700; margin-bottom: 14px; }
+.invChips { display: flex; gap: 8px; }
 
-.lootCard {
-  background: #2a2d45;
-  border: 2px solid #3a3d5c;
-  border-radius: 14px;
-  padding: 12px 14px;
+.invChip {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.lootIcon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  flex-shrink: 0;
-}
-
-.lootItemName {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 10px;
-  color: #f0f4ff;
-  margin-bottom: 4px;
-}
-
-.lootBagLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 9px;
-  color: #8892b8;
-  margin-left: auto;
-}
-
-/* ══ VS MATCHUP VIEW ══════════════════════════════════════════════════════ */
-
-.vsContent {
-  padding: 12px 14px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* ── Header (My Pokémon / Wild Pokémon names) ─────────────────────────────── */
-.vsHeader {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.vsHeaderCol {
-  flex: 1;
-  min-width: 0;
-}
-
-.vsHeaderLabel {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  color: #8892b8;
-  letter-spacing: 1px;
-  margin-bottom: 6px;
-}
-
-.vsHeaderName {
-  font-family: 'Nunito', sans-serif;
-  font-size: 20px;
-  font-weight: 900;
-  color: #FFCB05;
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.vsHeaderLv {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  color: #8892b8;
-  margin-left: 6px;
-}
-
-.vsHeaderBadges {
-  display: flex;
   gap: 5px;
-  margin-top: 7px;
-  flex-wrap: wrap;
+  background: rgba(20, 23, 42, 0.85);
+  border: 1px solid #3a3d5c;
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
 }
 
-/* ── The split-screen banner ──────────────────────────────────────────────── */
-.vsBanner {
+/* ── Battle stage ─────────────────────────────────────────────────────────── */
+.arena {
   position: relative;
-  width: 100%;
-  height: 240px;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 2px solid #3a3d5c;
-  background: #05060a;
-  user-select: none;
+  height: 384px;
+  flex-shrink: 0;
   touch-action: pan-y;
 }
 
-.vsHalf {
+/* disk the Pokémon stands on — colour + thickness applied inline per type */
+.platform {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 50%;
 }
 
-.vsHalfLeft  { clip-path: polygon(0 0, 54% 0, 46% 100%, 0 100%); }
-.vsHalfRight { clip-path: polygon(54% 0, 100% 0, 100% 100%, 46% 100%); }
-
-.vsSprite {
+/* soft contact shadow cast by the Pokémon onto the disk */
+.platformShadow {
   position: absolute;
-  top: 44%;
-  width: 132px;
-  height: 132px;
-  object-fit: contain;
+  border-radius: 50%;
+  background: rgba(18, 28, 12, 0.32);
+  filter: blur(2px);
+  z-index: 1;
+}
+
+.sprite {
+  position: absolute;
   image-rendering: pixelated;
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.7));
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45));
+  z-index: 2;
 }
-/* Centre each sprite inside its own half (percent-based → resolution-safe). */
-.vsSpriteLeft  { left: 26%; transform: translate(-50%, -50%); }
-.vsSpriteRight { left: 74%; transform: translate(-50%, -50%); }
 
-/* Diagonal white seam down the middle */
-.vsSeam {
+.nameBadge {
   position: absolute;
-  left: 50%;
-  top: -12%;
-  height: 124%;
-  width: 3px;
-  background: #ffffff;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.9);
-  transform: translateX(-50%) skewX(-8deg);
-  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(20, 23, 42, 0.9);
+  border: 1px solid #3a3d5c;
+  border-radius: 12px;
+  padding: 7px 10px;
+  min-width: 124px;
   z-index: 3;
 }
 
-/* The big red VS */
-.vsDiamond {
+.nameRow { display: flex; align-items: center; gap: 8px; }
+.nameText { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; color: #f0f4ff; }
+.nameLv { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #aeb8d6; }
+.typeBadge { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; display: inline-block; line-height: 1.4; }
+
+.hpRow { display: flex; align-items: center; gap: 6px; }
+.hpLabel { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #8892b8; }
+.hpTrack { flex: 1; height: 8px; background: #0c1020; border-radius: 4px; overflow: hidden; }
+.hpFill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.hpText { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #c8d0e8; }
+
+.vsBadge {
   position: absolute;
   left: 50%;
-  top: 42%;
+  top: 132px;
   transform: translate(-50%, -50%);
-  font-family: 'Press Start 2P', monospace;
-  font-size: 24px;
-  color: #ff1f1f;
-  text-shadow: 0 0 8px rgba(0, 0, 0, 0.9), 2px 2px 0 #6a0000;
-  pointer-events: none;
-  z-index: 4;
-  letter-spacing: 1px;
-}
-
-/* Per-side carousel controls, anchored to the bottom of each half */
-.vsControls {
-  position: absolute;
-  bottom: 8px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #e8403a;
+  border: 3px solid #ffffff;
   display: flex;
   align-items: center;
-  gap: 8px;
-  z-index: 5;
+  justify-content: center;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 13px;
+  color: #ffffff;
+  z-index: 4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
-.vsControlsLeft  { left: 0;  width: 50%; justify-content: center; }
-.vsControlsRight { right: 0; width: 50%; justify-content: center; }
 
-.vsArrow {
-  width: 28px;
-  height: 28px;
+.arrowBtn {
+  position: absolute;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: none;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(20, 23, 42, 0.78);
   color: #fff;
-  font-size: 18px;
-  line-height: 1;
+  font-size: 20px;
   font-weight: 900;
+  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(2px);
-  transition: background 0.15s, transform 0.1s;
+  z-index: 5;
+  -webkit-tap-highlight-color: transparent;
 }
-.vsArrow:active { transform: scale(0.9); }
-.vsArrow:hover  { background: rgba(0, 0, 0, 0.75); }
+.arrowBtn:active { transform: scale(0.9); }
 
-.vsDots { display: flex; gap: 5px; }
-.vsDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
-  transition: background 0.15s, transform 0.15s;
-}
-.vsDotOn { background: #FFCB05; transform: scale(1.25); }
-
-/* ── Stat comparison table ────────────────────────────────────────────────── */
-.statTable {
-  background: #14172a;
-  border: 2px solid #3a3d5c;
-  border-radius: 14px;
-  padding: 8px 4px;
-}
-
-.statRow {
-  display: grid;
-  grid-template-columns: 1fr 64px 64px;
-  align-items: center;
-  padding: 5px 12px;
-}
-.statRow + .statRow { border-top: 1px solid #20233c; }
-.statRowDmg { background: #1c2030; }
-
-.statLabel {
-  font-family: 'Nunito', sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  color: #c0c8e0;
-}
-
-.statValP, .statValW {
-  font-family: 'Press Start 2P', monospace;
+.swipeHint {
+  align-self: center;
+  margin: 6px auto 0;
+  padding: 4px 12px;
+  border-radius: 11px;
+  background: rgba(20, 23, 42, 0.6);
   font-size: 12px;
-  text-align: center;
+  font-weight: 700;
+  color: #dfeccb;
 }
-.statValP { color: #f0f4ff; }
-.statValW { color: #f0f4ff; }
-.statWin  { color: #48c774; }
-.statLose { color: #6b7398; }
 
-/* ── Big FIGHT button ─────────────────────────────────────────────────────── */
-.fightBtnBig {
-  width: 100%;
-  padding: 16px;
-  font-family: 'Nunito', sans-serif;
-  font-size: 19px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  background: #FFCB05;
-  color: #0a1220;
+/* ── Matchup card ─────────────────────────────────────────────────────────── */
+.matchCard {
+  margin: 6px 12px 0;
+  background: rgba(18, 22, 40, 0.92);
+  border: 1.5px solid #3a3d5c;
+  border-radius: 16px;
+  padding: 12px;
+  backdrop-filter: blur(2px);
+}
+
+.verdictRow { display: flex; justify-content: center; margin-bottom: 10px; }
+.verdict { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; padding: 5px 12px; border-radius: 11px; }
+
+.powerHead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.powerLabel { font-family: 'Nunito', sans-serif; font-size: 12px; color: #8892b8; font-weight: 700; }
+.powerVerdict { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; }
+
+.powerTrack { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: #0c1020; }
+.powerYou { height: 100%; background: #5fc46a; transition: width 0.3s; }
+.powerFoe { height: 100%; background: #e0574f; transition: width 0.3s; }
+.powerEnds { display: flex; justify-content: space-between; margin-top: 3px; }
+.powerEnd { font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 800; }
+
+.chipGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+.chip { background: #222a40; border-radius: 10px; padding: 7px 4px; text-align: center; }
+.chipLabel { font-family: 'Nunito', sans-serif; font-size: 11px; color: #8892b8; font-weight: 700; margin-bottom: 4px; }
+.chipRow { display: flex; align-items: baseline; justify-content: center; gap: 6px; }
+.chipMine { font-family: 'Press Start 2P', monospace; font-size: 12px; color: #eef2ff; }
+.chipFoe { font-family: 'Press Start 2P', monospace; font-size: 9px; }
+
+/* ── Fight ────────────────────────────────────────────────────────────────── */
+.fightBtn {
+  margin: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  padding: 15px;
   border: none;
   border-radius: 14px;
+  background: #FFCB05;
+  color: #5a4200;
+  font-family: 'Nunito', sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  box-shadow: 0 5px 0 #a07800;
+  box-shadow: 0 5px 0 #c79a1f;
   transition: transform 0.1s, box-shadow 0.1s;
 }
-.fightBtnBig:active { transform: translateY(3px); box-shadow: 0 2px 0 #a07800; }
+.fightBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 #c79a1f; }
 
-/* ── TypeBadge + RarityBadge (local until moved to components/ui) ────────── */
-.typeBadge {
-  font-family: 'Nunito', sans-serif;
-  font-weight: 800;
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: 99px;
-  text-transform: uppercase;
-  display: inline-block;
-  line-height: 1.4;
-  /* bg / color / border applied inline */
-}
-
-.rarityBadge {
+.loading {
+  margin: 80px auto;
+  text-align: center;
   font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  padding: 2px 7px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  display: inline-block;
-  /* bg / color / border applied inline */
+  font-size: 9px;
+  color: #FFCB05;
 }

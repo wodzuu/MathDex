@@ -1,15 +1,16 @@
 /**
- * Dungeon screen — a split-screen "VS" matchup picker.
+ * Dungeon screen — a child-friendly "battle stage" matchup picker.
  *
- * There are no floors or rooms. The player is offered THREE wild Pokémon and
- * picks one to fight. The screen shows a single arcade-style VS banner: the
- * player's party on the LEFT (swipe to change lead) and the wild Pokémon on the
- * RIGHT (swipe through the 3 on offer). A live stat + damage-range comparison
- * sits below so the player can hunt for the matchup they want before committing.
+ * A painted forest backdrop (public/forest.png) with two circular platforms:
+ * the player's Pokémon stands on the near platform, the chosen wild Pokémon on
+ * the far one, with a VS badge between. The player swipes / taps arrows to pick
+ * which party member fights (left) and which of the 3 wild Pokémon to face
+ * (right). A matchup card below translates the numbers into kid-readable cues:
+ * a type verdict, a power tug-of-war bar, and six stat chips. The player's
+ * current HP is shown on its badge so they can decide whether to heal first.
  *
  * Defeating or catching the chosen opponent replaces only that slot with a fresh
- * roll; the other two remain. Fleeing leaves the slot untouched. Difficulty
- * (enemy level + math) scales with the player's strongest Pokémon.
+ * roll; the other two remain. Fleeing leaves the slot untouched.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -25,12 +26,16 @@ import { getSpecies }      from '../../data/species';
 import { getMove }         from '../../data/moves';
 import { calcHp, calcAllStats, expToLevel, levelFromExp } from '../../lib/formulas';
 import { damageRange, wildMoveIds, type Fighter } from '../../lib/matchup';
-import { getIdleSpriteUrl, getItemSpriteUrl } from '../../lib/sprites';
+import { effectiveMultiplier } from '../../lib/mathProblemGenerator';
+import { getIdleSpriteUrl, getItemSpriteUrl, getBallSpriteUrl } from '../../lib/sprites';
 
 import type { EncounterData } from '../../types/dungeon';
 import type { OwnedPokemon } from '../../types/gameState';
+import type { PokeType } from '../../types/pokemon';
 
 import s from './Dungeon.module.css';
+
+const FOREST_URL = `${import.meta.env.BASE_URL}forest.png`;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -41,7 +46,6 @@ interface ExpGainEntry {
   expAdded:   number;
   oldLevel:   number;
   newLevel:   number;
-  /** Set when the Pokémon evolved this battle (spec §6.4). */
   evolvedToName?: string;
   evolvedToDex?:  number;
 }
@@ -57,58 +61,29 @@ interface OutcomeBanner {
 
 function buildEnemyPokemon(encounter: EncounterData): OwnedPokemon {
   const species = getSpecies(encounter.speciesId);
-  const hp = species
-    ? calcHp(species.baseStats.hp, encounter.level)
-    : encounter.level * 5 + 10;
-
+  const hp = species ? calcHp(species.baseStats.hp, encounter.level) : encounter.level * 5 + 10;
   const moves = species
-    ? species.learnset
-        .filter((lm) => lm.level <= encounter.level)
-        .slice(-4)
-        .map((lm) => {
-          const mv = getMove(lm.moveId);
-          return { moveId: lm.moveId, currentPp: mv?.pp ?? 20 };
-        })
+    ? species.learnset.filter((lm) => lm.level <= encounter.level).slice(-4).map((lm) => {
+        const mv = getMove(lm.moveId);
+        return { moveId: lm.moveId, currentPp: mv?.pp ?? 20 };
+      })
     : [];
-
-  return {
-    instanceId: `enemy-${Date.now()}`,
-    speciesId:  encounter.speciesId,
-    totalExp:   expToLevel(encounter.level),
-    currentHp:  hp,
-    moves,
-  };
-}
-
-// ── TypeBadge (local) ─────────────────────────────────────────────────────────
-
-function TypeBadge({ type }: { type: string }) {
-  const c = typeColors(type);
-  return (
-    <span className={s.typeBadge} style={{ background: c.bg, color: c.fg, border: `1px solid ${c.bdr}` }}>
-      {type}
-    </span>
-  );
+  return { instanceId: `enemy-${Date.now()}`, speciesId: encounter.speciesId, totalExp: expToLevel(encounter.level), currentHp: hp, moves };
 }
 
 // ── Outcome banner (victory / caught) ─────────────────────────────────────────
 
 function OutcomeBanner({ banner, onClose }: { banner: OutcomeBanner; onClose: () => void }) {
   return (
-    <div
-      className="fade-up"
-      onClick={onClose}
-      style={{ margin: '0 14px 4px', background: '#0d2a10', border: '2px solid #48c774', borderRadius: 14, padding: '12px 14px', cursor: 'pointer' }}
-    >
+    <div className="fade-up" onClick={onClose}
+      style={{ margin: '8px 12px 0', background: '#0d2a10ee', border: '2px solid #48c774', borderRadius: 14, padding: '12px 14px', cursor: 'pointer' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: banner.expGains.length || banner.pokeReward != null ? 8 : 0 }}>
         <span style={{ fontSize: 18 }}>{banner.kind === 'victory' ? '🎉' : '🎯'}</span>
         <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, fontWeight: 800, color: '#eafff0' }}>
           {banner.kind === 'victory' ? `${banner.name} defeated!` : `${banner.name} caught!`}
         </span>
         {banner.pokeReward != null && banner.pokeReward > 0 && (
-          <span style={{ marginLeft: 'auto', fontFamily: FONT_PIXEL, fontSize: 9, color: '#F8D030' }}>
-            ₽{banner.pokeReward.toLocaleString()}
-          </span>
+          <span style={{ marginLeft: 'auto', fontFamily: FONT_PIXEL, fontSize: 9, color: '#F8D030' }}>₽{banner.pokeReward.toLocaleString()}</span>
         )}
       </div>
       {banner.expGains.map((g) => (
@@ -117,14 +92,10 @@ function OutcomeBanner({ banner, onClose }: { banner: OutcomeBanner; onClose: ()
           <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 12, fontWeight: 800, color: '#f0f4ff', textTransform: 'capitalize' }}>{g.name}</span>
           <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: '#6890F0' }}>+{g.expAdded} EXP</span>
           {g.newLevel > g.oldLevel && (
-            <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: '#F8D030', background: '#1a1400', border: '1px solid #F8D030', borderRadius: 5, padding: '2px 5px' }}>
-              LV{g.newLevel}!
-            </span>
+            <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: '#F8D030', background: '#1a1400', border: '1px solid #F8D030', borderRadius: 5, padding: '2px 5px' }}>LV{g.newLevel}!</span>
           )}
           {g.evolvedToName && (
-            <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: '#78C850', background: '#0a2008', border: '1px solid #78C850', borderRadius: 5, padding: '2px 5px', textTransform: 'capitalize' }}>
-              🧬 → {g.evolvedToName}!
-            </span>
+            <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: '#78C850', background: '#0a2008', border: '1px solid #78C850', borderRadius: 5, padding: '2px 5px', textTransform: 'capitalize' }}>🧬 → {g.evolvedToName}!</span>
           )}
         </div>
       ))}
@@ -132,7 +103,7 @@ function OutcomeBanner({ banner, onClose }: { banner: OutcomeBanner; onClose: ()
   );
 }
 
-// ── Swipe handling helper (touch) ──────────────────────────────────────────────
+// ── Touch swipe ────────────────────────────────────────────────────────────────
 
 function useSwipe(onPrev: () => void, onNext: () => void) {
   const startX = useRef<number | null>(null);
@@ -142,54 +113,32 @@ function useSwipe(onPrev: () => void, onNext: () => void) {
       if (startX.current === null) return;
       const dx = e.changedTouches[0].clientX - startX.current;
       startX.current = null;
-      if (dx > 40) onPrev();
-      else if (dx < -40) onNext();
+      if (dx > 40) onPrev(); else if (dx < -40) onNext();
     },
   };
 }
 
-// ── Half of the VS banner ──────────────────────────────────────────────────────
+// ── Type badge pill ──────────────────────────────────────────────────────────
 
-interface BannerHalfProps {
-  side:      'left' | 'right';
-  dexNumber: number;
-  type:      string;
-  count:     number;
-  index:     number;
-  onPrev:    () => void;
-  onNext:    () => void;
+function TypeBadge({ type }: { type: string }) {
+  const c = typeColors(type);
+  return <span className={s.typeBadge} style={{ background: c.bg, color: c.fg, border: `1px solid ${c.bdr}` }}>{type}</span>;
 }
 
-function BannerHalf({ side, dexNumber, type, count, index, onPrev, onNext }: BannerHalfProps) {
-  const c = typeColors(type);
-  const swipe = useSwipe(onPrev, onNext);
-  const angle = side === 'left' ? 150 : 210;
-  const bg = `linear-gradient(${angle}deg, ${c.fg}dd 0%, ${c.bg} 55%, #06070d 100%)`;
+// ── Stat comparison chip ────────────────────────────────────────────────────────
 
+function StatChip({ label, mine, theirs }: { label: string; mine: number; theirs: number }) {
+  const win = mine > theirs, lose = mine < theirs;
+  const col = win ? '#5fc46a' : lose ? '#e0574f' : '#8c98b8';
+  const arrow = win ? '▲' : lose ? '▼' : '–';
   return (
-    <>
-      <div
-        className={`${s.vsHalf} ${side === 'left' ? s.vsHalfLeft : s.vsHalfRight}`}
-        style={{ background: bg }}
-        {...swipe}
-      >
-        <img
-          className={`${s.vsSprite} ${side === 'left' ? s.vsSpriteLeft : s.vsSpriteRight}`}
-          src={getIdleSpriteUrl(dexNumber)}
-          alt=""
-        />
+    <div className={s.chip}>
+      <div className={s.chipLabel}>{label}</div>
+      <div className={s.chipRow}>
+        <span className={s.chipMine}>{mine}</span>
+        <span className={s.chipFoe} style={{ color: col }}>{arrow}{theirs}</span>
       </div>
-
-      <div className={`${s.vsControls} ${side === 'left' ? s.vsControlsLeft : s.vsControlsRight}`}>
-        <button className={s.vsArrow} onClick={onPrev} aria-label="Previous">‹</button>
-        <div className={s.vsDots}>
-          {Array.from({ length: count }, (_, i) => (
-            <span key={i} className={`${s.vsDot} ${i === index ? s.vsDotOn : ''}`} />
-          ))}
-        </div>
-        <button className={s.vsArrow} onClick={onNext} aria-label="Next">›</button>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -204,12 +153,7 @@ export default function DungeonScreen() {
   const recordOpponentLevel = useGameStore((gs) => gs.recordOpponentLevel);
 
   const { encounters, rollAll, selectEncounter, replaceActive } = useDungeonStore(
-    useShallow((ds) => ({
-      encounters:      ds.encounters,
-      rollAll:         ds.rollAll,
-      selectEncounter: ds.selectEncounter,
-      replaceActive:   ds.replaceActive,
-    })),
+    useShallow((ds) => ({ encounters: ds.encounters, rollAll: ds.rollAll, selectEncounter: ds.selectEncounter, replaceActive: ds.replaceActive })),
   );
 
   const startBattle = useBattleStore((st) => st.startBattle);
@@ -218,28 +162,18 @@ export default function DungeonScreen() {
   const itemActive  = isItemSystemActive(trainer);
   const leadId      = getLeadInstanceId(trainer);
 
-  // ── Carousel selection ───────────────────────────────────────────────────
   const initialPartyIdx = Math.max(0, party.findIndex((p) => p.instanceId === leadId));
   const [partyIdx, setPartyIdx] = useState(initialPartyIdx);
   const [wildIdx,  setWildIdx]  = useState(0);
 
-  // Keep indices in range as data changes (party edits, slot replacement).
-  useEffect(() => {
-    if (party.length && partyIdx >= party.length) setPartyIdx(party.length - 1);
-  }, [party.length, partyIdx]);
-  useEffect(() => {
-    if (encounters.length && wildIdx >= encounters.length) setWildIdx(encounters.length - 1);
-  }, [encounters.length, wildIdx]);
+  useEffect(() => { if (party.length && partyIdx >= party.length) setPartyIdx(party.length - 1); }, [party.length, partyIdx]);
+  useEffect(() => { if (encounters.length && wildIdx >= encounters.length) setWildIdx(encounters.length - 1); }, [encounters.length, wildIdx]);
 
-  // Track the highest-level opponent the player has encountered (persisted).
-  useEffect(() => {
-    encounters.forEach((e) => recordOpponentLevel(e.level));
-  }, [encounters, recordOpponentLevel]);
+  useEffect(() => { encounters.forEach((e) => recordOpponentLevel(e.level)); }, [encounters, recordOpponentLevel]);
 
   const [outcomeBanner, setOutcomeBanner] = useState<OutcomeBanner | null>(null);
   const outcomeHandledRef = useRef(false);
 
-  // Read battle outcome passed back from BattleScreen via navigation state.
   useEffect(() => {
     if (outcomeHandledRef.current) return;
     outcomeHandledRef.current = true;
@@ -247,26 +181,22 @@ export default function DungeonScreen() {
     const outcome = state?.battleOutcome;
     const ds      = useDungeonStore.getState();
     const lvl     = getPartyHighestLevel(trainer);
-
     if (outcome === 'victory' || outcome === 'caught') {
       const defeated = ds.activeIndex !== null ? ds.encounters[ds.activeIndex] : null;
       setOutcomeBanner({
-        kind:       outcome === 'victory' ? 'victory' : 'caught',
-        name:       defeated?.speciesName ?? 'Pokémon',
-        expGains:   (state?.expGains as ExpGainEntry[] | undefined) ?? [],
+        kind: outcome === 'victory' ? 'victory' : 'caught',
+        name: defeated?.speciesName ?? 'Pokémon',
+        expGains: (state?.expGains as ExpGainEntry[] | undefined) ?? [],
         pokeReward: state?.pokeReward as number | undefined,
       });
-      replaceActive(lvl, itemActive);   // replace only the fought slot
+      replaceActive(lvl, itemActive);
     } else if (outcome === 'fled') {
-      selectEncounter(null);            // opponent stays on offer
+      selectEncounter(null);
     }
-    if (useDungeonStore.getState().encounters.length === 0) {
-      rollAll(lvl, itemActive);
-    }
+    if (useDungeonStore.getState().encounters.length === 0) rollAll(lvl, itemActive);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-dismiss the outcome banner.
   useEffect(() => {
     if (!outcomeBanner) return;
     const t = setTimeout(() => setOutcomeBanner(null), 4500);
@@ -274,8 +204,8 @@ export default function DungeonScreen() {
   }, [outcomeBanner]);
 
   const totalPotions = trainer.potions.potion + trainer.potions.superPotion + trainer.potions.hyperPotion;
+  const totalBalls   = trainer.pokeballs.pokeball + trainer.pokeballs.greatBall + trainer.pokeballs.ultraBall;
 
-  // ── Resolve the two fighters currently shown ─────────────────────────────
   const safePartyIdx = Math.min(partyIdx, Math.max(0, party.length - 1));
   const safeWildIdx  = Math.min(wildIdx,  Math.max(0, encounters.length - 1));
 
@@ -292,37 +222,57 @@ export default function DungeonScreen() {
     const pStats = calcAllStats(pSpec.baseStats, pLevel);
     const wStats = calcAllStats(wSpec.baseStats, enc.level);
 
+    const xpLo = expToLevel(pLevel);
+    const xpHi = expToLevel(pLevel + 1);
+    const xpPct = xpHi > xpLo ? Math.max(0, Math.min(100, Math.round(((playerPk.totalExp - xpLo) / (xpHi - xpLo)) * 100))) : 0;
+
     const pFighter: Fighter = { speciesId: playerPk.speciesId, level: pLevel, moveIds: playerPk.moves.map((m) => m.moveId) };
     const wFighter: Fighter = { speciesId: enc.speciesId,      level: enc.level, moveIds: wildMoveIds(enc.speciesId, enc.level) };
 
     const pDmg = damageRange(pFighter, wFighter);
     const wDmg = damageRange(wFighter, pFighter);
 
+    // Type verdict — best damaging-move multiplier each way.
+    const edges = (moveIds: string[], defTypes: readonly PokeType[]) => {
+      const vals = moveIds
+        .map(getMove)
+        .filter((m): m is NonNullable<ReturnType<typeof getMove>> => !!m && m.power > 0)
+        .map((m) => effectiveMultiplier(m.type, defTypes));
+      return vals.length ? Math.max(...vals) : 1;
+    };
+    const yourEdge  = edges(pFighter.moveIds, wSpec.types);
+    const theirEdge = edges(wFighter.moveIds, pSpec.types);
+    const verdict: 'super' | 'careful' | 'even' = yourEdge > theirEdge ? 'super' : yourEdge < theirEdge ? 'careful' : 'even';
+
+    // Power tug-of-war — share of "KO speed" (HP removed per turn).
+    const pAvg = (pDmg.min + pDmg.max) / 2;
+    const wAvg = (wDmg.min + wDmg.max) / 2;
+    const yourScore  = pAvg / Math.max(1, wStats.maxHp);
+    const theirScore = wAvg / Math.max(1, pStats.maxHp);
+    const yourShare  = (yourScore + theirScore) > 0 ? yourScore / (yourScore + theirScore) : 0.5;
+
     return {
+      verdict,
+      yourShare,
       player: {
-        name: pSpec.name, dexNumber: pSpec.dexNumber, type: pSpec.types[0] as string,
-        types: pSpec.types as string[], rarity: pSpec.rarity, level: pLevel,
-        health: Math.max(0, playerPk.currentHp), maxHp: pStats.maxHp,
-        attack: pStats.attack, spAtk: pStats.spAtk, defense: pStats.defense, spDef: pStats.spDef,
-        minDmg: pDmg.min, maxDmg: pDmg.max,
+        name: pSpec.name, dexNumber: pSpec.dexNumber, type: pSpec.types[0] as string, rarity: pSpec.rarity, level: pLevel,
+        curHp: Math.max(0, Math.min(pStats.maxHp, playerPk.currentHp)), maxHp: pStats.maxHp, xpPct,
+        attack: pStats.attack, spAtk: pStats.spAtk, defense: pStats.defense, spDef: pStats.spDef, speed: pStats.speed,
       },
       wild: {
-        name: wSpec.name, dexNumber: wSpec.dexNumber, type: wSpec.types[0] as string,
-        types: wSpec.types as string[], rarity: wSpec.rarity, level: enc.level,
-        health: wStats.maxHp, maxHp: wStats.maxHp,
-        attack: wStats.attack, spAtk: wStats.spAtk, defense: wStats.defense, spDef: wStats.spDef,
-        minDmg: wDmg.min, maxDmg: wDmg.max,
+        name: wSpec.name, dexNumber: wSpec.dexNumber, type: wSpec.types[0] as string, rarity: wSpec.rarity, level: enc.level,
+        maxHp: wStats.maxHp,
+        attack: wStats.attack, spAtk: wStats.spAtk, defense: wStats.defense, spDef: wStats.spDef, speed: wStats.speed,
       },
     };
   }, [playerPk, enc]);
 
-  // ── Carousel nav ─────────────────────────────────────────────────────────
   const prevParty = useCallback(() => setPartyIdx((i) => (i - 1 + party.length) % party.length), [party.length]);
   const nextParty = useCallback(() => setPartyIdx((i) => (i + 1) % party.length), [party.length]);
   const prevWild  = useCallback(() => setWildIdx((i) => (i - 1 + encounters.length) % encounters.length), [encounters.length]);
   const nextWild  = useCallback(() => setWildIdx((i) => (i + 1) % encounters.length), [encounters.length]);
+  const wildSwipe = useSwipe(prevWild, nextWild);
 
-  // ── Fight ────────────────────────────────────────────────────────────────
   const handleFight = useCallback(() => {
     if (!playerPk || !enc) return;
     setLead(playerPk.instanceId);
@@ -333,136 +283,138 @@ export default function DungeonScreen() {
 
   const handleReturnToTown = useCallback(() => navigate('/'), [navigate]);
 
-  // Stat comparison rows (higher value wins, highlighted green).
-  // `pText`/`wText` override the displayed cell while p/w stay numeric for the
-  // win/lose highlight — used by Health to show MAX(CURRENT) for the party side.
-  const statRows: { label: string; p: number; w: number; dmg: boolean; pText?: string }[] = matchup
-    ? [
-        { label: 'Health',  p: matchup.player.health,  w: matchup.wild.health,  dmg: false, pText: `${matchup.player.maxHp}(${matchup.player.health})` },
-        { label: 'Attack',  p: matchup.player.attack,  w: matchup.wild.attack,  dmg: false },
-        { label: 'Sp. Atk', p: matchup.player.spAtk,   w: matchup.wild.spAtk,   dmg: false },
-        { label: 'Defense', p: matchup.player.defense, w: matchup.wild.defense, dmg: false },
-        { label: 'Sp. Def', p: matchup.player.spDef,   w: matchup.wild.spDef,   dmg: false },
-        { label: 'Min DMG', p: matchup.player.minDmg,  w: matchup.wild.minDmg,  dmg: true  },
-        { label: 'Max DMG', p: matchup.player.maxDmg,  w: matchup.wild.maxDmg,  dmg: true  },
-      ]
-    : [];
-
-  const cls = (mine: number, theirs: number) =>
-    mine > theirs ? s.statWin : mine < theirs ? s.statLose : '';
-
   // ── Render ─────────────────────────────────────────────────────────────────
+  const hpPct  = matchup ? Math.round((matchup.player.curHp / Math.max(1, matchup.player.maxHp)) * 100) : 100;
+  const hpCol  = hpPct > 50 ? '#5fc46a' : hpPct > 25 ? '#f0a030' : '#e0574f';
+  const VERDICT = {
+    super:   { text: 'Super effective!', bg: '#d7f0cf', fg: '#1f5a23' },
+    careful: { text: 'Careful!',         bg: '#f6d3cd', fg: '#8a2d1d' },
+    even:    { text: 'Even match',       bg: '#dfe3ef', fg: '#3a4055' },
+  } as const;
+  const powerPct  = matchup ? Math.round(matchup.yourShare * 100) : 50;
+  // Disk colours follow each Pokémon's type; the darker tone forms the front edge.
+  const pC = matchup ? typeColors(matchup.player.type) : null;
+  const wC = matchup ? typeColors(matchup.wild.type) : null;
+  const diskStyle = (c: ReturnType<typeof typeColors>): React.CSSProperties => ({
+    background: c.fg,
+    border: `1px solid ${c.bg}`,
+    boxShadow: `0 7px 0 ${c.bdr}, 0 15px 11px rgba(0,0,0,0.3)`,
+  });
+
   return (
     <div className={s.screen}>
+      <img className={s.bg} src={FOREST_URL} alt="" aria-hidden />
 
-      {/* ══ TOP BAR ═══════════════════════════════════════════════════════ */}
-      <div className={s.topBar}>
-        <div className={s.topBarMeta}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button
-              onClick={handleReturnToTown}
-              style={{ background: '#22253a', border: '2px solid #3a3d5c', borderRadius: 10, padding: '6px 12px', color: '#8892b8', fontFamily: 'Nunito, sans-serif', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
-            >
-              ← Town
-            </button>
-            <div>
-              <div className={s.floorLabel}>DUNGEON</div>
-              <div className={s.floorNumber}>Wild Battles</div>
-            </div>
-          </div>
-          <div className={s.topBarRight}>
-            <div className={s.econGroup}>
-              <div className={s.econLabel}>POTIONS</div>
-              <div className={s.econValue} style={{ color: totalPotions > 1 ? '#48c774' : '#CC0000', display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>
-                <img src={getItemSpriteUrl('potion')} alt="" style={{ width: 16, height: 16, imageRendering: 'pixelated', objectFit: 'contain' }} />
-                ×{totalPotions}
-              </div>
-            </div>
-            <div className={s.econGroup}>
-              <div className={s.econLabel}>POKÉDOLLARS</div>
-              <div className={s.econValue} style={{ color: '#FFCB05' }}>
-                ₽{trainer.pokeDollars.toLocaleString()}
-              </div>
-            </div>
+      <div className={s.content}>
+        {/* Header: back + potions + balls */}
+        <div className={s.header}>
+          <button className={s.backBtn} onClick={handleReturnToTown}>← Town</button>
+          <div className={s.invChips}>
+            <span className={s.invChip} style={{ color: totalPotions > 0 ? '#eef2ff' : '#e0574f' }}>
+              <img src={getItemSpriteUrl('potion')} alt="" style={{ width: 16, height: 16, imageRendering: 'pixelated', objectFit: 'contain' }} />×{totalPotions}
+            </span>
+            <span className={s.invChip} style={{ color: totalBalls > 0 ? '#eef2ff' : '#e0574f' }}>
+              <img src={getBallSpriteUrl('pokeball')} alt="" style={{ width: 16, height: 16, imageRendering: 'pixelated', objectFit: 'contain' }} />×{totalBalls}
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* ══ OUTCOME BANNER ════════════════════════════════════════════════ */}
-      {outcomeBanner && <OutcomeBanner banner={outcomeBanner} onClose={() => setOutcomeBanner(null)} />}
+        {outcomeBanner && <OutcomeBanner banner={outcomeBanner} onClose={() => setOutcomeBanner(null)} />}
 
-      {/* ══ VS MATCHUP ════════════════════════════════════════════════════ */}
-      <div className={s.vsContent}>
         {!matchup ? (
-          <div className={s.floorComplete}>
-            <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: '#FFCB05' }}>FINDING WILD POKÉMON…</span>
-          </div>
+          <div className={s.loading}>FINDING WILD POKÉMON…</div>
         ) : (
           <>
-            {/* Split banner */}
-            <div className={s.vsBanner}>
-              <BannerHalf
-                side="left"
-                dexNumber={matchup.player.dexNumber}
-                type={matchup.player.type}
-                count={party.length}
-                index={safePartyIdx}
-                onPrev={prevParty}
-                onNext={nextParty}
-              />
-              <BannerHalf
-                side="right"
-                dexNumber={matchup.wild.dexNumber}
-                type={matchup.wild.type}
-                count={encounters.length}
-                index={safeWildIdx}
-                onPrev={prevWild}
-                onNext={nextWild}
-              />
-              <div className={s.vsSeam} />
-              <div className={s.vsDiamond}>VS</div>
-            </div>
-
-            {/* Names header (below the banner) */}
-            <div className={s.vsHeader}>
-              <div className={s.vsHeaderCol}>
-                <div className={s.vsHeaderLabel}>MY POKÉMON</div>
-                <div className={s.vsHeaderName}>
-                  {matchup.player.name}
-                  <span className={s.vsHeaderLv}>Lv{matchup.player.level}</span>
+            {/* ── Battle stage ── */}
+            <div className={s.arena} {...wildSwipe}>
+              {/* Wild status panel — ABOVE the wild Pokémon */}
+              <div className={s.nameBadge} style={{ top: 8, left: '72%', transform: 'translateX(-50%)' }}>
+                <div className={s.nameRow}>
+                  <span className={s.nameText}>{matchup.wild.name}</span>
+                  <span className={s.nameLv}>Lv{matchup.wild.level}</span>
                 </div>
-                <div className={s.vsHeaderBadges}>
-                  {matchup.player.types.map((t) => <TypeBadge key={t} type={t} />)}
+                <div><TypeBadge type={matchup.wild.type} /></div>
+                <div><RarityBadge rarity={matchup.wild.rarity} /></div>
+              </div>
+
+              {/* disks — coloured by type with a thick front edge */}
+              <div className={s.platform} style={{ left: '72%', top: 128, width: 120, height: 30, transform: 'translateX(-50%)', ...(wC ? diskStyle(wC) : {}) }} />
+              <div className={s.platform} style={{ left: '28%', top: 222, width: 132, height: 32, transform: 'translateX(-50%)', ...(pC ? diskStyle(pC) : {}) }} />
+
+              {/* contact shadows on the disks */}
+              <div className={s.platformShadow} style={{ left: '72%', top: 135, width: 74, height: 13, transform: 'translateX(-50%)' }} />
+              <div className={s.platformShadow} style={{ left: '28%', top: 229, width: 86, height: 15, transform: 'translateX(-50%)' }} />
+
+              {/* sprites — sitting on their disks, centred between their arrows */}
+              <img className={s.sprite} src={getIdleSpriteUrl(matchup.wild.dexNumber)} alt=""
+                   style={{ left: '72%', top: 78, width: 84, height: 84, transform: 'translateX(-50%)', zIndex: 4 }} />
+              <img className={s.sprite} src={getIdleSpriteUrl(matchup.player.dexNumber)} alt=""
+                   style={{ left: '28%', top: 168, width: 94, height: 94, transform: 'translateX(-50%)' }} />
+
+              {/* VS */}
+              <div className={s.vsBadge} style={{ top: 165 }}>VS</div>
+
+              {/* Player status panel + HP/XP — BELOW my Pokémon */}
+              <div className={s.nameBadge} style={{ top: 262, left: '28%', transform: 'translateX(-50%)', minWidth: 150 }}>
+                <div className={s.nameRow}>
+                  <span className={s.nameText}>{matchup.player.name}</span>
+                  <span className={s.nameLv}>Lv{matchup.player.level}</span>
+                </div>
+                <div><TypeBadge type={matchup.player.type} /></div>
+                <div><RarityBadge rarity={matchup.player.rarity} /></div>
+                <div className={s.hpRow}>
+                  <span className={s.hpLabel}>HP</span>
+                  <div className={s.hpTrack}><div className={s.hpFill} style={{ width: `${hpPct}%`, background: hpCol }} /></div>
+                  <span className={s.hpText}>{matchup.player.curHp}/{matchup.player.maxHp}</span>
+                </div>
+                <div className={s.hpRow}>
+                  <span className={s.hpLabel}>XP</span>
+                  <div className={s.hpTrack}><div className={s.hpFill} style={{ width: `${matchup.player.xpPct}%`, background: '#6890F0' }} /></div>
                 </div>
               </div>
-              <div className={s.vsHeaderCol} style={{ textAlign: 'right' }}>
-                <div className={s.vsHeaderLabel}>WILD POKÉMON</div>
-                <div className={s.vsHeaderName}>
-                  {matchup.wild.name}
-                  <span className={s.vsHeaderLv}>Lv{matchup.wild.level}</span>
+
+              {/* Carousel arrows — flank each sprite (wild higher, player lower) */}
+              <button className={s.arrowBtn} style={{ left: 'calc(72% - 79px)', top: 103 }} onClick={prevWild} aria-label="Previous wild Pokémon">‹</button>
+              <button className={s.arrowBtn} style={{ left: 'calc(72% + 45px)', top: 103 }} onClick={nextWild} aria-label="Next wild Pokémon">›</button>
+              <button className={s.arrowBtn} style={{ left: 'calc(28% - 79px)', top: 198 }} onClick={prevParty} aria-label="Previous party Pokémon">‹</button>
+              <button className={s.arrowBtn} style={{ left: 'calc(28% + 45px)', top: 198 }} onClick={nextParty} aria-label="Next party Pokémon">›</button>
+            </div>
+
+            <div className={s.swipeHint}>‹ swipe to pick your matchup ›</div>
+
+            {/* ── Matchup card ── */}
+            <div className={s.matchCard}>
+              {matchup.verdict !== 'even' && (
+                <div className={s.verdictRow}>
+                  <span className={s.verdict} style={{ background: VERDICT[matchup.verdict].bg, color: VERDICT[matchup.verdict].fg }}>
+                    {VERDICT[matchup.verdict].text}
+                  </span>
                 </div>
-                <div className={s.vsHeaderBadges} style={{ justifyContent: 'flex-end' }}>
-                  {matchup.wild.types.map((t) => <TypeBadge key={t} type={t} />)}
-                  <RarityBadge rarity={matchup.wild.rarity} />
-                </div>
+              )}
+
+              <div className={s.powerHead}>
+                <span className={s.powerLabel}>Power</span>
+              </div>
+              <div className={s.powerTrack}>
+                <div className={s.powerYou} style={{ width: `${powerPct}%` }} />
+                <div className={s.powerFoe} style={{ width: `${100 - powerPct}%` }} />
+              </div>
+              <div className={s.powerEnds}>
+                <span className={s.powerEnd} style={{ color: '#5fc46a' }}>You</span>
+                <span className={s.powerEnd} style={{ color: '#e0574f' }}>Wild</span>
+              </div>
+
+              <div className={s.chipGrid}>
+                <StatChip label="HP"      mine={matchup.player.maxHp}   theirs={matchup.wild.maxHp} />
+                <StatChip label="Attack"  mine={matchup.player.attack}  theirs={matchup.wild.attack} />
+                <StatChip label="Sp.Atk"  mine={matchup.player.spAtk}   theirs={matchup.wild.spAtk} />
+                <StatChip label="Speed"   mine={matchup.player.speed}   theirs={matchup.wild.speed} />
+                <StatChip label="Defense" mine={matchup.player.defense} theirs={matchup.wild.defense} />
+                <StatChip label="Sp.Def"  mine={matchup.player.spDef}   theirs={matchup.wild.spDef} />
               </div>
             </div>
 
-            {/* Stat comparison */}
-            <div className={s.statTable}>
-              {statRows.map((row) => (
-                <div key={row.label} className={`${s.statRow} ${row.dmg ? s.statRowDmg : ''}`}>
-                  <span className={s.statLabel}>{row.label}</span>
-                  <span className={`${s.statValP} ${cls(row.p, row.w)}`}>{row.pText ?? row.p}</span>
-                  <span className={`${s.statValW} ${cls(row.w, row.p)}`}>{row.w}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Fight! */}
-            <button className={`${s.fightBtnBig} glowY`} onClick={handleFight}>
-              ⚔️ Fight!
-            </button>
+            <button className={s.fightBtn} onClick={handleFight}>⚔️ Fight!</button>
           </>
         )}
       </div>
