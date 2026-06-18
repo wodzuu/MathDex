@@ -327,35 +327,36 @@ export default function DungeonScreen() {
           <>
             {/* ── Battle stage ── */}
             <div className={s.arena} {...wildSwipe}>
-              {/* Wild status panel — ABOVE the wild Pokémon */}
-              <div className={s.nameBadge} style={{ top: 8, left: '72%', transform: 'translateX(-50%)' }}>
-                <div className={s.nameRow}>
-                  <span className={s.nameText}>{matchup.wild.name}</span>
-                  <span className={s.nameLv}>Lv{matchup.wild.level}</span>
+              {/* ── Opponent group — scaled down so the wild reads as farther away ── */}
+              <div className={s.wildGroup}>
+                {/* Wild status panel — ABOVE the wild Pokémon */}
+                <div className={s.nameBadge} style={{ top: 8, left: '72%', transform: 'translateX(-50%)' }}>
+                  <div className={s.nameRow}>
+                    <span className={s.nameText}>{matchup.wild.name}</span>
+                    <span className={s.nameLv}>Lv{matchup.wild.level}</span>
+                  </div>
+                  <div><TypeBadge type={matchup.wild.type} /></div>
+                  <div><RarityBadge rarity={matchup.wild.rarity} /></div>
                 </div>
-                <div><TypeBadge type={matchup.wild.type} /></div>
-                <div><RarityBadge rarity={matchup.wild.rarity} /></div>
+                <div className={s.platform} style={{ left: '72%', top: 128, width: 120, height: 30, transform: 'translateX(-50%)', ...(wC ? diskStyle(wC) : {}) }} />
+                <div className={s.platformShadow} style={{ left: '72%', top: 138, width: 52, height: 9, transform: 'translateX(-50%)' }} />
+                <img className={s.sprite} src={getIdleSpriteUrl(matchup.wild.dexNumber)} alt=""
+                     style={{ left: '72%', top: 78, width: 84, height: 84, transform: 'translateX(-50%)', zIndex: 4 }} />
+                <button className={s.arrowBtn} style={{ left: 'calc(72% - 79px)', top: 103, pointerEvents: 'auto' }} onClick={prevWild} aria-label="Previous wild Pokémon">‹</button>
+                <button className={s.arrowBtn} style={{ left: 'calc(72% + 45px)', top: 103, pointerEvents: 'auto' }} onClick={nextWild} aria-label="Next wild Pokémon">›</button>
               </div>
 
-              {/* disks — coloured by type with a thick front edge */}
-              <div className={s.platform} style={{ left: '72%', top: 128, width: 120, height: 30, transform: 'translateX(-50%)', ...(wC ? diskStyle(wC) : {}) }} />
-              <div className={s.platform} style={{ left: '28%', top: 222, width: 132, height: 32, transform: 'translateX(-50%)', ...(pC ? diskStyle(pC) : {}) }} />
-
-              {/* contact shadows on the disks */}
-              <div className={s.platformShadow} style={{ left: '72%', top: 135, width: 74, height: 13, transform: 'translateX(-50%)' }} />
-              <div className={s.platformShadow} style={{ left: '28%', top: 229, width: 86, height: 15, transform: 'translateX(-50%)' }} />
-
-              {/* sprites — sitting on their disks, centred between their arrows */}
-              <img className={s.sprite} src={getIdleSpriteUrl(matchup.wild.dexNumber)} alt=""
-                   style={{ left: '72%', top: 78, width: 84, height: 84, transform: 'translateX(-50%)', zIndex: 4 }} />
-              <img className={s.sprite} src={getIdleSpriteUrl(matchup.player.dexNumber)} alt=""
-                   style={{ left: '28%', top: 168, width: 94, height: 94, transform: 'translateX(-50%)' }} />
-
               {/* VS */}
-              <div className={s.vsBadge} style={{ top: 165 }}>VS</div>
+              <div className={s.vsBadge} style={{ top: 158 }}>VS</div>
 
-              {/* Player status panel + HP/XP — BELOW my Pokémon */}
-              <div className={s.nameBadge} style={{ top: 262, left: '28%', transform: 'translateX(-50%)', minWidth: 150 }}>
+              {/* My disk + shadow + sprite (below my panel) */}
+              <div className={s.platform} style={{ left: '28%', top: 222, width: 132, height: 32, transform: 'translateX(-50%)', ...(pC ? diskStyle(pC) : {}) }} />
+              <div className={s.platformShadow} style={{ left: '28%', top: 233, width: 62, height: 10, transform: 'translateX(-50%)' }} />
+              <img className={s.sprite} src={getIdleSpriteUrl(matchup.player.dexNumber)} alt=""
+                   style={{ left: '28%', top: 168, width: 92, height: 92, transform: 'translateX(-50%)' }} />
+
+              {/* Player status panel + HP/XP — ABOVE my Pokémon */}
+              <div className={s.nameBadge} style={{ top: 56, left: '28%', transform: 'translateX(-50%)', minWidth: 130 }}>
                 <div className={s.nameRow}>
                   <span className={s.nameText}>{matchup.player.name}</span>
                   <span className={s.nameLv}>Lv{matchup.player.level}</span>
@@ -373,9 +374,7 @@ export default function DungeonScreen() {
                 </div>
               </div>
 
-              {/* Carousel arrows — flank each sprite (wild higher, player lower) */}
-              <button className={s.arrowBtn} style={{ left: 'calc(72% - 79px)', top: 103 }} onClick={prevWild} aria-label="Previous wild Pokémon">‹</button>
-              <button className={s.arrowBtn} style={{ left: 'calc(72% + 45px)', top: 103 }} onClick={nextWild} aria-label="Next wild Pokémon">›</button>
+              {/* My carousel arrows — flank my sprite */}
               <button className={s.arrowBtn} style={{ left: 'calc(28% - 79px)', top: 198 }} onClick={prevParty} aria-label="Previous party Pokémon">‹</button>
               <button className={s.arrowBtn} style={{ left: 'calc(28% + 45px)', top: 198 }} onClick={nextParty} aria-label="Next party Pokémon">›</button>
             </div>

@@ -74,9 +74,20 @@
 /* ── Battle stage ─────────────────────────────────────────────────────────── */
 .arena {
   position: relative;
-  height: 384px;
+  height: 270px;
   flex-shrink: 0;
   touch-action: pan-y;
+}
+
+/* Opponent group — scaled down so the wild Pokémon reads as farther away.
+   pointer-events:none lets player-side swipe/taps pass through; the wild arrows
+   re-enable pointer-events individually. */
+.wildGroup {
+  position: absolute;
+  inset: 0;
+  transform: scale(0.82);
+  transform-origin: 72% 22%;
+  pointer-events: none;
 }
 
 /* disk the Pokémon stands on — colour + thickness applied inline per type */
@@ -89,8 +100,8 @@
 .platformShadow {
   position: absolute;
   border-radius: 50%;
-  background: rgba(18, 28, 12, 0.32);
-  filter: blur(2px);
+  background: rgba(18, 28, 12, 0.18);
+  filter: blur(2.5px);
   z-index: 1;
 }
 
