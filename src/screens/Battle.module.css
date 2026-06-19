@@ -1,0 +1,103 @@
+/*
+ * Battle screen — dungeon-style battle stage + move panel.
+ * Palette tokens mirror src/styles/tokens.ts.
+ */
+
+.screen {
+  position: relative;
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f9d24e 0%, #f0a23a 100%);
+  font-family: 'Nunito', sans-serif;
+}
+
+.content { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100dvh; }
+
+/* ── Header ── */
+.header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 12px 0; }
+.fleeBtn {
+  background: #5a1e16; border: 2px solid #c0392b; border-radius: 12px;
+  padding: 7px 16px; color: #f6cfca; font-family: 'Nunito', sans-serif;
+  font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.moneyChip {
+  background: rgba(20, 23, 42, 0.85); border: 1px solid #3a3d5c; border-radius: 12px;
+  padding: 6px 10px; font-family: 'Press Start 2P', monospace; font-size: 11px; color: #FFCB05;
+}
+
+/* ── Battle stage ── */
+.arena { position: relative; height: 328px; flex-shrink: 0; }
+
+.platform { position: absolute; border-radius: 50%; }
+.platformShadow { position: absolute; border-radius: 50%; background: rgba(18, 28, 12, 0.18); filter: blur(2.5px); z-index: 1; }
+.sprite { position: absolute; image-rendering: pixelated; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45)); z-index: 2; }
+
+.nameBadge {
+  position: absolute; display: flex; flex-direction: column; gap: 6px;
+  background: rgba(20, 23, 42, 0.9); border: 1px solid #3a3d5c; border-radius: 12px;
+  padding: 7px 10px; min-width: 156px; z-index: 3;
+}
+.nameRow { display: flex; align-items: center; gap: 8px; }
+.nameText { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; color: #f0f4ff; }
+.nameLv { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #aeb8d6; }
+.typeBadge {
+  margin-left: auto; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 9px;
+  padding: 2px 8px; border-radius: 99px; text-transform: uppercase; display: inline-block; line-height: 1.5;
+}
+.hpRow { display: flex; align-items: center; gap: 6px; }
+.hpLabel { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #8892b8; }
+.hpTrack { flex: 1; height: 8px; background: #0c1020; border-radius: 4px; overflow: hidden; }
+.hpFill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+.hpText { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #c8d0e8; }
+
+.dmgRangeRow { display: flex; align-items: center; gap: 6px; margin-top: 1px; }
+.dmgRangeLabel { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #8892b8; white-space: nowrap; }
+.dmgRangeVal { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 8px; font-weight: 800; color: #e0857a; white-space: nowrap; }
+
+.arrowBtn {
+  position: absolute; width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: rgba(20, 23, 42, 0.78); color: #fff; font-size: 19px; font-weight: 900; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5;
+  -webkit-tap-highlight-color: transparent;
+}
+.arrowBtn:disabled { opacity: 0.35; cursor: default; }
+
+.float { position: absolute; font-family: 'Press Start 2P', monospace; font-weight: 700; pointer-events: none; text-shadow: 0 2px 6px #000; z-index: 10; animation: floatDmg 1.8s ease-out forwards; text-align: center; }
+.banner { position: absolute; left: 50%; transform: translateX(-50%); font-family: 'Press Start 2P', monospace; font-size: 8px; color: #fff; border-radius: 6px; padding: 4px 8px; white-space: nowrap; pointer-events: none; z-index: 11; }
+
+/* ── Focus strip ── */
+.focusStrip { display: flex; align-items: center; gap: 8px; margin: 8px 12px 0; background: rgba(20, 23, 42, 0.92); border: 1px solid #3a3d5c; border-radius: 12px; padding: 7px 12px; }
+.focusStripFull { border-color: #FFCB05; }
+.focusLabel { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #8892b8; letter-spacing: 1px; }
+.pip { width: 12px; height: 12px; border-radius: 50%; background: #10162a; border: 2px solid #3a3d5c; }
+.pipOn { background: #f6cf3f; border-color: #a07800; box-shadow: 0 0 6px rgba(246, 207, 63, 0.5); }
+.focusHint { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 7px; color: #aeb8d6; }
+.focusHintFull { color: #FFCB05; }
+
+/* ── Move panel ── */
+.bottom { margin: 8px 12px calc(12px + env(safe-area-inset-bottom)); }
+.movePanel { background: rgba(18, 22, 40, 0.95); border: 1.5px solid #3a3d5c; border-radius: 16px; padding: 12px; }
+.moveTitle { text-align: center; font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 700; margin-bottom: 10px; }
+
+.moveRow {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: #222a40; border: 1.5px solid transparent; border-radius: 10px;
+  padding: 9px 12px 9px 16px; margin-bottom: 8px; cursor: pointer; position: relative; overflow: hidden;
+  transition: transform 0.1s, border-color 0.15s;
+}
+.moveRow:disabled { opacity: 0.4; cursor: not-allowed; }
+.moveRow:not(:disabled):active { transform: scale(0.99); }
+.moveStripe { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+.moveName { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; }
+.moveTypePill { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 9px; padding: 2px 7px; border-radius: 99px; text-transform: uppercase; }
+.superBadge { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #7bd49a; background: rgba(72,199,116,0.16); border: 1px solid #2f7d4f; border-radius: 4px; padding: 3px 5px; line-height: 1; white-space: nowrap; }
+.statusTag { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #aeb8d6; background: rgba(136,146,184,0.16); border: 1px solid #4a5378; border-radius: 4px; padding: 3px 5px; line-height: 1; white-space: nowrap; }
+.moveDmg { margin-left: auto; text-align: right; line-height: 1.1; flex-shrink: 0; }
+.moveDmgNum { font-family: 'Press Start 2P', monospace; font-size: 15px; }
+.moveDmgLabel { font-family: 'Press Start 2P', monospace; font-size: 7px; display: block; margin-top: 2px; }
+
+.actionRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 2px; }
+.actionBtn { display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 11px; padding: 11px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; border: 1.5px solid; }
