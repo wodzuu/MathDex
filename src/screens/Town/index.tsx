@@ -95,17 +95,7 @@ export default function TownScreen() {
                 <span className={s.locSub} style={{ color: '#6890F0' }}>Potions &amp; Balls</span>
               </span>
             </button>
-
-            {/* Oak's Lab unlocks with the item system (spec §5.0) */}
-            {itemActive && (
-              <button className={s.locTile} onClick={() => navigate('/identify')}>
-                <span className={s.locIcon}>🔬</span>
-                <span className={s.locText}>
-                  <span className={s.locName}>Oak's Lab</span>
-                  <span className={s.locSub} style={{ color: '#FFCB05' }}>Identify items</span>
-                </span>
-              </button>
-            )}
+            {/* Oak's Lab (identify items) is hidden until that feature is built. */}
           </div>
 
           {/* ── Trainer Card — overlaid on the grass, below the panels ── */}
