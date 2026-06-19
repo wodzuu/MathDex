@@ -19,7 +19,7 @@ import { D, FONT_PIXEL, FONT_UI } from '../styles/tokens';
 
 // ── PC Box sorting ────────────────────────────────────────────────────────────
 
-type SortKey = 'level' | 'maxHp' | 'attack' | 'defense' | 'speed';
+type SortKey = 'level' | 'maxHp' | 'attack' | 'defense' | 'speed' | 'name' | 'xp';
 type SortDir = 'asc' | 'desc';
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -28,6 +28,8 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'attack',  label: 'Atk'    },
   { key: 'defense', label: 'Def'    },
   { key: 'speed',   label: 'Spd'    },
+  { key: 'name',    label: 'Name'   },
+  { key: 'xp',      label: 'XP'     },
 ];
 
 // ── Row: shared party card + an action button ─────────────────────────────────
@@ -99,7 +101,13 @@ export default function PCScreen() {
 
   const sortedBox = useMemo(() => {
     const arr = [...boxDisplay];
-    arr.sort((a, b) => (sortDir === 'asc' ? a[sortKey] - b[sortKey] : b[sortKey] - a[sortKey]));
+    arr.sort((a, b) => {
+      let cmp: number;
+      if (sortKey === 'name')      cmp = a.name.localeCompare(b.name);
+      else if (sortKey === 'xp')   cmp = a.expToNext - b.expToNext; // EXP remaining to next level
+      else                         cmp = a[sortKey] - b[sortKey];
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
     return arr;
   }, [boxDisplay, sortKey, sortDir]);
 
@@ -189,9 +197,10 @@ export default function PCScreen() {
                   style={{
                     fontFamily: FONT_UI, fontSize: 12, fontWeight: 800, cursor: 'pointer',
                     padding: '5px 10px', borderRadius: 8, transition: 'all .15s',
-                    background: selected ? '#1a1400' : 'transparent',
+                    background: selected ? '#1a1400' : D.card2,
                     color: selected ? D.yellow : D.muted,
-                    border: `1px solid ${selected ? D.yellow : 'transparent'}`,
+                    border: `1px solid ${selected ? D.yellow : D.border}`,
+                    opacity: selected ? 1 : 0.6,
                   }}
                 >
                   {o.label}{selected ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
