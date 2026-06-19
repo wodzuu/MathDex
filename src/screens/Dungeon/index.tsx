@@ -105,18 +105,7 @@ function OutcomeBanner({ banner, onClose }: { banner: OutcomeBanner; onClose: ()
 
 // ── Touch swipe ────────────────────────────────────────────────────────────────
 
-function useSwipe(onPrev: () => void, onNext: () => void) {
-  const startX = useRef<number | null>(null);
-  return {
-    onTouchStart: (e: React.TouchEvent) => { startX.current = e.touches[0].clientX; },
-    onTouchEnd:   (e: React.TouchEvent) => {
-      if (startX.current === null) return;
-      const dx = e.changedTouches[0].clientX - startX.current;
-      startX.current = null;
-      if (dx > 40) onPrev(); else if (dx < -40) onNext();
-    },
-  };
-}
+interface ArenaSwipe { x: number; side: 'me' | 'wild'; }
 
 // ── Type badge pill ──────────────────────────────────────────────────────────
 
@@ -271,7 +260,23 @@ export default function DungeonScreen() {
   const nextParty = useCallback(() => setPartyIdx((i) => (i + 1) % party.length), [party.length]);
   const prevWild  = useCallback(() => setWildIdx((i) => (i - 1 + encounters.length) % encounters.length), [encounters.length]);
   const nextWild  = useCallback(() => setWildIdx((i) => (i + 1) % encounters.length), [encounters.length]);
-  const wildSwipe = useSwipe(prevWild, nextWild);
+  // Side-aware swipe: a swipe that starts on the left cycles my party, on the
+  // right cycles the wild — so swiping over "my" Pokémon no longer moves the foe.
+  const swipeRef = useRef<ArenaSwipe | null>(null);
+  const onArenaTouchStart = useCallback((e: React.TouchEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.touches[0].clientX;
+    swipeRef.current = { x, side: (x - rect.left) < rect.width / 2 ? 'me' : 'wild' };
+  }, []);
+  const onArenaTouchEnd = useCallback((e: React.TouchEvent) => {
+    const st = swipeRef.current;
+    swipeRef.current = null;
+    if (!st) return;
+    const dx = e.changedTouches[0].clientX - st.x;
+    if (Math.abs(dx) < 40) return;
+    if (st.side === 'me') (dx > 0 ? prevParty : nextParty)();
+    else (dx > 0 ? prevWild : nextWild)();
+  }, [prevParty, nextParty, prevWild, nextWild]);
 
   const handleFight = useCallback(() => {
     if (!playerPk || !enc) return;
@@ -316,6 +321,9 @@ export default function DungeonScreen() {
             <span className={s.invChip} style={{ color: totalBalls > 0 ? '#eef2ff' : '#e0574f' }}>
               <img src={getBallSpriteUrl('pokeball')} alt="" style={{ width: 16, height: 16, imageRendering: 'pixelated', objectFit: 'contain' }} />×{totalBalls}
             </span>
+            <span className={s.invChip} style={{ color: '#FFCB05' }}>
+              ₽{trainer.pokeDollars.toLocaleString()}
+            </span>
           </div>
         </div>
 
@@ -326,7 +334,7 @@ export default function DungeonScreen() {
         ) : (
           <>
             {/* ── Battle stage ── */}
-            <div className={s.arena} {...wildSwipe}>
+            <div className={s.arena} onTouchStart={onArenaTouchStart} onTouchEnd={onArenaTouchEnd}>
               {/* ── Opponent group — scaled down so the wild reads as farther away ── */}
               <div className={s.wildGroup}>
                 {/* Wild status panel — ABOVE the wild Pokémon */}
