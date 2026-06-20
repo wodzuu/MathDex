@@ -75,8 +75,9 @@ function buildEnemyPokemon(encounter: EncounterData): OwnedPokemon {
 
 function OutcomeBanner({ banner, onClose }: { banner: OutcomeBanner; onClose: () => void }) {
   return (
-    <div className="fade-up" onClick={onClose}
-      style={{ margin: '8px 12px 0', background: '#0d2a10ee', border: '2px solid #48c774', borderRadius: 14, padding: '12px 14px', cursor: 'pointer' }}>
+    <div className={s.outcomeOverlay} onClick={onClose} role="button" aria-label="Dismiss summary">
+      <div className="fade-up"
+        style={{ width: '100%', maxWidth: 320, background: '#0d2a10f5', border: '2px solid #48c774', borderRadius: 14, padding: '14px 16px', boxShadow: '0 12px 28px rgba(0,0,0,0.5)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: banner.expGains.length || banner.pokeReward != null ? 8 : 0 }}>
         <span style={{ fontSize: 18 }}>{banner.kind === 'victory' ? '🎉' : '🎯'}</span>
         <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, fontWeight: 800, color: '#eafff0' }}>
@@ -99,6 +100,8 @@ function OutcomeBanner({ banner, onClose }: { banner: OutcomeBanner; onClose: ()
           )}
         </div>
       ))}
+        <div className={s.outcomeHint}>TAP TO CONTINUE</div>
+      </div>
     </div>
   );
 }
@@ -185,12 +188,6 @@ export default function DungeonScreen() {
     if (useDungeonStore.getState().encounters.length === 0) rollAll(lvl, itemActive);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!outcomeBanner) return;
-    const t = setTimeout(() => setOutcomeBanner(null), 4500);
-    return () => clearTimeout(t);
-  }, [outcomeBanner]);
 
   const totalPotions = trainer.potions.potion + trainer.potions.superPotion + trainer.potions.hyperPotion;
   const totalBalls   = trainer.pokeballs.pokeball + trainer.pokeballs.greatBall + trainer.pokeballs.ultraBall;
