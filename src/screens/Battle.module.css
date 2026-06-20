@@ -10,9 +10,11 @@
   min-height: 100vh;
   min-height: 100dvh;
   overflow: hidden;
-  background: linear-gradient(180deg, #f9d24e 0%, #f0a23a 100%);
+  background: #8fb35a;
   font-family: 'Nunito', sans-serif;
 }
+
+.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; z-index: 0; }
 
 .content { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100dvh; }
 
@@ -29,23 +31,24 @@
 }
 
 /* ── Battle stage ── */
-.arena { position: relative; height: 328px; flex-shrink: 0; }
+.arena { position: relative; height: 272px; flex-shrink: 0; }
 
-.platform { position: absolute; border-radius: 50%; }
-.platformShadow { position: absolute; border-radius: 50%; background: rgba(18, 28, 12, 0.18); filter: blur(2.5px); z-index: 1; }
+.groundShadow { position: absolute; border-radius: 50%; background: rgba(18, 28, 12, 0.32); filter: blur(4px); z-index: 1; }
 .sprite { position: absolute; image-rendering: pixelated; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45)); z-index: 2; }
+.hitFx { position: absolute; object-fit: contain; z-index: 2; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35)); animation: hitPop 0.16s ease-out; pointer-events: none; }
+@keyframes hitPop { from { transform: translateX(-50%) scale(0.55); opacity: 0.4; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 
 .nameBadge {
-  position: absolute; display: flex; flex-direction: column; gap: 6px;
-  background: rgba(20, 23, 42, 0.9); border: 1px solid #3a3d5c; border-radius: 12px;
-  padding: 7px 10px; min-width: 156px; z-index: 3;
+  position: absolute; display: flex; flex-direction: column; gap: 5px;
+  background: rgba(20, 23, 42, 0.9); border: 1px solid #3a3d5c; border-radius: 11px;
+  padding: 6px 9px; min-width: 134px; z-index: 3;
 }
-.nameRow { display: flex; align-items: center; gap: 8px; }
-.nameText { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; color: #f0f4ff; }
-.nameLv { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #aeb8d6; }
+.nameRow { display: flex; align-items: center; gap: 6px; }
+.nameText { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 900; color: #f0f4ff; }
+.nameLv { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #aeb8d6; }
 .typeBadge {
-  margin-left: auto; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 9px;
-  padding: 2px 8px; border-radius: 99px; text-transform: uppercase; display: inline-block; line-height: 1.5;
+  margin-left: auto; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 8px;
+  padding: 2px 7px; border-radius: 99px; text-transform: uppercase; display: inline-block; line-height: 1.5;
 }
 .hpRow { display: flex; align-items: center; gap: 6px; }
 .hpLabel { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #8892b8; }

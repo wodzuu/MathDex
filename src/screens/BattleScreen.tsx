@@ -16,11 +16,10 @@ import { useGameStore, useActiveTrainer, getPartyPokemon }    from '../store/gam
 import type { MathTopic } from '../types/math';
 import b from './Battle.module.css';
 
-/** Inline disk style coloured by a Pokémon's type, with a thick front edge. */
-function diskStyle(type: string) {
-  const c = typeColors(type);
-  return { background: c.fg, border: `1px solid ${c.bg}`, boxShadow: `0 7px 0 ${c.bdr}, 0 14px 10px rgba(0,0,0,0.3)` } as const;
-}
+// Painted forest-clearing backdrop for the whole battle screen.
+const BATTLE_URL = `${import.meta.env.BASE_URL}battle.png`;
+// Impact "poof" shown over a Pokémon while it's taking damage.
+const HIT_URL = `${import.meta.env.BASE_URL}misc/hit.png`;
 
 // ── Local types ───────────────────────────────────────────────────────────────
 
@@ -277,9 +276,6 @@ export default function BattleScreen() {
   const [floats, setFloats]             = useState<DmgFloat[]>([]);
   const [potMsg, setPotMsg]             = useState<string | null>(null);
   const [statusMsg, setStatusMsg]       = useState<string | null>(null);
-  // Banner attributing the wild Pokémon's hit (so an enemy-first strike never
-  // looks like the player damaging themselves).
-  const [enemyTurnMsg, setEnemyTurnMsg] = useState<string | null>(null);
   // UI mirrors of the status-move stat modifiers so the Atk/Def chips visibly
   // change. The refs (below) drive the damage math; these drive the display.
   const [, setEnemyAtkMult]  = useState(1);
@@ -502,12 +498,10 @@ export default function BattleScreen() {
   // per-turn counterattack and the faster-enemy opening strike.
   const enemyAttack = useCallback((): boolean => {
     let enemyDamagePct = 5;
-    let moveName = '';
     if (enemyStats && playerStats && playerMaxHp) {
       // The wild Pokémon picks one of its own moves at random.
       const enemyMoves = useBattleStore.getState().battle?.enemy.moves ?? [];
       const picked = enemyMoves.length ? enemyMoves[Math.floor(Math.random() * enemyMoves.length)] : null;
-      moveName = picked ? (getMove(picked.moveId)?.name ?? '') : '';
       const enemyDmg = enemyMoveDamage(
         picked?.moveId ?? '',
         enemyStats, playerStats,
@@ -521,9 +515,6 @@ export default function BattleScreen() {
     setPlayerHpPct(newPlayerHp);
     playerHpPctRef.current = newPlayerHp;
     hpStashRef.current[activeIdRef.current] = newPlayerHp;   // keep the stash in sync
-    // Attribute the hit (and the move) to the wild Pokémon so it never reads as self-damage.
-    setEnemyTurnMsg(moveName ? `Wild ${enemyName} used ${moveName}!` : `Wild ${enemyName} attacked!`);
-    setTimeout(() => setEnemyTurnMsg(null), 1400);
     // Float the damage received over the player's avatar.
     const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDamagePct / 100 * playerMaxHp)) : enemyDamagePct;
     const pfId   = Date.now();
@@ -819,8 +810,6 @@ export default function BattleScreen() {
         setPlayerHpPct(newPlayerHp);
         playerHpPctRef.current = newPlayerHp;
         hpStashRef.current[activeIdRef.current] = newPlayerHp;
-        setEnemyTurnMsg(`Wild ${enemyName} attacked!`);
-        setTimeout(() => setEnemyTurnMsg(null), 1400);
         const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDmg / 100 * playerMaxHp)) : enemyDmg;
         const pfId   = Date.now();
         setFloats((f) => [...f, { id: pfId, amount: dmgAmt, correct: false, crit: false, target: 'player' }]);
@@ -911,6 +900,11 @@ export default function BattleScreen() {
 
   // Battle HP% of a party member (the active one's is live; others come from the
   // stash). Used to skip fainted members in the carousel and to block attacks.
+  // While a damage number is floating over a combatant, show the impact poof
+  // in place of its sprite; the Pokémon returns when the float clears.
+  const playerHit = floats.some((f) => f.target === 'player');
+  const enemyHit  = floats.some((f) => f.target === 'enemy');
+
   const memberHpPct = (id: string) => (id === activeId ? playerHpPctRef.current : (hpStashRef.current[id] ?? 100));
   // Is the active Pokémon fainted? A fainted Pokémon must not attack.
   const playerCurrentHp = playerMaxHp ? Math.round(playerHpPct / 100 * playerMaxHp) : 0;
@@ -953,6 +947,7 @@ export default function BattleScreen() {
 
   return (
     <div className={b.screen}>
+      <img className={b.bg} src={BATTLE_URL} alt="" />
       <div className={b.content}>
 
         {/* ── Header: Flee + money ── */}
@@ -964,36 +959,8 @@ export default function BattleScreen() {
         {/* ── Battle stage ── */}
         <div className={b.arena}>
 
-          {/* Opponent — panel above, on its disk */}
-          <div className={b.nameBadge} style={{ top: 10, left: '66%', transform: 'translateX(-50%)' }}>
-            <div className={b.nameRow}>
-              <span className={b.nameText}>{enemySpecies?.name ?? 'Gyarados'}</span>
-              <span className={b.nameLv}>Lv{enemyLevel}</span>
-              {(() => { const tc = typeColors(activeEnemyTypes[0]); return <span className={b.typeBadge} style={{ background: tc.bg, color: tc.fg, border: `1px solid ${tc.bdr}` }}>{activeEnemyTypes[0]}</span>; })()}
-            </div>
-            <div className={b.hpRow}>
-              <span className={b.hpLabel}>HP</span>
-              <div className={b.hpTrack}><div className={b.hpFill} style={{ width: `${enemyHpPct}%`, background: hpCol(enemyHpPct) }} /></div>
-              <span className={b.hpText}>{enemyMaxHp ? `${Math.max(0, Math.round(enemyHpPct / 100 * enemyMaxHp))}/${enemyMaxHp}` : `${enemyHpPct}%`}</span>
-            </div>
-            {enemyDmgRange && (
-              <div className={b.dmgRangeRow}>
-                <span className={b.dmgRangeVal}>{enemyDmgRange.min === enemyDmgRange.max ? `${enemyDmgRange.min}` : `${enemyDmgRange.min}–${enemyDmgRange.max}`} DMG</span>
-              </div>
-            )}
-          </div>
-          <div className={b.platform} style={{ left: '66%', top: 116, width: 120, height: 30, transform: 'translateX(-50%)', ...diskStyle(activeEnemyTypes[0]) }} />
-          <div className={b.platformShadow} style={{ left: '66%', top: 126, width: 52, height: 9, transform: 'translateX(-50%)' }} />
-          <img className={b.sprite} src={getIdleSpriteUrl(enemyDexNumber)} alt="" style={{ left: '66%', top: 66, width: 84, height: 84, transform: 'translateX(-50%)' }} />
-          {floats.filter((f) => f.target === 'enemy').map((f) => (
-            <div key={f.id} className={b.float} style={{ left: '66%', top: 48, transform: 'translateX(-50%)', fontSize: f.crit ? 20 : 15, color: f.crit ? '#ff7b00' : f.correct ? '#FFCB05' : '#e0574f' }}>
-              {f.crit && <div style={{ fontSize: 8, color: '#ff7b00' }}>CRITICAL!</div>}-{f.amount}
-            </div>
-          ))}
-          {statusMsg && <div className={b.banner} style={{ top: 8, background: 'rgba(0,0,0,0.72)', border: '1px solid #FFCB05' }}>{statusMsg}</div>}
-
-          {/* My Pokémon — panel above, on its disk */}
-          <div className={b.nameBadge} style={{ top: 156, left: '30%', transform: 'translateX(-50%)' }}>
+          {/* My Pokémon — panel top-left, standing on the ground */}
+          <div className={b.nameBadge} style={{ top: 10, left: '28%', transform: 'translateX(-50%)' }}>
             <div className={b.nameRow}>
               <span className={b.nameText}>{playerSpecies?.name ?? 'Pikachu'}</span>
               <span className={b.nameLv}>Lv{playerLevel}</span>
@@ -1010,19 +977,49 @@ export default function BattleScreen() {
               <span className={b.hpText}>{expToNext > 0 ? `-${expToNext}` : 'MAX'}</span>
             </div>
           </div>
-          <div className={b.platform} style={{ left: '30%', top: 290, width: 132, height: 32, transform: 'translateX(-50%)', ...diskStyle(activePlayerTypes[0]) }} />
-          <div className={b.platformShadow} style={{ left: '30%', top: 300, width: 62, height: 10, transform: 'translateX(-50%)' }} />
-          <img key={activeId} className={b.sprite} src={getIdleSpriteUrl(playerDexNumber)} alt="" style={{ left: '30%', top: 236, width: 92, height: 92, transform: 'translateX(-50%)' }} />
+          <div className={b.groundShadow} style={{ left: '28%', top: 202, width: 76, height: 14, transform: 'translateX(-50%)' }} />
+          {playerHit
+            ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '28%', top: 134, width: 120, height: 120, transform: 'translateX(-50%)' }} />
+            : <img key={activeId} className={b.sprite} src={getIdleSpriteUrl(playerDexNumber)} alt="" style={{ left: '28%', top: 146, width: 96, height: 96, transform: 'translateX(-50%)' }} />}
           {hasParty && (
             <>
-              <button className={b.arrowBtn} style={{ left: 'calc(30% - 80px)', top: 268 }} disabled={!switchEnabled} onClick={() => switchDir(-1)} aria-label="Previous Pokémon">‹</button>
-              <button className={b.arrowBtn} style={{ left: 'calc(30% + 48px)', top: 268 }} disabled={!switchEnabled} onClick={() => switchDir(1)} aria-label="Next Pokémon">›</button>
+              <button className={b.arrowBtn} style={{ left: 'calc(28% - 72px)', top: 176 }} disabled={!switchEnabled} onClick={() => switchDir(-1)} aria-label="Previous Pokémon">‹</button>
+              <button className={b.arrowBtn} style={{ left: 'calc(28% + 40px)', top: 176 }} disabled={!switchEnabled} onClick={() => switchDir(1)} aria-label="Next Pokémon">›</button>
             </>
           )}
           {floats.filter((f) => f.target === 'player').map((f) => (
-            <div key={f.id} className={b.float} style={{ left: '30%', top: 230, transform: 'translateX(-50%)', fontSize: 15, color: '#e0574f' }}>-{f.amount}</div>
+            <div key={f.id} className={b.float} style={{ left: '28%', top: 126, transform: 'translateX(-50%)', fontSize: 15, color: '#e0574f' }}>-{f.amount}</div>
           ))}
-          {enemyTurnMsg && <div className={b.banner} style={{ top: 226, background: 'rgba(40,0,0,0.82)', border: '1px solid #CC0000' }}>{enemyTurnMsg}</div>}
+
+          {/* Opponent — panel top-right, standing on the ground */}
+          <div className={b.nameBadge} style={{ top: 10, left: '72%', transform: 'translateX(-50%)' }}>
+            <div className={b.nameRow}>
+              <span className={b.nameText}>{enemySpecies?.name ?? 'Gyarados'}</span>
+              <span className={b.nameLv}>Lv{enemyLevel}</span>
+              {(() => { const tc = typeColors(activeEnemyTypes[0]); return <span className={b.typeBadge} style={{ background: tc.bg, color: tc.fg, border: `1px solid ${tc.bdr}` }}>{activeEnemyTypes[0]}</span>; })()}
+            </div>
+            <div className={b.hpRow}>
+              <span className={b.hpLabel}>HP</span>
+              <div className={b.hpTrack}><div className={b.hpFill} style={{ width: `${enemyHpPct}%`, background: hpCol(enemyHpPct) }} /></div>
+              <span className={b.hpText}>{enemyMaxHp ? `${Math.max(0, Math.round(enemyHpPct / 100 * enemyMaxHp))}/${enemyMaxHp}` : `${enemyHpPct}%`}</span>
+            </div>
+            {enemyDmgRange && (
+              <div className={b.dmgRangeRow}>
+                <span className={b.dmgRangeVal}>{enemyDmgRange.min === enemyDmgRange.max ? `${enemyDmgRange.min}` : `${enemyDmgRange.min}–${enemyDmgRange.max}`} DMG</span>
+              </div>
+            )}
+          </div>
+          <div className={b.groundShadow} style={{ left: '72%', top: 200, width: 72, height: 13, transform: 'translateX(-50%)' }} />
+          {enemyHit
+            ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '72%', top: 132, width: 120, height: 120, transform: 'translateX(-50%)' }} />
+            : <img className={b.sprite} src={getIdleSpriteUrl(enemyDexNumber)} alt="" style={{ left: '72%', top: 146, width: 92, height: 92, transform: 'translateX(-50%)' }} />}
+          {floats.filter((f) => f.target === 'enemy').map((f) => (
+            <div key={f.id} className={b.float} style={{ left: '72%', top: 126, transform: 'translateX(-50%)', fontSize: f.crit ? 20 : 15, color: f.crit ? '#ff7b00' : f.correct ? '#FFCB05' : '#e0574f' }}>
+              {f.crit && <div style={{ fontSize: 8, color: '#ff7b00' }}>CRITICAL!</div>}-{f.amount}
+            </div>
+          ))}
+
+          {statusMsg && <div className={b.banner} style={{ top: 98, background: 'rgba(0,0,0,0.72)', border: '1px solid #FFCB05' }}>{statusMsg}</div>}
         </div>
 
         {/* ── Focus meter ── */}
