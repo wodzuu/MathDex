@@ -754,8 +754,8 @@ export default function BattleScreen() {
   // ── Ball / catch ───────────────────────────────────────────────────────────
 
   function handleSelectBall(ball: BallOption) {
-    // Catch challenges use the same level-scaled difficulty as battle attacks.
-    const puzzle = generateRankedPuzzle(mathRank);
+    // Catch challenges always use the current rank — never a lower-rank review.
+    const puzzle = generateRankedPuzzle(mathRank, false);
     setSelectedBall(ball);
     setCatchPuzzle(puzzle);
     setCatchResult(null);
@@ -924,9 +924,16 @@ export default function BattleScreen() {
   // landed) whenever there is another healthy Pokémon to send out.
   const switchEnabled = hasParty && panel === 'moves' && canSwitch && anyOtherAlive;
 
-  // The battle store is transient — a page reload loses it. Bounce back to the
-  // dungeon rather than rendering an empty stage with placeholder values.
-  useEffect(() => { if (!battle) navigate('/dungeon', { replace: true }); }, [battle, navigate]);
+  // The battle store is transient — a page reload loses it. If there was no
+  // battle when this screen first mounted (i.e. a genuine reload), bounce back
+  // to the dungeon rather than rendering an empty stage with placeholders.
+  // (When a battle ends normally, the victory/flee/catch handlers navigate with
+  // their outcome state — we must not clobber that with a stateless redirect.)
+  const mountedWithoutBattleRef = useRef(!battle);
+  useEffect(() => {
+    if (mountedWithoutBattleRef.current) navigate('/dungeon', { replace: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────────
 

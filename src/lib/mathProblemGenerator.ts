@@ -159,11 +159,12 @@ export function generateBattlePuzzle(level: number): MathPuzzle {
  * decoupled from opponent level. With probability MATH_REVIEW_FRACTION (and only
  * above rank 1) the challenge is pulled from a uniformly-random LOWER rank as a
  * review; review puzzles are flagged `isReview` so the caller excludes them from
- * the rank-up window.
+ * the rank-up window. Pass `allowReview = false` to force a current-rank puzzle
+ * (e.g. catch attempts, which should never be drawn from a lower rank).
  */
-export function generateRankedPuzzle(mathRank: number): MathPuzzle {
+export function generateRankedPuzzle(mathRank: number, allowReview = true): MathPuzzle {
   const rank      = clampMathRank(mathRank);
-  const isReview  = rank > 1 && Math.random() < MATH_REVIEW_FRACTION;
+  const isReview  = allowReview && rank > 1 && Math.random() < MATH_REVIEW_FRACTION;
   const drawnRank = isReview ? randInt(1, rank - 1) : rank;
   const genLevel  = MATH_RANKS[drawnRank - 1].genLevel;
   return { ...generateBattlePuzzle(genLevel), isReview };

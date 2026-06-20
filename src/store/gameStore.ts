@@ -122,6 +122,7 @@ export const useGameStore = create<GameStoreState>()(
         const newPokemon: OwnedPokemon = { ...pokemon, instanceId: crypto.randomUUID() };
         set((s) => patchTrainer(s, (t) => ({
           caughtPokemon: [...t.caughtPokemon, newPokemon],
+          stats: { ...t.stats, totalCatches: t.stats.totalCatches + 1 },
         })), false, 'addCaughtPokemon');
         return newPokemon;
       },
