@@ -211,6 +211,7 @@ export default function DungeonScreen() {
     const xpLo = expToLevel(pLevel);
     const xpHi = expToLevel(pLevel + 1);
     const xpPct = xpHi > xpLo ? Math.max(0, Math.min(100, Math.round(((playerPk.totalExp - xpLo) / (xpHi - xpLo)) * 100))) : 0;
+    const xpToNext = Math.max(0, xpHi - playerPk.totalExp);
 
     const pFighter: Fighter = { speciesId: playerPk.speciesId, level: pLevel, moveIds: playerPk.moves.map((m) => m.moveId) };
     const wFighter: Fighter = { speciesId: enc.speciesId,      level: enc.level, moveIds: wildMoveIds(enc.speciesId, enc.level) };
@@ -242,7 +243,7 @@ export default function DungeonScreen() {
       yourShare,
       player: {
         name: pSpec.name, dexNumber: pSpec.dexNumber, type: pSpec.types[0] as string, rarity: pSpec.rarity, level: pLevel,
-        curHp: Math.max(0, Math.min(pStats.maxHp, playerPk.currentHp)), maxHp: pStats.maxHp, xpPct,
+        curHp: Math.max(0, Math.min(pStats.maxHp, playerPk.currentHp)), maxHp: pStats.maxHp, xpPct, xpToNext,
         attack: pStats.attack, spAtk: pStats.spAtk, defense: pStats.defense, spDef: pStats.spDef, speed: pStats.speed,
       },
       wild: {
@@ -376,6 +377,7 @@ export default function DungeonScreen() {
                 <div className={s.hpRow}>
                   <span className={s.hpLabel}>XP</span>
                   <div className={s.hpTrack}><div className={s.hpFill} style={{ width: `${matchup.player.xpPct}%`, background: '#6890F0' }} /></div>
+                  <span className={s.hpText}>{matchup.player.xpToNext > 0 ? `-${matchup.player.xpToNext}` : 'MAX'}</span>
                 </div>
               </div>
 

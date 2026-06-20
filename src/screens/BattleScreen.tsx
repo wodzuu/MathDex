@@ -175,7 +175,7 @@ function BackBtn({ onClick }: { onClick: () => void }) {
     <button onClick={onClick} style={{
       width: '100%', padding: '12px 14px', fontFamily: FONT_UI, fontSize: 14,
       fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: 0.5,
-      background: 'transparent', color: D.muted, border: `2px solid ${D.border}`,
+      background: D.card, color: D.white, border: `2px solid ${D.border}`,
       borderRadius: 12, cursor: 'pointer',
     }}>
       ← Back
@@ -924,7 +924,14 @@ export default function BattleScreen() {
   // landed) whenever there is another healthy Pokémon to send out.
   const switchEnabled = hasParty && panel === 'moves' && canSwitch && anyOtherAlive;
 
+  // The battle store is transient — a page reload loses it. Bounce back to the
+  // dungeon rather than rendering an empty stage with placeholder values.
+  useEffect(() => { if (!battle) navigate('/dungeon', { replace: true }); }, [battle, navigate]);
+
   // ── Render ──────────────────────────────────────────────────────────────────
+
+  if (!battle) return null;
+
 
   // Blackout screen — shown briefly when the active Pokémon faints, before
   // returning to town. Everything is kept; the party is healed on the way out.
@@ -1130,13 +1137,13 @@ export default function BattleScreen() {
               { key: 'superPotion' as const, name: 'Super Potion', heal: 60,  count: potions.superPotion },
               { key: 'hyperPotion' as const, name: 'Hyper Potion', heal: 120, count: potions.hyperPotion },
             ]).map((p) => (
-              <button key={p.key} onClick={() => p.count > 0 && handleUsePotion(p.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: D.card, border: `2px solid ${p.count > 0 ? D.green : D.border}`, borderRadius: 14, padding: '12px 14px', cursor: p.count > 0 ? 'pointer' : 'not-allowed', marginBottom: 8, fontFamily: FONT_UI, opacity: p.count > 0 ? 1 : 0.4, transition: 'all .15s' }}>
+              <button key={p.key} onClick={() => p.count > 0 && handleUsePotion(p.key)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: D.card, border: `2px solid ${p.count > 0 ? D.green : D.border}`, borderRadius: 14, padding: '12px 14px', cursor: p.count > 0 ? 'pointer' : 'not-allowed', marginBottom: 8, fontFamily: FONT_UI, color: D.white, opacity: p.count > 0 ? 1 : 0.65, transition: 'all .15s' }}>
                 <img src={getItemSpriteUrl(p.key)} alt={p.name} style={{ width: 38, height: 38, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }} />
                 <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800 }}>{p.name}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: D.white }}>{p.name}</div>
                   <div style={{ fontSize: 12, color: D.green, fontWeight: 700 }}>Restores +{p.heal} HP</div>
                 </div>
-                <div style={{ fontFamily: FONT_PIXEL, fontSize: 11 }}>×{p.count}</div>
+                <div style={{ fontFamily: FONT_PIXEL, fontSize: 11, color: D.white }}>×{p.count}</div>
               </button>
             ))}
             {potMsg && <div style={{ fontFamily: FONT_PIXEL, fontSize: 10, textAlign: 'center', color: D.green, padding: 8 }}>{potMsg}</div>}
@@ -1172,17 +1179,24 @@ export default function BattleScreen() {
               {BALLS.map((ball) => {
                 const count = ballCounts[ball.name] ?? 0;
                 const tc = typeColors('Water');
+                const enemyCatchRate = enemySpecies?.catchRate ?? 128;
+                const baseProb = catchProbability(enemyCatchRate, ball.baseRate, enemyHpPct);
+                const pCorrect = Math.round(baseProb * 100);
+                const pWrong   = Math.round(baseProb * 0.75 * 100);
                 return (
                   <button key={ball.name} onClick={() => count > 0 && handleSelectBall(ball)}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: D.card, border: `2px solid ${count > 0 ? D.border : D.border}`, borderRadius: 14, padding: '12px 14px', cursor: count > 0 ? 'pointer' : 'not-allowed', marginBottom: 8, fontFamily: FONT_UI, opacity: count > 0 ? 1 : 0.35, transition: 'border-color .15s' }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: D.card, border: `2px solid ${count > 0 ? D.border : D.border}`, borderRadius: 14, padding: '12px 14px', cursor: count > 0 ? 'pointer' : 'not-allowed', marginBottom: 8, fontFamily: FONT_UI, color: D.white, opacity: count > 0 ? 1 : 0.65, transition: 'border-color .15s' }}
                     onMouseEnter={(e) => { if (count > 0) e.currentTarget.style.borderColor = tc.fg; }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = D.border; }}>
                     <img src={getBallSpriteUrl(ball.consumableKey)} alt={ball.name} style={{ width: 38, height: 38, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ flex: 1, textAlign: 'left' }}>
-                      <div style={{ fontSize: 14, fontWeight: 800 }}>{ball.name}</div>
-                      <div style={{ fontSize: 12, color: tc.fg, fontWeight: 700 }}>Base catch rate: {ball.basePercent}%</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: D.white }}>{ball.name}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>
+                        <span style={{ color: D.green }}>{pCorrect}% if solved</span>
+                        <span style={{ color: D.muted }}> · {pWrong}% if not</span>
+                      </div>
                     </div>
-                    <div style={{ fontFamily: FONT_PIXEL, fontSize: 11 }}>×{count}</div>
+                    <div style={{ fontFamily: FONT_PIXEL, fontSize: 11, color: D.white }}>×{count}</div>
                   </button>
                 );
               })}
@@ -1209,9 +1223,6 @@ export default function BattleScreen() {
                   <div style={{ fontFamily: FONT_PIXEL, fontSize: 19, color: D.yellow, lineHeight: 1.8 }}>
                     {catchPuzzle.isReview && <span title="Review challenge">⭐ </span>}
                     {catchPuzzle.equation}
-                  </div>
-                  <div style={{ fontSize: 12, color: D.muted, fontWeight: 700, marginTop: 6 }}>
-                    Ball% + HP bonus% = effective catch rate
                   </div>
                 </div>
                 {/* Timer */}
