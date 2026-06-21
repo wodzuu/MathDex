@@ -19,7 +19,7 @@ import { getSpecies } from '../../data/species';
 import type { PokemonSpecies } from '../../types/pokemon';
 import { evolutionsOf } from '../../lib/evolution';
 import { useActiveTrainer } from '../../store/gameStore';
-import { getIdleSpriteUrl } from '../../lib/sprites';
+import { getIdleSpriteUrl, getSpriteUrl } from '../../lib/sprites';
 
 import s from './Pokedex.module.css';
 
@@ -30,12 +30,45 @@ const FRAME_HEADER = `${import.meta.env.BASE_URL}pokedex_header.png`;
 const FRAME_BODY   = `${import.meta.env.BASE_URL}pokedex_body.png`;
 const FRAME_FOOTER = `${import.meta.env.BASE_URL}pokedex_footer.png`;
 
-const FRAME_STYLE = {
-  backgroundImage:    `url(${FRAME_HEADER}), url(${FRAME_FOOTER}), url(${FRAME_BODY})`,
-  backgroundRepeat:   'no-repeat, no-repeat, no-repeat',
-  backgroundPosition: 'top center, bottom center, center',
-  backgroundSize:     '100% auto, 100% auto, 100% 100%',
+// Each section paints the body cross-section (red rails + grey screen) as its
+// base so the rails stay continuous; the top/footer add their bezel cap on top.
+const TOP_BG = {
+  backgroundImage:    `url(${FRAME_HEADER}), url(${FRAME_BODY})`,
+  backgroundRepeat:   'no-repeat, no-repeat',
+  backgroundPosition: 'top center, center',
+  backgroundSize:     '100% auto, 100% 100%',
 };
+const SCROLL_BG = {
+  backgroundImage:    `url(${FRAME_BODY})`,
+  backgroundRepeat:   'no-repeat',
+  backgroundPosition: 'center',
+  backgroundSize:     '100% 100%',
+};
+const FOOTER_BG = {
+  backgroundImage:    `url(${FRAME_FOOTER}), url(${FRAME_BODY})`,
+  backgroundRepeat:   'no-repeat, no-repeat',
+  backgroundPosition: 'bottom center, center',
+  backgroundSize:     '100% auto, 100% 100%',
+};
+
+// Idle sprite with a fallback to the walk sprite — a couple of idle gifs are
+// missing from the asset set (Beedrill, Dragonair), so avoid broken images.
+function SpriteImg({ dex, name, className }: { dex: number; name: string; className: string }) {
+  return (
+    <img
+      className={className}
+      src={getIdleSpriteUrl(dex)}
+      alt={name}
+      loading="lazy"
+      onError={(e) => {
+        const im = e.currentTarget;
+        if (im.dataset.fallback) return;
+        im.dataset.fallback = '1';
+        im.src = getSpriteUrl(dex);
+      }}
+    />
+  );
+}
 
 interface Node { sp: PokemonSpecies; children: Node[]; }
 
@@ -75,7 +108,7 @@ function Disc({ sp, caught }: { sp: PokemonSpecies; caught: boolean }) {
   return (
     <div className={`${s.disc} ${caught ? s.discOn : ''}`}>
       {caught
-        ? <img className={s.sprite} src={getIdleSpriteUrl(sp.dexNumber)} alt={sp.name} />
+        ? <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.sprite} />
         : <span className={s.q}>?</span>}
     </div>
   );
@@ -96,7 +129,7 @@ function MiniChip({ sp, caught }: { sp: PokemonSpecies; caught: boolean }) {
     <div className={s.mini}>
       <div className={`${s.miniDisc} ${caught ? s.discOn : ''}`}>
         {caught
-          ? <img className={s.miniSprite} src={getIdleSpriteUrl(sp.dexNumber)} alt={sp.name} />
+          ? <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.miniSprite} />
           : <span className={s.miniQ}>?</span>}
       </div>
       <div className={s.nm} style={{ color: caught ? NAME_CAUGHT : NAME_UNSEEN }}>{sp.name}</div>
@@ -107,9 +140,10 @@ function MiniChip({ sp, caught }: { sp: PokemonSpecies; caught: boolean }) {
 export default function PokedexScreen() {
   const navigate = useNavigate();
   const trainer  = useActiveTrainer();
-  const [tab, setTab] = useState<'evolutions' | 'list'>('evolutions');
+  const [tab, setTab] = useState<'evolutions' | 'list'>('list');
 
   const families = useMemo(buildFamilies, []);
+  const allByName = useMemo(() => [...GEN1_SPECIES].sort((a, b) => a.name.localeCompare(b.name)), []);
   const caught = useMemo(
     () => new Set(trainer.caughtPokemon.map((p) => p.speciesId)),
     [trainer.caughtPokemon],
@@ -118,19 +152,19 @@ export default function PokedexScreen() {
 
   return (
     <div className={s.screen}>
-      <div className={s.frame} style={FRAME_STYLE} aria-hidden="true" />
-      <div className={s.content}>
+      <div className={s.deviceTop} style={TOP_BG}>
         <div className={s.header}>
           <button className={s.back} onClick={() => navigate(-1)}>← Back</button>
           <span className={s.title}>Pokédex</span>
           <span className={s.count}>{caught.size} / {total}</span>
         </div>
         <div className={s.tabs} role="tablist">
-          <button className={`${s.tab} ${tab === 'evolutions' ? s.tabOn : ''}`} role="tab" aria-selected={tab === 'evolutions'} onClick={() => setTab('evolutions')}>Evolutions</button>
           <button className={`${s.tab} ${tab === 'list' ? s.tabOn : ''}`} role="tab" aria-selected={tab === 'list'} onClick={() => setTab('list')}>Pokémon list</button>
+          <button className={`${s.tab} ${tab === 'evolutions' ? s.tabOn : ''}`} role="tab" aria-selected={tab === 'evolutions'} onClick={() => setTab('evolutions')}>Evolutions</button>
         </div>
+      </div>
 
-      <div className={s.body}>
+      <div className={s.scroll} style={SCROLL_BG}>
         {tab === 'evolutions' ? (
           <>
             {families.map((node) => {
@@ -168,14 +202,20 @@ export default function PokedexScreen() {
             })}
           </>
         ) : (
-          <div className={s.placeholder}>
-            <div className={s.placeholderIcon}>📋</div>
-            <div className={s.placeholderTitle}>Pokémon list</div>
-            <div className={s.placeholderSub}>Coming soon</div>
+          <div className={s.grid}>
+            {allByName.map((sp) => (
+              <div key={sp.id} className={s.cell}>
+                <div className={`${s.disc} ${s.discOn}`}>
+                  <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.sprite} />
+                </div>
+                <div className={s.cellName}>{sp.name}</div>
+              </div>
+            ))}
           </div>
         )}
-        </div>
       </div>
+
+      <div className={s.deviceFooter} style={FOOTER_BG} aria-hidden="true" />
     </div>
   );
 }

@@ -8,21 +8,25 @@
   position: relative;
   max-width: 420px;
   margin: 0 auto;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background-color: #b8302a;
   font-family: 'Nunito', sans-serif;
   color: #f0f4ff;
 }
 
-/* Device frame backdrop — header cap, footer cap, stretched screen between.
-   Spans the full scroll height of the screen. Background images set inline. */
-.frame { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+/* Fixed top bezel: the header cap + the Back row and tabs overlaid on it.
+   Backgrounds (header cap + screen rails) are set inline. */
+.deviceTop { flex: 0 0 auto; position: relative; z-index: 2; padding: 12px 8% 8px; }
 
-/* Content insets past the side rails (~7%) and clears the bottom bezel (footer
-   319/1568 ≈ 20% of width). The header row + tabs overlay the top bezel; the
-   pokémon list then begins on the grey screen just below it. */
-.content { position: relative; z-index: 1; padding: 12px 8% 19%; }
+/* Scrollable middle — only this scrolls; its rails background stays put. */
+.scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 8% 10px; }
+
+/* Fixed bottom bezel — height locked to the footer image's aspect ratio. */
+.deviceFooter { flex: 0 0 auto; width: 100%; aspect-ratio: 1568 / 319; }
 
 .header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px; }
 .back { background: #22253a; border: 1px solid #3a3d5c; border-radius: 10px; padding: 7px 12px; color: #c7cfe8; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; }
@@ -63,8 +67,8 @@
 .miniQ { font-family: 'Press Start 2P', monospace; font-size: 13px; color: #6b7088; }
 .mini .nm { white-space: normal; }
 
-/* ── Pokémon list tab placeholder ── */
-.placeholder { text-align: center; padding: 48px 16px; background: rgba(18, 22, 40, 0.94); border: 1px solid #3a3d5c; border-radius: 14px; }
-.placeholderIcon { font-size: 34px; margin-bottom: 10px; }
-.placeholderTitle { font-family: 'Press Start 2P', monospace; font-size: 11px; color: #FFCB05; margin-bottom: 10px; }
-.placeholderSub { font-size: 13px; color: #8892b8; font-weight: 700; }
+/* ── Pokémon list tab — every species, 3 per row ── */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 2px; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; }
+.cell .disc { margin: 0; }
+.cellName { font-size: 11px; font-weight: 800; color: #12172b; line-height: 1.2; text-align: center; }
