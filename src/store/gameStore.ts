@@ -7,7 +7,7 @@ import { levelFromExp, calcHp, partySlotsForLevel } from '../lib/formulas';
 import { getSpecies } from '../data/species';
 import { getMove } from '../data/moves';
 import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK } from '../data/curriculum';
-import { speciesAtLevel } from '../lib/evolution';
+import { evolveOnLevelUp } from '../lib/evolution';
 import { pickLevel, pickEncounterSpecies, buildEncounter, EMPTY_PITY } from '../lib/encounterGenerator';
 
 // ── Exported helpers ──────────────────────────────────────────────────────────
@@ -112,8 +112,10 @@ export const useGameStore = create<GameStoreState>()(
             const merged = { ...p, ...patch };
             // Level-driven evolution (spec §6.4): after any change (usually an
             // EXP gain), advance to the form this level has earned. Chains
-            // multiple steps if several thresholds were crossed at once.
-            const evolvedId = speciesAtLevel(merged.speciesId, levelFromExp(merged.totalExp));
+            // multiple steps if several thresholds were crossed at once, and
+            // picks a random form at a branch (Eevee) — fixed once, since the
+            // new species id is persisted below.
+            const evolvedId = evolveOnLevelUp(merged.speciesId, levelFromExp(merged.totalExp));
             return evolvedId === merged.speciesId ? merged : { ...merged, speciesId: evolvedId };
           }),
         })), false, 'updatePokemon'),

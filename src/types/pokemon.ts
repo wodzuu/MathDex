@@ -83,6 +83,12 @@ export interface PokemonSpecies {
   /** Absent for Pokémon that do not evolve in the simplified core. */
   evolution?: SpeciesEvolution;
   /**
+   * Branching evolution — more than one possible evolved form (e.g. Eevee).
+   * When present it supersedes `evolution`; the player's Pokémon evolves into a
+   * random one of these on reaching the level. Absent for single-path families.
+   */
+  evolutions?: SpeciesEvolution[];
+  /**
    * Moves learned by level-up. When a 5th move would be learned the player
    * chooses which existing move to forget. Spec §6.3.
    */

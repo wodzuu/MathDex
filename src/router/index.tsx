@@ -6,6 +6,7 @@ import IdentifyScreen from '../screens/IdentifyScreen';
 import EquipScreen from '../screens/EquipScreen';
 import PCScreen from '../screens/PCScreen';
 import MartScreen from '../screens/MartScreen';
+import PokedexScreen from '../screens/Pokedex';
 import ResetScreen from '../screens/ResetScreen';
 
 /**
@@ -24,6 +25,7 @@ const router = createHashRouter([
   { path: '/equip',     element: <EquipScreen /> },
   { path: '/pc',        element: <PCScreen /> },
   { path: '/mart',      element: <MartScreen /> },
+  { path: '/pokedex',   element: <PokedexScreen /> },
   { path: '/reset',     element: <ResetScreen /> },
 ]);
 

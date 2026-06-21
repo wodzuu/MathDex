@@ -10,11 +10,20 @@
 
 import { getSpecies } from '../data/species';
 import { GEN1_SPECIES } from '../data/gen1';
+import type { PokemonSpecies, SpeciesEvolution } from '../types/pokemon';
+
+/** Every evolution a species can take (1 for linear families, N for branches). */
+export function evolutionsOf(sp: PokemonSpecies | undefined): SpeciesEvolution[] {
+  if (!sp) return [];
+  if (sp.evolutions?.length) return sp.evolutions;
+  return sp.evolution ? [sp.evolution] : [];
+}
 
 // Reverse map: evolved-form id → its pre-evolution id. Lets us find base forms.
+// Branch targets (e.g. Vaporeon/Jolteon/Flareon) all point back to Eevee.
 const PRE_EVO = new Map<string, string>();
 for (const s of GEN1_SPECIES) {
-  if (s.evolution) PRE_EVO.set(s.evolution.evolvesIntoId, s.id);
+  for (const e of evolutionsOf(s)) PRE_EVO.set(e.evolvesIntoId, s.id);
 }
 
 /** True if nothing evolves into this species (it's the start of its family). */
@@ -29,13 +38,34 @@ export const BASE_FORMS: readonly string[] = GEN1_SPECIES
 
 /**
  * Walk a species forward applying every evolution whose `atLevel ≤ level`.
- * Returns the species id this Pokémon should be at the given level.
+ * Deterministic — branches resolve to their first form so wild-encounter pools
+ * stay stable. For the player's (randomised) level-up evolution use
+ * `evolveOnLevelUp`. Returns the species id this Pokémon is at the given level.
  */
 export function speciesAtLevel(speciesId: string, level: number): string {
   let id = speciesId;
   let sp = getSpecies(id);
-  while (sp?.evolution && level >= sp.evolution.atLevel) {
-    id = sp.evolution.evolvesIntoId;
+  for (let evos = evolutionsOf(sp); evos.length && level >= evos[0].atLevel; evos = evolutionsOf(sp)) {
+    id = evos[0].evolvesIntoId;
+    sp = getSpecies(id);
+  }
+  return id;
+}
+
+/**
+ * The species id a player's Pokémon should become at the given level. Identical
+ * to `speciesAtLevel` for linear families, but at a branch (Eevee) it picks a
+ * RANDOM eligible form. Called once when a level threshold is crossed
+ * (gameStore.updatePokemon) and the result is persisted, so the roll is final.
+ */
+export function evolveOnLevelUp(speciesId: string, level: number): string {
+  let id = speciesId;
+  let sp = getSpecies(id);
+  for (let evos = evolutionsOf(sp); ; evos = evolutionsOf(sp)) {
+    const eligible = evos.filter((e) => level >= e.atLevel);
+    if (!eligible.length) break;
+    const pick = eligible[Math.floor(Math.random() * eligible.length)];
+    id = pick.evolvesIntoId;
     sp = getSpecies(id);
   }
   return id;

@@ -150,7 +150,19 @@ const EVOLUTIONS: Record<string, SpeciesEvolution> = {
   shellder:   { evolvesIntoId: 'cloyster',   atLevel: 32 }, // Water Stone
   staryu:     { evolvesIntoId: 'starmie',    atLevel: 32 }, // Water Stone
   exeggcute:  { evolvesIntoId: 'exeggutor',  atLevel: 32 }, // Leaf Stone
-  eevee:      { evolvesIntoId: 'vaporeon',   atLevel: 30 }, // Water Stone (branch → Vaporeon)
+};
+
+/**
+ * Branching evolution families — more than one possible evolved form. The
+ * player's Pokémon evolves into a RANDOM one of these on reaching the level.
+ * (Eevee is the only Gen 1 brancher.)
+ */
+const BRANCH_EVOLUTIONS: Record<string, SpeciesEvolution[]> = {
+  eevee: [
+    { evolvesIntoId: 'vaporeon', atLevel: 30 },
+    { evolvesIntoId: 'jolteon',  atLevel: 30 },
+    { evolvesIntoId: 'flareon',  atLevel: 30 },
+  ],
 };
 
 /**
@@ -193,7 +205,8 @@ export const GEN1_SPECIES: PokemonSpecies[] = ROSTER.map((p) => {
     baseExp:   Math.round(bst / 5),
     catchRate: p.captureRate,   // real PokéAPI capture rate
     rarity,
-    evolution: EVOLUTIONS[slugId(p.name)],
+    evolution:  EVOLUTIONS[slugId(p.name)],
+    evolutions: BRANCH_EVOLUTIONS[slugId(p.name)],
     learnset:  genLearnset(p.types),
     emoji:     '❓', // sprites are used for rendering; emoji is a legacy placeholder
   };

@@ -95,6 +95,14 @@ export default function TownScreen() {
                 <span className={s.locSub} style={{ color: '#6890F0' }}>Potions &amp; Balls</span>
               </span>
             </button>
+
+            <button className={s.locTile} onClick={() => navigate('/pokedex')}>
+              <span className={s.locIcon}>📕</span>
+              <span className={s.locText}>
+                <span className={s.locName}>Pokédex</span>
+                <span className={s.locSub} style={{ color: '#e0574f' }}>Evolutions &amp; collection</span>
+              </span>
+            </button>
             {/* Oak's Lab (identify items) is hidden until that feature is built. */}
           </div>
 
