@@ -6,6 +6,7 @@ import { calcAllStats, calcHp, levelFromExp, expToLevel } from '../lib/formulas'
 
 export interface PartyDisplayPokemon {
   instanceId: string;
+  speciesId:  string;
   name:       string;
   dexNumber:  number;
   type:       PokeType;
@@ -44,6 +45,7 @@ export function usePartyDisplay(party: string[], caughtPokemon: OwnedPokemon[]):
 
         return {
           instanceId: pk.instanceId,
+          speciesId:  pk.speciesId,
           name:       species?.name ?? pk.speciesId,
           dexNumber:  species?.dexNumber ?? 0,
           type:       (species?.types[0] ?? 'Normal') as PokeType,

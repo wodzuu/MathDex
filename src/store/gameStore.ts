@@ -120,13 +120,28 @@ export const useGameStore = create<GameStoreState>()(
           }),
         })), false, 'updatePokemon'),
 
+      // Only one Pokémon per species is kept. Catching a species you already
+      // own replaces it *in place* (same instanceId, so party/lead references
+      // survive) when the new one is a higher level; a lower/equal catch is
+      // released. Different species in the same evolution line (Pikachu vs
+      // Raichu) are distinct and both kept.
       addCaughtPokemon: (pokemon) => {
-        const newPokemon: OwnedPokemon = { ...pokemon, instanceId: crypto.randomUUID() };
-        set((s) => patchTrainer(s, (t) => ({
-          caughtPokemon: [...t.caughtPokemon, newPokemon],
-          stats: { ...t.stats, totalCatches: t.stats.totalCatches + 1 },
-        })), false, 'addCaughtPokemon');
-        return newPokemon;
+        let result: OwnedPokemon = { ...pokemon, instanceId: crypto.randomUUID() };
+        set((s) => patchTrainer(s, (t) => {
+          const existing = t.caughtPokemon.find((p) => p.speciesId === pokemon.speciesId);
+          const stats = { ...t.stats, totalCatches: t.stats.totalCatches + 1 };
+          if (existing) {
+            if (levelFromExp(pokemon.totalExp) > levelFromExp(existing.totalExp)) {
+              const upgraded: OwnedPokemon = { ...existing, totalExp: pokemon.totalExp, currentHp: pokemon.currentHp, moves: pokemon.moves };
+              result = upgraded;
+              return { caughtPokemon: t.caughtPokemon.map((p) => (p.instanceId === existing.instanceId ? upgraded : p)), stats };
+            }
+            result = existing;          // keep the one we already have
+            return { stats };
+          }
+          return { caughtPokemon: [...t.caughtPokemon, result], stats };
+        }), false, 'addCaughtPokemon');
+        return result;
       },
 
       setParty: (partyIds) =>

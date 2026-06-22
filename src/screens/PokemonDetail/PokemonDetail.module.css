@@ -1,0 +1,81 @@
+/*
+ * Pokémon detail — same Pokédex device shell (fixed header/footer, scrolling
+ * middle) as the Pokédex screen, showing one species: sprite, stats, caught.
+ */
+
+.screen {
+  position: relative;
+  max-width: 420px;
+  margin: 0 auto;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: #b8302a;
+  font-family: 'Nunito', sans-serif;
+  color: #f0f4ff;
+}
+
+.deviceTop { flex: 0 0 auto; position: relative; z-index: 2; box-sizing: border-box; aspect-ratio: 1568 / 334; padding: 12px 8% 8px; }
+.scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px 9% 18px; }
+.deviceFooter { flex: 0 0 auto; width: 100%; aspect-ratio: 1568 / 319; }
+
+.header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px; }
+.back { background: #22253a; border: 1px solid #3a3d5c; border-radius: 10px; padding: 7px 12px; color: #c7cfe8; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; }
+.title { font-family: 'Press Start 2P', monospace; font-size: 12px; color: #FFCB05; text-transform: capitalize; }
+.count { font-family: 'Press Start 2P', monospace; font-size: 9px; color: #c7cfe8; }
+
+/* ── Hero: centred sprite + types + rarity/EXP ── */
+.hero { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0 14px; }
+.heroSprite { width: 120px; height: 120px; image-rendering: pixelated; object-fit: contain; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.3)); }
+.types { display: flex; gap: 8px; }
+.typePill { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 11px; padding: 3px 12px; border-radius: 99px; text-transform: uppercase; }
+.typePillSm { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 9px; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; display: inline-block; }
+.meta { display: flex; align-items: center; gap: 10px; }
+.rarityBadge { font-family: 'Press Start 2P', monospace; font-size: 7px; padding: 5px 9px; border-radius: 8px; text-transform: uppercase; }
+.expChip { font-size: 12px; font-weight: 700; color: #2f3450; }
+.expChip strong { color: #12172b; }
+
+/* ── Section label ── */
+.sectionLabel { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #2f3450; letter-spacing: 1px; margin: 32px 0 12px 2px; }
+
+/* ── Stats — sit directly on the screen, no panel ── */
+.statsBox { margin-bottom: 0; }
+.statRow { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+.statRow:last-child { margin-bottom: 0; }
+.statLabel { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #2f3450; width: 56px; flex: 0 0 auto; }
+.statVal { font-family: 'Press Start 2P', monospace; font-size: 10px; color: #12172b; width: 26px; text-align: right; flex: 0 0 auto; }
+.statTrack { flex: 1; height: 10px; background: rgba(20, 24, 40, 0.16); border-radius: 5px; overflow: hidden; }
+.statFill { height: 100%; border-radius: 5px; transition: width 0.4s; }
+
+/* ── Caught status ── */
+.caughtBox { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 4px 8px 14px; font-size: 14px; font-weight: 800; }
+
+/* ── Evolution line ── */
+.evoBox { display: flex; justify-content: center; }
+.evoRow { justify-content: center; }
+.evoNone { font-size: 13px; font-weight: 700; color: #5c6280; }
+.evoRow { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.evoStage { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 72px; background: none; border: 1px solid transparent; border-radius: 12px; padding: 4px 2px; cursor: pointer; color: inherit; font: inherit; -webkit-tap-highlight-color: transparent; }
+.evoStage:active { transform: scale(0.96); }
+.evoCurrent { border-color: #FFCB05; background: rgba(255, 203, 5, 0.12); }
+.evoSprite { width: 46px; height: 46px; image-rendering: pixelated; object-fit: contain; }
+.evoName { font-size: 11px; font-weight: 800; color: #12172b; line-height: 1.15; text-align: center; }
+.evoArrow { display: flex; flex-direction: column; align-items: center; font-size: 15px; color: #3a3f5e; flex: 0 0 auto; }
+.evoLv { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #2f3450; }
+.evoBranch { display: flex; flex-direction: column; gap: 4px; }
+
+/* ── Type matchups ── */
+.matchups { display: flex; flex-direction: column; gap: 10px; }
+.matchRow { display: flex; align-items: flex-start; gap: 10px; }
+.matchLabel { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #2f3450; width: 56px; flex: 0 0 auto; padding-top: 4px; }
+.matchTypes { display: flex; flex-wrap: wrap; gap: 5px; }
+.matchNone { font-size: 12px; font-weight: 700; color: #5c6280; padding-top: 2px; }
+
+/* ── Moves ── */
+.movesBox { display: flex; flex-direction: column; }
+.moveRow { display: flex; align-items: center; gap: 10px; padding: 7px 2px; border-bottom: 1px solid rgba(20, 24, 40, 0.1); }
+.moveLv { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #2f3450; width: 34px; flex: 0 0 auto; }
+.moveName { flex: 1; font-size: 13px; font-weight: 800; color: #12172b; min-width: 0; }
+.movePower { font-family: 'Press Start 2P', monospace; font-size: 9px; color: #12172b; width: 30px; text-align: right; flex: 0 0 auto; }

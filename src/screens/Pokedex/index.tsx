@@ -114,26 +114,26 @@ function Disc({ sp, caught }: { sp: PokemonSpecies; caught: boolean }) {
   );
 }
 
-function Chip({ sp, caught }: { sp: PokemonSpecies; caught: boolean }) {
+function Chip({ sp, caught, onPick }: { sp: PokemonSpecies; caught: boolean; onPick: (id: string) => void }) {
   return (
-    <div className={s.chip}>
+    <button type="button" className={s.chip} onClick={() => onPick(sp.id)}>
       <Disc sp={sp} caught={caught} />
       <div className={s.nm} style={{ color: caught ? NAME_CAUGHT : NAME_UNSEEN }}>{sp.name}</div>
-    </div>
+    </button>
   );
 }
 
 // A branch form rendered as a compact horizontal chip in the fork column.
-function MiniChip({ sp, caught }: { sp: PokemonSpecies; caught: boolean }) {
+function MiniChip({ sp, caught, onPick }: { sp: PokemonSpecies; caught: boolean; onPick: (id: string) => void }) {
   return (
-    <div className={s.mini}>
+    <button type="button" className={s.mini} onClick={() => onPick(sp.id)}>
       <div className={`${s.miniDisc} ${caught ? s.discOn : ''}`}>
         {caught
           ? <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.miniSprite} />
           : <span className={s.miniQ}>?</span>}
       </div>
       <div className={s.nm} style={{ color: caught ? NAME_CAUGHT : NAME_UNSEEN }}>{sp.name}</div>
-    </div>
+    </button>
   );
 }
 
@@ -149,6 +149,7 @@ export default function PokedexScreen() {
     [trainer.caughtPokemon],
   );
   const total = GEN1_SPECIES.length;
+  const openDetail = (speciesId: string) => navigate(`/pokemon/${speciesId}`);
 
   return (
     <div className={s.screen}>
@@ -179,7 +180,7 @@ export default function PokedexScreen() {
                           <span className={s.arrow}>→</span>
                         </div>
                       )}
-                      <Chip sp={sp} caught={caught.has(sp.id)} />
+                      <Chip sp={sp} caught={caught.has(sp.id)} onPick={openDetail} />
                     </Fragment>
                   ))}
                   {branch && (
@@ -192,7 +193,7 @@ export default function PokedexScreen() {
                       </div>
                       <div className={s.branchCol}>
                         {branch.children.map((leaf) => (
-                          <MiniChip key={leaf.sp.id} sp={leaf.sp} caught={caught.has(leaf.sp.id)} />
+                          <MiniChip key={leaf.sp.id} sp={leaf.sp} caught={caught.has(leaf.sp.id)} onPick={openDetail} />
                         ))}
                       </div>
                     </>
@@ -204,12 +205,12 @@ export default function PokedexScreen() {
         ) : (
           <div className={s.grid}>
             {allByName.map((sp) => (
-              <div key={sp.id} className={s.cell}>
+              <button type="button" key={sp.id} className={s.cell} onClick={() => openDetail(sp.id)}>
                 <div className={`${s.disc} ${s.discOn}`}>
                   <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.sprite} />
                 </div>
                 <div className={s.cellName}>{sp.name}</div>
-              </div>
+              </button>
             ))}
           </div>
         )}

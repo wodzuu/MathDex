@@ -193,6 +193,7 @@ export default function BattleScreen() {
   // ── Store reads ─────────────────────────────────────────────────────────────
   const battle    = useBattleStore((s) => s.battle);
   const endBattle = useBattleStore((s) => s.endBattle);
+  const markOpeningResolved = useBattleStore((s) => s.markOpeningResolved);
 
   const trainer = useActiveTrainer();
   const { addCaughtPokemon, adjustPotions, adjustPokeballs, recordMathAttempt, updatePokemon, setFocus } = useGameStore(
@@ -293,7 +294,7 @@ export default function BattleScreen() {
   const [catchResult, setCatchResult]   = useState<'caught' | 'escaped' | null>(null);
   // Party carousel: switching is locked until a faster enemy's opening strike has
   // landed, so that strike always hits the Pokémon the player entered with.
-  const [canSwitch, setCanSwitch]       = useState(playerGoesFirst);
+  const [canSwitch, setCanSwitch]       = useState(playerGoesFirst || !!battle?.openingResolved);
   // Track enemy HP in a ref to read synchronously inside resolveAttack
   const enemyHpRef = useRef(initEnemyHp);
 
@@ -538,10 +539,13 @@ export default function BattleScreen() {
   const enteredGoesFirstRef = useRef(playerGoesFirst);
   const openingStrikeRef = useRef(false);
   useEffect(() => {
-    if (!battle || enteredGoesFirstRef.current) return;
+    // Skip when the player is faster, or when the opening already happened on a
+    // previous mount (e.g. we left to view a Pokédex entry and came back).
+    if (!battle || enteredGoesFirstRef.current || battle.openingResolved) return;
     const t = setTimeout(() => {
       if (openingStrikeRef.current) return;   // fire exactly once (StrictMode-safe)
       openingStrikeRef.current = true;
+      markOpeningResolved();
       // The strike hits the Pokémon the player entered with (switching is locked
       // until now, so the active Pokémon is still the entered one).
       if (enemyAttack()) {
@@ -551,7 +555,7 @@ export default function BattleScreen() {
       setCanSwitch(true);   // unlock the carousel now the opening strike has landed
     }, 650);
     return () => clearTimeout(t);
-  }, [battle, enemyAttack, handleBlackout, firstAlive, switchTo]);
+  }, [battle, enemyAttack, handleBlackout, firstAlive, switchTo, markOpeningResolved]);
 
   // ── Attack resolution ───────────────────────────────────────────────────────
 
@@ -889,9 +893,14 @@ export default function BattleScreen() {
     return { min: Math.min(...dmgs), max: Math.max(...dmgs) };
   })();
 
-  // Whether this wild species is already registered in the player's collection —
-  // shown in the ball-throwing view so the player knows if it's a new catch.
-  const alreadyCaught = !!battle && trainer.caughtPokemon.some((p) => p.speciesId === battle.enemy.speciesId);
+  // Whether this wild species is already registered in the player's collection,
+  // and (if so) the highest level owned — shown in the ball-throwing view. Only
+  // one per species is kept, so a catch that isn't higher level is released.
+  const ownedSameSpecies = battle ? trainer.caughtPokemon.filter((p) => p.speciesId === battle.enemy.speciesId) : [];
+  const alreadyCaught     = ownedSameSpecies.length > 0;
+  const ownedBestLevel    = alreadyCaught ? Math.max(...ownedSameSpecies.map((p) => levelFromExp(p.totalExp))) : 0;
+  // True when catching this wild would NOT keep it (you already own one as good).
+  const catchWouldRelease = alreadyCaught && enemyLevel <= ownedBestLevel;
 
   // ── Party carousel ───────────────────────────────────────────────────────────
   const activeId      = battle?.activePlayerInstanceId ?? '';
@@ -923,6 +932,16 @@ export default function BattleScreen() {
   // Switching is allowed on the move-select view (once any opening strike has
   // landed) whenever there is another healthy Pokémon to send out.
   const switchEnabled = hasParty && panel === 'moves' && canSwitch && anyOtherAlive;
+
+  // Tapping a combatant opens its Pokédex entry. Persist live HP first so that
+  // returning to the battle restores it (the battle store survives client-side
+  // routing; only a full reload clears it).
+  const openSpeciesDetail = (speciesId?: string) => {
+    if (!speciesId) return;
+    persistAllHp();
+    useBattleStore.getState().setEnemyHpPct(enemyHpPct);
+    navigate(`/pokemon/${speciesId}`);
+  };
 
   // The battle store is transient — a page reload loses it. If there was no
   // battle when this screen first mounted (i.e. a genuine reload), bounce back
@@ -994,7 +1013,7 @@ export default function BattleScreen() {
           <div className={b.groundShadow} style={{ left: '28%', top: 202, width: 76, height: 14, transform: 'translateX(-50%)' }} />
           {playerHit
             ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '28%', top: 134, width: 120, height: 120, transform: 'translateX(-50%)' }} />
-            : <img key={activeId} className={b.sprite} src={getIdleSpriteUrl(playerDexNumber)} alt="" style={{ left: '28%', top: 146, width: 96, height: 96, transform: 'translateX(-50%)' }} />}
+            : <img key={activeId} className={b.sprite} src={getIdleSpriteUrl(playerDexNumber)} alt="" onClick={() => openSpeciesDetail(playerSpecies?.id)} style={{ left: '28%', top: 146, width: 96, height: 96, transform: 'translateX(-50%)', cursor: 'pointer' }} />}
           {hasParty && (
             <>
               <button className={b.arrowBtn} style={{ left: 'calc(28% - 72px)', top: 176 }} disabled={!switchEnabled} onClick={() => switchDir(-1)} aria-label="Previous Pokémon">‹</button>
@@ -1026,7 +1045,7 @@ export default function BattleScreen() {
           <div className={b.groundShadow} style={{ left: '72%', top: 200, width: 72, height: 13, transform: 'translateX(-50%)' }} />
           {enemyHit
             ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '72%', top: 132, width: 120, height: 120, transform: 'translateX(-50%)' }} />
-            : <img className={b.sprite} src={getIdleSpriteUrl(enemyDexNumber)} alt="" style={{ left: '72%', top: 146, width: 92, height: 92, transform: 'translateX(-50%)' }} />}
+            : <img className={b.sprite} src={getIdleSpriteUrl(enemyDexNumber)} alt="" onClick={() => openSpeciesDetail(enemySpecies?.id)} style={{ left: '72%', top: 146, width: 92, height: 92, transform: 'translateX(-50%)', cursor: 'pointer' }} />}
           {floats.filter((f) => f.target === 'enemy').map((f) => (
             <div key={f.id} className={b.float} style={{ left: '72%', top: 126, transform: 'translateX(-50%)', fontSize: f.crit ? 20 : 15, color: f.crit ? '#ff7b00' : f.correct ? '#FFCB05' : '#e0574f' }}>
               {f.crit && <div style={{ fontSize: 8, color: '#ff7b00' }}>CRITICAL!</div>}-{f.amount}
@@ -1176,13 +1195,23 @@ export default function BattleScreen() {
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: zoneCol, flexShrink: 0 }} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: zoneCol }}>{zoneLabel}</span>
               </div>
-              {/* Pokédex / already-caught indicator */}
-              <div style={{ background: D.card, border: `1px solid ${alreadyCaught ? D.muted : D.green}`, borderRadius: 10, padding: '8px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 14, flexShrink: 0 }}>{alreadyCaught ? '✅' : '✨'}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: alreadyCaught ? D.muted : D.green }}>
-                  {alreadyCaught ? `You've already caught ${enemyName}` : `New! You haven't caught ${enemyName} yet`}
-                </span>
-              </div>
+              {/* Pokédex / already-caught indicator. Only one per species is kept,
+                  so warn when a catch would just be released. */}
+              {(() => {
+                const col  = !alreadyCaught ? D.green : catchWouldRelease ? D.red : D.yellow;
+                const icon = !alreadyCaught ? '✨' : catchWouldRelease ? '⚠️' : '⬆️';
+                const text = !alreadyCaught
+                  ? `New! You haven't caught ${enemyName} yet`
+                  : catchWouldRelease
+                    ? `You already have a Lv${ownedBestLevel} ${enemyName} — this Lv${enemyLevel} one will be released`
+                    : `You have a Lv${ownedBestLevel} ${enemyName} — this stronger Lv${enemyLevel} one will replace it`;
+                return (
+                  <div style={{ background: D.card, border: `1px solid ${col}`, borderRadius: 10, padding: '8px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 14, flexShrink: 0 }}>{icon}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: col, lineHeight: 1.4 }}>{text}</span>
+                  </div>
+                );
+              })()}
               {BALLS.map((ball) => {
                 const count = ballCounts[ball.name] ?? 0;
                 const tc = typeColors('Water');

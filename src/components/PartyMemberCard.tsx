@@ -36,9 +36,11 @@ interface PartyMemberCardProps {
   frameLead?: boolean;
   /** Makes the card tappable (e.g. to choose the active fighter). */
   onClick?: () => void;
+  /** Makes the sprite avatar tappable (e.g. to open the Pokédex detail). */
+  onAvatarClick?: () => void;
 }
 
-export default function PartyMemberCard({ pk, isLead = false, frameLead = false, onClick }: PartyMemberCardProps) {
+export default function PartyMemberCard({ pk, isLead = false, frameLead = false, onClick, onAvatarClick }: PartyMemberCardProps) {
   const spriteSz   = isLead ? 72 : 64;
   const showFrame  = frameLead && isLead;
   const tc         = typeColors(pk.type);
@@ -55,11 +57,12 @@ export default function PartyMemberCard({ pk, isLead = false, frameLead = false,
         transition: 'background .15s, border-color .15s',
       }}
     >
-      {/* Sprite */}
+      {/* Sprite — tappable to open the Pokédex detail when enabled. */}
       <img
         src={getIdleSpriteUrl(pk.dexNumber)}
         alt={pk.name}
-        style={{ width: spriteSz, height: spriteSz, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.7))' }}
+        onClick={onAvatarClick ? (e) => { e.stopPropagation(); onAvatarClick(); } : undefined}
+        style={{ width: spriteSz, height: spriteSz, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.7))', cursor: onAvatarClick ? 'pointer' : 'inherit' }}
       />
 
       {/* Info column */}

@@ -242,12 +242,12 @@ export default function DungeonScreen() {
       verdict,
       yourShare,
       player: {
-        name: pSpec.name, dexNumber: pSpec.dexNumber, type: pSpec.types[0] as string, rarity: pSpec.rarity, level: pLevel,
+        speciesId: pSpec.id, name: pSpec.name, dexNumber: pSpec.dexNumber, type: pSpec.types[0] as string, rarity: pSpec.rarity, level: pLevel,
         curHp: Math.max(0, Math.min(pStats.maxHp, playerPk.currentHp)), maxHp: pStats.maxHp, xpPct, xpToNext,
         attack: pStats.attack, spAtk: pStats.spAtk, defense: pStats.defense, spDef: pStats.spDef, speed: pStats.speed,
       },
       wild: {
-        name: wSpec.name, dexNumber: wSpec.dexNumber, type: wSpec.types[0] as string, rarity: wSpec.rarity, level: enc.level,
+        speciesId: wSpec.id, name: wSpec.name, dexNumber: wSpec.dexNumber, type: wSpec.types[0] as string, rarity: wSpec.rarity, level: enc.level,
         maxHp: wStats.maxHp,
         attack: wStats.attack, spAtk: wStats.spAtk, defense: wStats.defense, spDef: wStats.spDef, speed: wStats.speed,
       },
@@ -347,7 +347,8 @@ export default function DungeonScreen() {
                 <div className={s.platform} style={{ left: '72%', top: 128, width: 120, height: 30, transform: 'translateX(-50%)', ...(wC ? diskStyle(wC) : {}) }} />
                 <div className={s.platformShadow} style={{ left: '72%', top: 138, width: 52, height: 9, transform: 'translateX(-50%)' }} />
                 <img className={s.sprite} src={getIdleSpriteUrl(matchup.wild.dexNumber)} alt=""
-                     style={{ left: '72%', top: 78, width: 84, height: 84, transform: 'translateX(-50%)', zIndex: 4 }} />
+                     onClick={() => navigate(`/pokemon/${matchup.wild.speciesId}`)}
+                     style={{ left: '72%', top: 78, width: 84, height: 84, transform: 'translateX(-50%)', zIndex: 4, cursor: 'pointer' }} />
                 <button className={s.arrowBtn} style={{ left: 'calc(72% - 79px)', top: 103, pointerEvents: 'auto' }} onClick={prevWild} aria-label="Previous wild Pokémon">‹</button>
                 <button className={s.arrowBtn} style={{ left: 'calc(72% + 45px)', top: 103, pointerEvents: 'auto' }} onClick={nextWild} aria-label="Next wild Pokémon">›</button>
               </div>
@@ -359,7 +360,8 @@ export default function DungeonScreen() {
               <div className={s.platform} style={{ left: '28%', top: 222, width: 132, height: 32, transform: 'translateX(-50%)', ...(pC ? diskStyle(pC) : {}) }} />
               <div className={s.platformShadow} style={{ left: '28%', top: 233, width: 62, height: 10, transform: 'translateX(-50%)' }} />
               <img className={s.sprite} src={getIdleSpriteUrl(matchup.player.dexNumber)} alt=""
-                   style={{ left: '28%', top: 168, width: 92, height: 92, transform: 'translateX(-50%)' }} />
+                   onClick={() => navigate(`/pokemon/${matchup.player.speciesId}`)}
+                   style={{ left: '28%', top: 168, width: 92, height: 92, transform: 'translateX(-50%)', cursor: 'pointer' }} />
 
               {/* Player status panel + HP/XP — ABOVE my Pokémon */}
               <div className={s.nameBadge} style={{ top: 56, left: '28%', transform: 'translateX(-50%)', minWidth: 130 }}>

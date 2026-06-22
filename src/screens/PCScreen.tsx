@@ -42,13 +42,14 @@ interface PCRowProps {
   disabled:     boolean;
   disabledHint?: string;
   onAction:     () => void;
+  onAvatar:     () => void;
 }
 
-function PCRow({ pk, actionLabel, actionColor, actionBg, disabled, disabledHint, onAction }: PCRowProps) {
+function PCRow({ pk, actionLabel, actionColor, actionBg, disabled, disabledHint, onAction, onAvatar }: PCRowProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderBottom: `1px solid ${D.border}` }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <PartyMemberCard pk={pk} />
+        <PartyMemberCard pk={pk} onAvatarClick={onAvatar} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
         <button onClick={onAction} disabled={disabled} style={{
@@ -149,6 +150,7 @@ export default function PCScreen() {
               disabled={partyAlone}
               disabledHint={partyAlone ? 'Need 1 in party' : undefined}
               onAction={() => handleDeposit(pk.instanceId)}
+              onAvatar={() => navigate(`/pokemon/${pk.speciesId}`)}
             />
           ))
         )}
@@ -231,6 +233,7 @@ export default function PCScreen() {
               disabled={partyFull}
               disabledHint={partyFull ? `Party full (${maxPartySize}/${maxPartySize})` : undefined}
               onAction={() => handleWithdraw(pk.instanceId)}
+              onAvatar={() => navigate(`/pokemon/${pk.speciesId}`)}
             />
           ))
         )}

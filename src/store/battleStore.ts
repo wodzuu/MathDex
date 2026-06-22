@@ -36,6 +36,12 @@ export interface BattleState {
   /** Transient damage floaters rendered over the enemy sprite. */
   damageFloats: DamageFloat[];
   turnCount: number;
+  /**
+   * Whether the battle's opening (the faster-enemy free strike, or nothing when
+   * the player is faster) has happened. Persisted so leaving the battle screen
+   * and returning — e.g. to view a Pokédex entry — doesn't replay it.
+   */
+  openingResolved: boolean;
   /** Populated once phase reaches 'victory'. Shown on the victory screen. */
   expGains: ExpGain[];
 }
@@ -55,6 +61,8 @@ interface BattleStoreState {
   startBattle: (enemy: OwnedPokemon, activePlayerInstanceId: string) => void;
 
   setPhase: (phase: BattlePhase) => void;
+  /** Flag the opening strike as done, so it isn't replayed on remount. */
+  markOpeningResolved: () => void;
   selectMove: (move: Move) => void;
   setPuzzle: (puzzle: MathPuzzle | null) => void;
 
@@ -116,11 +124,19 @@ export const useBattleStore = create<BattleStoreState>()(
               focusPips: 0,
               damageFloats: [],
               turnCount: 0,
+              openingResolved: false,
               expGains: [],
             } satisfies BattleState,
           },
           false,
           'startBattle',
+        ),
+
+      markOpeningResolved: () =>
+        set(
+          (s) => (s.battle ? { battle: { ...s.battle, openingResolved: true } } : s),
+          false,
+          'markOpeningResolved',
         ),
 
       setPhase: (phase) =>

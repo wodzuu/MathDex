@@ -31,6 +31,39 @@ export function isBaseForm(speciesId: string): boolean {
   return !PRE_EVO.has(speciesId);
 }
 
+/** The species this one evolves from, or undefined for a base form. */
+export function preEvolutionOf(speciesId: string): string | undefined {
+  return PRE_EVO.get(speciesId);
+}
+
+/** Walk back to the start of this species' evolution family. */
+export function baseFormOf(speciesId: string): string {
+  let id = speciesId;
+  const seen = new Set([id]);
+  for (let prev = PRE_EVO.get(id); prev && !seen.has(prev); prev = PRE_EVO.get(id)) {
+    id = prev;
+    seen.add(id);
+  }
+  return id;
+}
+
+/** A node in an evolution family tree. `level` is the level it evolves AT (the
+ *  child's threshold); the root's level is undefined. */
+export interface EvoNode { id: string; level?: number; children: EvoNode[]; }
+
+/** Build the whole evolution family tree starting from `rootId`. */
+export function evolutionTreeFrom(rootId: string): EvoNode {
+  const build = (id: string, level: number | undefined, seen: Set<string>): EvoNode => {
+    seen.add(id);
+    const sp = getSpecies(id);
+    const children = sp
+      ? evolutionsOf(sp).filter((e) => !seen.has(e.evolvesIntoId)).map((e) => build(e.evolvesIntoId, e.atLevel, seen))
+      : [];
+    return { id, level, children };
+  };
+  return build(rootId, undefined, new Set());
+}
+
 /** Every family's base form — one entry per evolution line (+ standalones). */
 export const BASE_FORMS: readonly string[] = GEN1_SPECIES
   .filter((s) => isBaseForm(s.id))
