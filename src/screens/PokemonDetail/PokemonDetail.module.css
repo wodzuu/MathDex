@@ -17,7 +17,10 @@
   color: #f0f4ff;
 }
 
-.deviceTop { flex: 0 0 auto; position: relative; z-index: 2; box-sizing: border-box; aspect-ratio: 1568 / 334; padding: 12px 8% 8px; }
+/* Taller than the header image's native ratio (1568/334) so it matches the
+   Pokédex header height — which is grown by its tab bar — and the device frame
+   (bezel + rounded screen top) lines up the same way. */
+.deviceTop { flex: 0 0 auto; position: relative; z-index: 2; box-sizing: border-box; aspect-ratio: 1568 / 480; padding: 12px 8% 8px; }
 .scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px 9% 18px; }
 .deviceFooter { flex: 0 0 auto; width: 100%; aspect-ratio: 1568 / 319; }
 

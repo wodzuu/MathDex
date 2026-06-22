@@ -187,9 +187,7 @@ export default function PokedexScreen() {
                     <>
                       <div className={s.step}>
                         <span className={s.lv}>Lv{evolutionsOf(branch.sp)[0]?.atLevel}</span>
-                        <svg className={s.fork} width="26" height="120" viewBox="0 0 26 120" aria-hidden="true">
-                          <path d="M2 60 H10 M10 60 C18 60 18 22 24 22 M10 60 C18 60 18 60 24 60 M10 60 C18 60 18 98 24 98" fill="none" stroke="#3a3f5e" strokeWidth="2" />
-                        </svg>
+                        <span className={s.arrow}>→</span>
                       </div>
                       <div className={s.branchCol}>
                         {branch.children.map((leaf) => (

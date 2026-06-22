@@ -1,5 +1,5 @@
 /*
- * Pokédex screen — tiled red "dex cover" backdrop (public/pokedex.png) with a
+ * Pokédex screen — red device frame (pokedex_header/body/footer.png) with a
  * sticky header + tab bar and dark family rows.
  * Palette tokens mirror src/styles/tokens.ts.
  */
@@ -60,10 +60,11 @@
 .arrow { color: #3a3f5e; font-size: 16px; line-height: 1; }
 
 /* ── Branching family (Eevee) ── */
-.fork { flex: 0 0 auto; align-self: center; }
 .branchCol { display: flex; flex-direction: column; gap: 8px; justify-content: center; min-width: 0; }
 .mini { display: flex; align-items: center; gap: 8px; min-width: 0; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; -webkit-tap-highlight-color: transparent; }
 .miniDisc { width: 38px; height: 38px; border-radius: 11px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px dashed #6b7088; }
+/* Caught mini-chips drop the dashed frame (defined after .discOn to win the cascade). */
+.miniDisc.discOn { border: none; }
 .miniSprite { width: 36px; height: 36px; image-rendering: pixelated; object-fit: contain; }
 .miniQ { font-family: 'Press Start 2P', monospace; font-size: 13px; color: #6b7088; }
 .mini .nm { white-space: normal; }

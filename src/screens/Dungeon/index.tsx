@@ -348,7 +348,7 @@ export default function DungeonScreen() {
                 <div className={s.platformShadow} style={{ left: '72%', top: 138, width: 52, height: 9, transform: 'translateX(-50%)' }} />
                 <img className={s.sprite} src={getIdleSpriteUrl(matchup.wild.dexNumber)} alt=""
                      onClick={() => navigate(`/pokemon/${matchup.wild.speciesId}`)}
-                     style={{ left: '72%', top: 78, width: 84, height: 84, transform: 'translateX(-50%)', zIndex: 4, cursor: 'pointer' }} />
+                     style={{ left: '72%', top: 78, width: 84, height: 84, transform: 'translateX(-50%)', zIndex: 4, cursor: 'pointer', pointerEvents: 'auto' }} />
                 <button className={s.arrowBtn} style={{ left: 'calc(72% - 79px)', top: 103, pointerEvents: 'auto' }} onClick={prevWild} aria-label="Previous wild Pokémon">‹</button>
                 <button className={s.arrowBtn} style={{ left: 'calc(72% + 45px)', top: 103, pointerEvents: 'auto' }} onClick={nextWild} aria-label="Next wild Pokémon">›</button>
               </div>
