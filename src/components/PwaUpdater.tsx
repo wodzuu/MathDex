@@ -23,9 +23,18 @@ export default function PwaUpdater() {
     setNeedRefresh(needRefresh);
   }, [needRefresh, setNeedRefresh]);
 
-  // Expose the "apply update + reload" action.
+  // Expose the "apply update + reload" action. Drop the runtime image cache
+  // first so the updated app fetches fresh art instead of serving stale,
+  // CacheFirst-cached images, then activate the waiting worker and reload.
   useEffect(() => {
-    setUpdate(() => updateServiceWorker(true));
+    setUpdate(() => {
+      const activate = () => updateServiceWorker(true);
+      if (typeof caches !== 'undefined') {
+        caches.delete('mathdex-images').catch(() => {}).finally(activate);
+      } else {
+        activate();
+      }
+    });
   }, [updateServiceWorker, setUpdate]);
 
   return null;
