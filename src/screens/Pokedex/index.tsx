@@ -20,15 +20,16 @@ import type { PokemonSpecies } from '../../types/pokemon';
 import { evolutionsOf } from '../../lib/evolution';
 import { useActiveTrainer } from '../../store/gameStore';
 import { getIdleSpriteUrl, getSpriteUrl } from '../../lib/sprites';
+import { asset } from '../../lib/assets';
 
 import s from './Pokedex.module.css';
 
 // Pokédex device frame: the header caps the top, the footer caps the bottom,
 // and the 1px body cross-section (red rails + grey screen) stretches to fill
 // the middle. Layered so the caps paint over the stretched screen.
-const FRAME_HEADER = `${import.meta.env.BASE_URL}pokedex_header.png`;
-const FRAME_BODY   = `${import.meta.env.BASE_URL}pokedex_body.png`;
-const FRAME_FOOTER = `${import.meta.env.BASE_URL}pokedex_footer.png`;
+const FRAME_HEADER = asset('pokedex_header.png');
+const FRAME_BODY   = asset('pokedex_body.png');
+const FRAME_FOOTER = asset('pokedex_footer.png');
 
 // Each section paints the body cross-section (red rails + grey screen) as its
 // base so the rails stay continuous; the top/footer add their bezel cap on top.

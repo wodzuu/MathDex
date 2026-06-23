@@ -18,9 +18,10 @@ import { useGameStore, useActiveTrainer, isItemSystemActive, getPartyHighestLeve
 import { useDungeonStore } from '../../store/dungeonStore';
 import { usePwaStore } from '../../store/pwaStore';
 
+import { asset } from '../../lib/assets';
 import s from './Town.module.css';
 
-const TOWN_URL = `${import.meta.env.BASE_URL}town.png`;
+const TOWN_URL = asset('town.png');
 
 // Build timestamp injected by Vite (set by the GitHub Pages workflow). Formatted
 // to "YYYY-MM-DD HH:mm UTC" for the footer.

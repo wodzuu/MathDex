@@ -10,6 +10,7 @@ import { getMove } from '../data/moves';
 import { getSpecies } from '../data/species';
 import { calcHp, calcAllStats, calcDamage, catchProbability, hpZone, expGained, levelFromExp, expToLevel, moneyReward } from '../lib/formulas';
 import { getIdleSpriteUrl, getBallSpriteUrl, getItemSpriteUrl } from '../lib/sprites';
+import { asset } from '../lib/assets';
 import { generateRankedPuzzle, effectiveMultiplier, getTypeMultiplier } from '../lib/mathProblemGenerator';
 import { useBattleStore }  from '../store/battleStore';
 import { useGameStore, useActiveTrainer, getPartyPokemon }    from '../store/gameStore';
@@ -17,9 +18,9 @@ import type { MathTopic } from '../types/math';
 import b from './Battle.module.css';
 
 // Painted forest-clearing backdrop for the whole battle screen.
-const BATTLE_URL = `${import.meta.env.BASE_URL}battle.png`;
+const BATTLE_URL = asset('battle.png');
 // Impact "poof" shown over a Pokémon while it's taking damage.
-const HIT_URL = `${import.meta.env.BASE_URL}misc/hit.png`;
+const HIT_URL = asset('misc/hit.png');
 
 // ── Local types ───────────────────────────────────────────────────────────────
 

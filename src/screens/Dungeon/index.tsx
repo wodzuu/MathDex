@@ -33,9 +33,10 @@ import type { EncounterData } from '../../types/dungeon';
 import type { OwnedPokemon } from '../../types/gameState';
 import type { PokeType } from '../../types/pokemon';
 
+import { asset } from '../../lib/assets';
 import s from './Dungeon.module.css';
 
-const FOREST_URL = `${import.meta.env.BASE_URL}forest.png`;
+const FOREST_URL = asset('forest.png');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

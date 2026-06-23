@@ -13,6 +13,7 @@ import { getSpecies } from '../../data/species';
 import { getMove } from '../../data/moves';
 import { useActiveTrainer } from '../../store/gameStore';
 import { getIdleSpriteUrl, getSpriteUrl } from '../../lib/sprites';
+import { asset } from '../../lib/assets';
 import { levelFromExp } from '../../lib/formulas';
 import { baseFormOf, evolutionTreeFrom, type EvoNode } from '../../lib/evolution';
 import { getTypeMultiplier } from '../../lib/mathProblemGenerator';
@@ -21,9 +22,9 @@ import type { BaseStats, PokeType } from '../../types/pokemon';
 
 import s from './PokemonDetail.module.css';
 
-const FRAME_HEADER = `${import.meta.env.BASE_URL}pokedex_header.png`;
-const FRAME_BODY   = `${import.meta.env.BASE_URL}pokedex_body.png`;
-const FRAME_FOOTER = `${import.meta.env.BASE_URL}pokedex_footer.png`;
+const FRAME_HEADER = asset('pokedex_header.png');
+const FRAME_BODY   = asset('pokedex_body.png');
+const FRAME_FOOTER = asset('pokedex_footer.png');
 
 const TOP_BG    = { backgroundImage: `url(${FRAME_HEADER}), url(${FRAME_BODY})`, backgroundRepeat: 'no-repeat, no-repeat', backgroundPosition: 'top center, center', backgroundSize: '100% auto, 100% 100%' };
 const SCROLL_BG = { backgroundImage: `url(${FRAME_BODY})`, backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundSize: '100% 100%' };
