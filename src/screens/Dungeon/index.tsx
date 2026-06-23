@@ -36,7 +36,8 @@ import type { PokeType } from '../../types/pokemon';
 import { asset } from '../../lib/assets';
 import s from './Dungeon.module.css';
 
-const FOREST_URL = asset('forest.png');
+const FOREST_URL  = asset('forest.png');
+const TRAINER_IMG = asset('trainer.png');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -366,7 +367,8 @@ export default function DungeonScreen() {
 
               {/* Player status panel + HP/XP — ABOVE my Pokémon */}
               <div className={s.nameBadge} style={{ top: 56, left: '28%', transform: 'translateX(-50%)', minWidth: 130 }}>
-                <div className={s.nameRow}>
+                <img className={s.trainerDot} src={TRAINER_IMG} alt="" />
+                <div className={s.nameRow} style={{ paddingLeft: 22 }}>
                   <span className={s.nameText}>{matchup.player.name}</span>
                   <span className={s.nameLv}>Lv{matchup.player.level}</span>
                 </div>

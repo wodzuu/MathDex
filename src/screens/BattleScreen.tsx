@@ -21,6 +21,8 @@ import b from './Battle.module.css';
 const BATTLE_URL = asset('battle.png');
 // Impact "poof" shown over a Pokémon while it's taking damage.
 const HIT_URL = asset('misc/hit.png');
+// Trainer portrait — a small badge on "my" Pokémon's panel.
+const TRAINER_IMG = asset('trainer.png');
 
 // ── Local types ───────────────────────────────────────────────────────────────
 
@@ -995,7 +997,8 @@ export default function BattleScreen() {
 
           {/* My Pokémon — panel top-left, standing on the ground */}
           <div className={b.nameBadge} style={{ top: 10, left: '28%', transform: 'translateX(-50%)' }}>
-            <div className={b.nameRow}>
+            <img className={b.trainerDot} src={TRAINER_IMG} alt="" />
+            <div className={b.nameRow} style={{ paddingLeft: 22 }}>
               <span className={b.nameText}>{playerSpecies?.name ?? 'Pikachu'}</span>
               <span className={b.nameLv}>Lv{playerLevel}</span>
               {(() => { const tc = typeColors(activePlayerTypes[0]); return <span className={b.typeBadge} style={{ background: tc.bg, color: tc.fg, border: `1px solid ${tc.bdr}` }}>{activePlayerTypes[0]}</span>; })()}

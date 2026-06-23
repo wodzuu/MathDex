@@ -43,6 +43,13 @@
   background: rgba(20, 23, 42, 0.9); border: 1px solid #3a3d5c; border-radius: 11px;
   padding: 6px 9px; min-width: 134px; z-index: 3;
 }
+
+/* Trainer portrait clipped to the top-left corner of "my" Pokémon's panel. */
+.trainerDot {
+  position: absolute; top: -13px; left: -13px; width: 36px; height: 36px;
+  border-radius: 50%; object-fit: cover; border: 2px solid #3a3d5c;
+  background: #161b30; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); z-index: 4;
+}
 .nameRow { display: flex; align-items: center; gap: 6px; }
 .nameText { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 900; color: #f0f4ff; }
 .nameLv { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #aeb8d6; }

@@ -28,6 +28,7 @@ export default function TrainerDetailScreen() {
   return (
     <div className={s.screen}>
       <img className={s.bg} src={TRAINER_BG} alt="" aria-hidden="true" />
+      <div className={s.scrim} aria-hidden="true" />
       <div className={s.content}>
       <div className={s.header}>
         <button className={s.back} onClick={() => navigate(-1)}>← Back</button>
