@@ -21,7 +21,8 @@ import { usePwaStore } from '../../store/pwaStore';
 import { asset } from '../../lib/assets';
 import s from './Town.module.css';
 
-const TOWN_URL = asset('town.png');
+const TOWN_URL    = asset('town.png');
+const TRAINER_IMG = asset('trainer.png');
 
 // Build timestamp injected by Vite (set by the GitHub Pages workflow). Formatted
 // to "YYYY-MM-DD HH:mm UTC" for the footer.
@@ -105,32 +106,15 @@ export default function TownScreen() {
               </span>
             </button>
             {/* Oak's Lab (identify items) is hidden until that feature is built. */}
-          </div>
 
-          {/* ── Trainer Card — overlaid on the grass, below the panels ── */}
-          <div className={s.trainerCard}>
-            <div className={s.trainerStats}>
-              <div className={s.trainerStat}>
-                <div className={s.trainerStatValue} style={{ color: '#FFCB05' }}>{trainer.mathRank ?? 1}</div>
-                <div className={s.trainerStatLabel}>Math Rank</div>
-              </div>
-              <div className={s.trainerStat}>
-                <div className={s.trainerStatValue} style={{ color: '#48c774' }}>{trainer.stats.totalProblemsSolved}</div>
-                <div className={s.trainerStatLabel}>Correct</div>
-              </div>
-              <div className={s.trainerStat}>
-                <div className={s.trainerStatValue} style={{ color: '#FFCB05' }}>{trainer.stats.longestStreak}×</div>
-                <div className={s.trainerStatLabel}>Streak</div>
-              </div>
-              <div className={s.trainerStat}>
-                <div className={s.trainerStatValue} style={{ color: '#9070B8' }}>{trainer.stats.totalCatches}</div>
-                <div className={s.trainerStatLabel}>Caught</div>
-              </div>
-              <div className={s.trainerStat}>
-                <div className={s.trainerStatValue} style={{ color: '#6890F0' }}>{trainer.stats.highestOpponentLevel ?? 0}</div>
-                <div className={s.trainerStatLabel}>Top Lv</div>
-              </div>
-            </div>
+            {/* ── Trainer panel — same style as the others; tap for details ── */}
+            <button className={s.locTile} onClick={() => navigate('/trainer')}>
+              <img className={s.locImg} src={TRAINER_IMG} alt="" />
+              <span className={s.locText}>
+                <span className={s.locName}>{trainer.name}</span>
+                <span className={s.locSub} style={{ color: '#FFCB05' }}>Math Rank {trainer.mathRank ?? 1} · stats</span>
+              </span>
+            </button>
           </div>
         </div>
 

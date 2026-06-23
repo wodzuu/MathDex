@@ -8,6 +8,7 @@ import PCScreen from '../screens/PCScreen';
 import MartScreen from '../screens/MartScreen';
 import PokedexScreen from '../screens/Pokedex';
 import PokemonDetailScreen from '../screens/PokemonDetail';
+import TrainerDetailScreen from '../screens/TrainerDetail';
 import ResetScreen from '../screens/ResetScreen';
 
 /**
@@ -28,6 +29,7 @@ const router = createHashRouter([
   { path: '/mart',      element: <MartScreen /> },
   { path: '/pokedex',     element: <PokedexScreen /> },
   { path: '/pokemon/:id', element: <PokemonDetailScreen /> },
+  { path: '/trainer',     element: <TrainerDetailScreen /> },
   { path: '/reset',     element: <ResetScreen /> },
 ]);
 

@@ -1,0 +1,73 @@
+/*
+ * Trainer detail — picture, name, and the Math Rank ladder.
+ * Palette tokens mirror src/styles/tokens.ts.
+ */
+
+.screen {
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #0a1220;
+  font-family: 'Nunito', sans-serif;
+  color: #f0f4ff;
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+}
+
+/* ── Header ── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(10, 18, 32, 0.92);
+  border-bottom: 1px solid #3a3d5c;
+}
+.back { background: #22253a; border: 1px solid #3a3d5c; border-radius: 10px; padding: 7px 12px; color: #c7cfe8; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; }
+.title { flex: 1; text-align: center; font-family: 'Press Start 2P', monospace; font-size: 12px; color: #FFCB05; }
+.headerSpacer { width: 78px; flex-shrink: 0; }
+
+/* ── Hero: picture + name ── */
+.hero { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 16px 8px; }
+.avatar {
+  width: 128px; height: 128px; border-radius: 50%;
+  border: 3px solid #FFCB05; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  object-fit: cover; background: #161b30;
+}
+.name { font-size: 22px; font-weight: 900; }
+
+/* ── Math ranks ── */
+.sectionLabel { font-family: 'Press Start 2P', monospace; font-size: 9px; color: #8892b8; letter-spacing: 1px; margin: 18px 14px 10px; }
+.ranks { display: flex; flex-direction: column; gap: 8px; padding: 0 14px; }
+
+.rankRow {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: #161b30; border: 1px solid #3a3d5c; border-radius: 12px; padding: 12px;
+}
+.rankDone    { border-color: #2f6e3a; }
+.rankCurrent { border-color: #FFCB05; background: #1a1c12; }
+.rankLocked  { opacity: 0.55; }
+
+.rankNum {
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Press Start 2P', monospace; font-size: 9px; color: #0a1220;
+  background: #8892b8;
+}
+.rankDone .rankNum    { background: #48c774; }
+.rankCurrent .rankNum { background: #FFCB05; }
+
+.rankBody { flex: 1; min-width: 0; }
+.rankTop { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.rankLabel { font-size: 14px; font-weight: 800; color: #f0f4ff; }
+
+.statusDone    { font-size: 11px; font-weight: 800; color: #7fe3a3; white-space: nowrap; }
+.statusCurrent { font-size: 11px; font-weight: 800; color: #FFCB05; white-space: nowrap; }
+.statusLocked  { font-size: 11px; font-weight: 800; color: #8892b8; white-space: nowrap; }
+
+.progTrack { height: 9px; background: #0c1020; border-radius: 5px; overflow: hidden; margin-top: 10px; }
+.progFill { height: 100%; border-radius: 5px; background: #FFCB05; transition: width 0.4s; }
+.progLabel { font-size: 11px; font-weight: 700; color: #aeb8d6; margin-top: 6px; }
