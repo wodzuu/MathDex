@@ -41,6 +41,26 @@ export default function TrainerDetailScreen() {
         <div className={s.name}>{trainer.name}</div>
       </div>
 
+      <div className={s.sectionLabel}>Stats</div>
+      <div className={s.statGrid}>
+        <div className={s.statCard}>
+          <div className={s.statNum} style={{ color: '#48c774' }}>{trainer.stats.totalProblemsSolved}</div>
+          <div className={s.statName}>Correct answers</div>
+        </div>
+        <div className={s.statCard}>
+          <div className={s.statNum} style={{ color: '#FFCB05' }}>{trainer.stats.longestStreak}×</div>
+          <div className={s.statName}>Best streak</div>
+        </div>
+        <div className={s.statCard}>
+          <div className={s.statNum} style={{ color: '#9070B8' }}>{trainer.stats.totalCatches}</div>
+          <div className={s.statName}>Pokémon caught</div>
+        </div>
+        <div className={s.statCard}>
+          <div className={s.statNum} style={{ color: '#6890F0', fontSize: 13 }}>Level {trainer.stats.highestOpponentLevel ?? 0}</div>
+          <div className={s.statName}>Top enemy</div>
+        </div>
+      </div>
+
       <div className={s.sectionLabel}>Math ranks</div>
       <div className={s.ranks}>
         {MATH_RANKS.map((r, i) => {
