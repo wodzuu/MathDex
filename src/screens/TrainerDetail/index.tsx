@@ -14,6 +14,7 @@ import { asset } from '../../lib/assets';
 import s from './TrainerDetail.module.css';
 
 const TRAINER_IMG = asset('trainer.png');
+const TRAINER_BG  = asset('trainer_bg.png');
 // Correct answers (out of the rolling window) needed to advance a rank.
 const TARGET_CORRECT = Math.round(MATH_WINDOW_SIZE * MATH_RANKUP_THRESHOLD);
 
@@ -26,6 +27,8 @@ export default function TrainerDetailScreen() {
 
   return (
     <div className={s.screen}>
+      <img className={s.bg} src={TRAINER_BG} alt="" aria-hidden="true" />
+      <div className={s.content}>
       <div className={s.header}>
         <button className={s.back} onClick={() => navigate(-1)}>← Back</button>
         <span className={s.title}>Trainer</span>
@@ -67,6 +70,7 @@ export default function TrainerDetailScreen() {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
