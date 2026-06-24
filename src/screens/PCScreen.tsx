@@ -8,7 +8,7 @@
  * Both lists render with the shared PartyMemberCard (same panel as Town).
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useGameStore, useActiveTrainer, getPcBoxPokemon, getMaxPartySize } from '../store/gameStore';
@@ -16,6 +16,13 @@ import { usePartyDisplay, type PartyDisplayPokemon } from '../hooks/usePartyDisp
 import PartyMemberCard from '../components/PartyMemberCard';
 import { MAX_PARTY_SIZE, PARTY_SLOT_LEVELS } from '../lib/formulas';
 import { D, FONT_PIXEL, FONT_UI } from '../styles/tokens';
+import { asset } from '../lib/assets';
+
+// Dimmed Pokémon Center backdrop (mirrors the Poké Mart treatment).
+const PC_BG = asset('pokemon_center.jpg');
+const BACKDROP: CSSProperties = { position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 420, height: '100%', zIndex: 0, pointerEvents: 'none' };
+const PC_BG_STYLE: CSSProperties = { ...BACKDROP, objectFit: 'cover', objectPosition: 'top center' };
+const PC_SCRIM_STYLE: CSSProperties = { ...BACKDROP, background: 'linear-gradient(180deg, rgba(10,18,32,0.55) 0%, rgba(10,18,32,0.72) 50%, rgba(10,18,32,0.82) 100%)' };
 
 // ── PC Box sorting ────────────────────────────────────────────────────────────
 
@@ -113,7 +120,10 @@ export default function PCScreen() {
   }, [boxDisplay, sortKey, sortDir]);
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', minHeight: '100vh', fontFamily: FONT_UI, color: D.white, background: D.darker }}>
+    <div style={{ maxWidth: 420, margin: '0 auto', minHeight: '100vh', fontFamily: FONT_UI, color: D.white, position: 'relative' }}>
+      <img src={PC_BG} alt="" aria-hidden style={PC_BG_STYLE} />
+      <div aria-hidden style={PC_SCRIM_STYLE} />
+      <div style={{ position: 'relative', zIndex: 1 }}>
 
       {/* Header */}
       <div style={{ padding: '16px 14px 12px', background: `linear-gradient(180deg,#0a1a3a,${D.navy})`, borderBottom: `2px solid ${D.border}` }}>
@@ -237,6 +247,7 @@ export default function PCScreen() {
             />
           ))
         )}
+      </div>
       </div>
     </div>
   );
