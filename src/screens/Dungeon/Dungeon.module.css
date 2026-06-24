@@ -37,27 +37,6 @@
   min-height: 100dvh;
 }
 
-/* ── Outcome overlay (victory / caught summary) ───────────────────────────── */
-.outcomeOverlay {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(5, 8, 16, 0.6);
-  cursor: pointer;
-}
-.outcomeHint {
-  margin-top: 10px;
-  text-align: center;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  color: #9fb6a6;
-  letter-spacing: 1px;
-}
-
 /* ── Header ───────────────────────────────────────────────────────────────── */
 .header {
   display: flex;

@@ -21,7 +21,7 @@ import { useGameStore, useActiveTrainer, getPartyPokemon, isItemSystemActive, ge
 import { useDungeonStore } from '../../store/dungeonStore';
 import { useBattleStore }  from '../../store/battleStore';
 import RarityBadge from '../../components/RarityBadge';
-import { typeColors, FONT_PIXEL } from '../../styles/tokens';
+import { typeColors } from '../../styles/tokens';
 import { getSpecies }      from '../../data/species';
 import { getMove }         from '../../data/moves';
 import { calcHp, calcAllStats, expToLevel, levelFromExp } from '../../lib/formulas';
@@ -39,26 +39,6 @@ import s from './Dungeon.module.css';
 const FOREST_URL  = asset('forest.png');
 const TRAINER_IMG = asset('trainer.png');
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface ExpGainEntry {
-  instanceId: string;
-  name:       string;
-  dexNumber:  number;
-  expAdded:   number;
-  oldLevel:   number;
-  newLevel:   number;
-  evolvedToName?: string;
-  evolvedToDex?:  number;
-}
-
-interface OutcomeBanner {
-  kind:       'victory' | 'caught';
-  name:       string;
-  expGains:   ExpGainEntry[];
-  pokeReward?: number;
-}
-
 // ── Build an OwnedPokemon from encounter data for battleStore.startBattle() ───
 
 function buildEnemyPokemon(encounter: EncounterData): OwnedPokemon {
@@ -71,41 +51,6 @@ function buildEnemyPokemon(encounter: EncounterData): OwnedPokemon {
       })
     : [];
   return { instanceId: `enemy-${Date.now()}`, speciesId: encounter.speciesId, totalExp: expToLevel(encounter.level), currentHp: hp, moves };
-}
-
-// ── Outcome banner (victory / caught) ─────────────────────────────────────────
-
-function OutcomeBanner({ banner, onClose }: { banner: OutcomeBanner; onClose: () => void }) {
-  return (
-    <div className={s.outcomeOverlay} onClick={onClose} role="button" aria-label="Dismiss summary">
-      <div className="fade-up"
-        style={{ width: '100%', maxWidth: 320, background: '#0d2a10f5', border: '2px solid #48c774', borderRadius: 14, padding: '14px 16px', boxShadow: '0 12px 28px rgba(0,0,0,0.5)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: banner.expGains.length || banner.pokeReward != null ? 8 : 0 }}>
-        <span style={{ fontSize: 18 }}>{banner.kind === 'victory' ? '🎉' : '🎯'}</span>
-        <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 14, fontWeight: 800, color: '#eafff0' }}>
-          {banner.kind === 'victory' ? `${banner.name} defeated!` : `${banner.name} caught!`}
-        </span>
-        {banner.pokeReward != null && banner.pokeReward > 0 && (
-          <span style={{ marginLeft: 'auto', fontFamily: FONT_PIXEL, fontSize: 9, color: '#F8D030' }}>₽{banner.pokeReward.toLocaleString()}</span>
-        )}
-      </div>
-      {banner.expGains.map((g) => (
-        <div key={g.instanceId} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-          <img src={getIdleSpriteUrl(g.evolvedToDex ?? g.dexNumber)} alt={g.evolvedToName ?? g.name} style={{ width: 22, height: 22, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }} />
-          <span style={{ fontFamily: 'Nunito, sans-serif', fontSize: 12, fontWeight: 800, color: '#f0f4ff', textTransform: 'capitalize' }}>{g.name}</span>
-          <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: '#6890F0' }}>+{g.expAdded} EXP</span>
-          {g.newLevel > g.oldLevel && (
-            <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: '#F8D030', background: '#1a1400', border: '1px solid #F8D030', borderRadius: 5, padding: '2px 5px' }}>LV{g.newLevel}!</span>
-          )}
-          {g.evolvedToName && (
-            <span style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: '#78C850', background: '#0a2008', border: '1px solid #78C850', borderRadius: 5, padding: '2px 5px', textTransform: 'capitalize' }}>🧬 → {g.evolvedToName}!</span>
-          )}
-        </div>
-      ))}
-        <div className={s.outcomeHint}>TAP TO CONTINUE</div>
-      </div>
-    </div>
-  );
 }
 
 // ── Touch swipe ────────────────────────────────────────────────────────────────
@@ -165,24 +110,17 @@ export default function DungeonScreen() {
 
   useEffect(() => { encounters.forEach((e) => recordOpponentLevel(e.level)); }, [encounters, recordOpponentLevel]);
 
-  const [outcomeBanner, setOutcomeBanner] = useState<OutcomeBanner | null>(null);
   const outcomeHandledRef = useRef(false);
 
+  // React to the battle outcome carried over from the Battle → Summary flow:
+  // a win or catch retires the defeated encounter, a flee just deselects it.
   useEffect(() => {
     if (outcomeHandledRef.current) return;
     outcomeHandledRef.current = true;
     const state   = (location.state as Record<string, unknown> | null);
     const outcome = state?.battleOutcome;
-    const ds      = useDungeonStore.getState();
     const lvl     = getPartyHighestLevel(trainer);
     if (outcome === 'victory' || outcome === 'caught') {
-      const defeated = ds.activeIndex !== null ? ds.encounters[ds.activeIndex] : null;
-      setOutcomeBanner({
-        kind: outcome === 'victory' ? 'victory' : 'caught',
-        name: defeated?.speciesName ?? 'Pokémon',
-        expGains: (state?.expGains as ExpGainEntry[] | undefined) ?? [],
-        pokeReward: state?.pokeReward as number | undefined,
-      });
       replaceActive(lvl, itemActive);
     } else if (outcome === 'fled') {
       selectEncounter(null);
@@ -326,8 +264,6 @@ export default function DungeonScreen() {
             </span>
           </div>
         </div>
-
-        {outcomeBanner && <OutcomeBanner banner={outcomeBanner} onClose={() => setOutcomeBanner(null)} />}
 
         {!matchup ? (
           <div className={s.loading}>FINDING WILD POKÉMON…</div>

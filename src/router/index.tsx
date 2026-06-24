@@ -2,6 +2,7 @@ import { createHashRouter, RouterProvider } from 'react-router-dom';
 import TownScreen from '../screens/TownScreen';
 import DungeonScreen from '../screens/Dungeon';
 import BattleScreen from '../screens/BattleScreen';
+import SummaryScreen from '../screens/SummaryScreen';
 import IdentifyScreen from '../screens/IdentifyScreen';
 import EquipScreen from '../screens/EquipScreen';
 import PCScreen from '../screens/PCScreen';
@@ -23,6 +24,7 @@ const router = createHashRouter([
   { path: '/',          element: <TownScreen /> },
   { path: '/dungeon',   element: <DungeonScreen /> },
   { path: '/battle',    element: <BattleScreen /> },
+  { path: '/summary',   element: <SummaryScreen /> },
   { path: '/identify',  element: <IdentifyScreen /> },
   { path: '/equip',     element: <EquipScreen /> },
   { path: '/pc',        element: <PCScreen /> },

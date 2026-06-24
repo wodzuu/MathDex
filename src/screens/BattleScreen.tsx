@@ -293,7 +293,6 @@ export default function BattleScreen() {
   const [, setEnemyAtkMult]  = useState(1);
   const [enemyDefMult, setEnemyDefMult]  = useState(1);
   const [, setPlayerDefMult] = useState(1);
-  const [blackout, setBlackout]         = useState(false);
   const [potions, setPotions]           = useState({
     potion:      trainer.potions.potion,
     superPotion: trainer.potions.superPotion,
@@ -482,9 +481,11 @@ export default function BattleScreen() {
     const enemyRarityForReward = getSpecies(currentBattle.enemy.speciesId)?.rarity ?? 'Common';
     const pokeReward = moneyReward(enemyLevel, enemyRarityForReward);
     const expGains   = buildExpGains();
+    const enemyName  = getSpecies(currentBattle.enemy.speciesId)?.name ?? 'Pokémon';
     gs.earnPokeDollars(pokeReward);
     endBattle();
-    navigate('/dungeon', { state: { battleOutcome: 'victory', expGains, pokeReward } });
+    // Full-screen victory splash, then on to the dungeon.
+    navigate('/summary', { state: { battleOutcome: 'victory', name: enemyName, expGains, pokeReward } });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endBattle, navigate, enemyLevel, buildExpGains, persistAllHp]);
 
@@ -494,19 +495,17 @@ export default function BattleScreen() {
     navigate('/dungeon', { state: { battleOutcome: 'fled' } });
   }, [endBattle, navigate, persistAllHp]);
 
-  // ── Blackout — active Pokémon fainted ────────────────────────────────────────
-  // Shows a brief blackout screen, then returns to town. Everything is kept
-  // (caught Pokémon, Pokédollars). The fainted Pokémon is persisted at 0 HP, so
-  // the player sees it must be healed at the Pokémon Center before battling again.
+  // ── Blackout — whole party fainted ───────────────────────────────────────────
+  // Routes to the full-screen "fainted" summary, which returns to town on tap.
+  // Everything is kept (caught Pokémon, Pokédollars); the fainted party members
+  // are persisted at 0 HP, so they must be healed at the Pokémon Center.
   const handleBlackout = useCallback(() => {
     if (tiRef.current) clearInterval(tiRef.current);
     // Every party member has fainted — persist them all (at 0 HP).
     if (useBattleStore.getState().battle) persistAllHp();
-    setBlackout(true);
-    setTimeout(() => {
-      endBattle();
-      navigate('/', { state: { blackedOut: true } });
-    }, 2200);
+    endBattle();
+    // Full-screen "blacked out" splash; tapping it returns to town.
+    navigate('/summary', { state: { battleOutcome: 'fainted' } });
   }, [endBattle, navigate, persistAllHp]);
 
   // ── Enemy attack ─────────────────────────────────────────────────────────────
@@ -823,24 +822,25 @@ export default function BattleScreen() {
 
     adjustPokeballs(selectedBall.consumableKey, -1);
     setResult(correct ? 'ok' : 'no');
-    setCatchResult(caught ? 'caught' : 'escaped');
 
     if (caught) {
-      setTimeout(() => {
-        if (battle) {
-          // Persist every party member's battle HP (catching shouldn't heal them).
-          persistAllHp();
-          addCaughtPokemon({
-            speciesId: battle.enemy.speciesId,
-            totalExp:  battle.enemy.totalExp,
-            currentHp: battle.enemy.currentHp,
-            moves:     battle.enemy.moves,
-          });
-          endBattle();
-          navigate('/dungeon', { state: { battleOutcome: 'caught' } });
-        }
-      }, 1800);
+      // Skip the in-battle confirmation panel — go straight to the full-screen
+      // summary, which announces the catch.
+      if (battle) {
+        // Persist every party member's battle HP (catching shouldn't heal them).
+        persistAllHp();
+        addCaughtPokemon({
+          speciesId: battle.enemy.speciesId,
+          totalExp:  battle.enemy.totalExp,
+          currentHp: battle.enemy.currentHp,
+          moves:     battle.enemy.moves,
+        });
+        const caughtSpecies = getSpecies(battle.enemy.speciesId);
+        endBattle();
+        navigate('/summary', { state: { battleOutcome: 'caught', name: caughtSpecies?.name ?? 'Pokémon', dexNumber: caughtSpecies?.dexNumber } });
+      }
     } else {
+      setCatchResult('escaped');
       setTimeout(() => {
         const enemyDmg = Math.max(1, Math.round(5 + Math.random() * 10));
         const newPlayerHp = Math.max(0, playerHpPctRef.current - enemyDmg);
@@ -888,6 +888,18 @@ export default function BattleScreen() {
   const chFinalDamage  = Math.max(chGuaranteed, chBaseDmg - chWrongCount * chDeduction);
   const curChallenge   = challenges[chIdx];
   const curTimeLimit   = curChallenge?.timeLimitSeconds ?? 6;
+
+  // Once every challenge is answered, Enter fires the "Deal damage" button (no
+  // input is focused at that point, so we listen at the window level).
+  useEffect(() => {
+    if (panel !== 'math' || !allAnswered) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') { e.preventDefault(); applyComputedAttack(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panel, allAnswered]);
 
   const totalPotions = potions.potion + potions.superPotion + potions.hyperPotion;
   const totalBalls   = (trainer.pokeballs.pokeball ?? 0) + (trainer.pokeballs.greatBall ?? 0) + (trainer.pokeballs.ultraBall ?? 0);
@@ -1006,25 +1018,6 @@ export default function BattleScreen() {
   if (!battle) return null;
 
 
-  // Blackout screen — shown briefly when the active Pokémon faints, before
-  // returning to town. Everything is kept; the party is healed on the way out.
-  if (blackout) {
-    return (
-      <div className="fade-up" style={{ position: 'fixed', inset: 0, background: '#05080f', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, fontFamily: FONT_UI, color: D.white, textAlign: 'center', padding: 24, zIndex: 999 }}>
-        <div style={{ fontSize: 52 }}>💫</div>
-        <div style={{ fontFamily: FONT_PIXEL, fontSize: 13, color: D.red, lineHeight: 1.8 }}>
-          {playerName} fainted!
-        </div>
-        <div style={{ fontFamily: FONT_PIXEL, fontSize: 10, color: D.muted, lineHeight: 1.8 }}>
-          You blacked out…
-        </div>
-        <div style={{ fontFamily: FONT_UI, fontSize: 12, color: D.muted, marginTop: 6 }}>
-          Returning to town…
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={b.screen}>
       <img className={b.bg} src={BATTLE_URL} alt="" />
@@ -1093,7 +1086,7 @@ export default function BattleScreen() {
           <div className={b.groundShadow} style={{ left: '72%', top: 200, width: 72, height: 13, transform: 'translateX(-50%)' }} />
           {enemyHit
             ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '72%', top: 132, width: 120, height: 120, transform: 'translateX(-50%)' }} />
-            : <img className={b.sprite} src={getIdleSpriteUrl(enemyDexNumber)} alt="" onClick={() => openSpeciesDetail(enemySpecies?.id)} style={{ left: '72%', top: 146, width: 92, height: 92, transform: 'translateX(-50%)', cursor: 'pointer' }} />}
+            : <img className={b.sprite} src={getIdleSpriteUrl(enemyDexNumber)} alt="" onClick={() => openSpeciesDetail(enemySpecies?.id)} style={{ left: '72%', top: 146, width: 92, height: 92, transform: 'translateX(-50%) scaleX(-1)', cursor: 'pointer' }} />}
           {floats.filter((f) => f.target === 'enemy').map((f) => (
             <div key={f.id} className={b.float} style={{ left: '72%', top: 126, transform: 'translateX(-50%)', fontSize: f.crit ? 20 : 15, color: f.crit ? '#ff7b00' : f.correct ? '#FFCB05' : '#e0574f' }}>
               {f.crit && <div style={{ fontSize: 8, color: '#ff7b00' }}>CRITICAL!</div>}-{f.amount}
@@ -1332,7 +1325,7 @@ export default function BattleScreen() {
         {panel === 'catch' && selectedBall && catchPuzzle && (() => {
           const zone    = hpZone(enemyHpPct);
           const zoneCol = zone === 'red' ? D.red : zone === 'orange' ? D.yellow : D.green;
-          const bgColor = catchResult === 'caught' ? '#0d2a10' : catchResult === 'escaped' ? '#2a0d0d' : result === 'ok' ? '#0d2a10' : result === 'no' ? '#2a0d0d' : D.card;
+          const bgColor = catchResult === 'escaped' ? '#2a0d0d' : result === 'ok' ? '#0d2a10' : result === 'no' ? '#2a0d0d' : D.card;
           return (
             <div className="fade-up" style={{ background: bgColor, border: `3px solid ${D.yellow}`, borderRadius: 16, padding: 16, boxShadow: `4px 4px 0 ${D.yellow}40`, transition: 'background .4s' }}>
               {/* Header */}
@@ -1360,16 +1353,12 @@ export default function BattleScreen() {
                 )}
               </div>
 
-              {/* Result or input */}
-              {catchResult ? (
+              {/* Escaped result, or the input. A successful catch skips this panel
+                  entirely and jumps to the full-screen summary. */}
+              {catchResult === 'escaped' ? (
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <div style={{ fontSize: 36, marginBottom: 8 }}>{catchResult === 'caught' ? '🎉' : '💨'}</div>
-                  <div style={{ fontFamily: FONT_PIXEL, fontSize: 11, color: catchResult === 'caught' ? D.green : D.red }}>
-                    {catchResult === 'caught' ? `${enemyName} caught!` : 'It escaped!'}
-                  </div>
-                  {catchResult === 'caught' && (
-                    <div style={{ fontSize: 12, color: D.muted, marginTop: 8, fontWeight: 700 }}>Sent to PC Box →</div>
-                  )}
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>💨</div>
+                  <div style={{ fontFamily: FONT_PIXEL, fontSize: 11, color: D.red }}>It escaped!</div>
                 </div>
               ) : (
                 <>
