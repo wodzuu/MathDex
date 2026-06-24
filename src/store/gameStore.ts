@@ -9,6 +9,7 @@ import { getMove } from '../data/moves';
 import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK } from '../data/curriculum';
 import { evolveOnLevelUp } from '../lib/evolution';
 import { pickLevel, pickEncounterSpecies, buildEncounter, EMPTY_PITY } from '../lib/encounterGenerator';
+import { makeTrainer } from '../lib/newGame';
 
 // ── Exported helpers ──────────────────────────────────────────────────────────
 
@@ -71,6 +72,11 @@ function patchTrainer(
 interface GameStoreState extends GameState {
   hydrateFromSave: (state: GameState) => void;
 
+  /** Create a new trainer (name + starter species) and make it active. */
+  createTrainer:    (name: string, starterId: string) => void;
+  /** Switch the active trainer to a previously-created one. */
+  setActiveTrainer: (id: string) => void;
+
   updatePokemon:    (instanceId: string, patch: Partial<OwnedPokemon>) => void;
   addCaughtPokemon: (pokemon: Omit<OwnedPokemon, 'instanceId'>) => OwnedPokemon;
   setParty:         (partyIds: string[]) => void;
@@ -104,6 +110,15 @@ export const useGameStore = create<GameStoreState>()(
       ...EMPTY,
 
       hydrateFromSave: (state) => set(state, false, 'hydrateFromSave'),
+
+      createTrainer: (name, starterId) =>
+        set((s) => {
+          const trainer = makeTrainer(name, starterId);
+          return { trainers: [...s.trainers, trainer], activeTrainerId: trainer.id };
+        }, false, 'createTrainer'),
+
+      setActiveTrainer: (id) =>
+        set((s) => (s.trainers.some((t) => t.id === id) ? { activeTrainerId: id } : {}), false, 'setActiveTrainer'),
 
       updatePokemon: (instanceId, patch) =>
         set((s) => patchTrainer(s, (t) => ({

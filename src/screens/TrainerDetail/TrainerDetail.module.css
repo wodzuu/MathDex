@@ -51,6 +51,19 @@
 }
 .name { font-size: 22px; font-weight: 900; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85); }
 
+/* ── Trainer switcher (4 per row, wraps to new rows) ── */
+.trainerRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0 14px 2px; }
+.tChip {
+  min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: #161b30; border: 2px solid #3a3d5c; border-radius: 12px; padding: 9px 6px 8px; cursor: pointer;
+}
+.tChipActive { border-color: #FFCB05; background: #1a1c12; }
+.tChipImg { width: 44px; height: 44px; image-rendering: pixelated; object-fit: contain; }
+.tChipName { font-size: 11px; font-weight: 800; color: #f0f4ff; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tChipBadge { font-family: 'Press Start 2P', monospace; font-size: 6px; color: #FFCB05; letter-spacing: 0.5px; }
+.tChipNew { border-style: dashed; justify-content: center; color: #aeb8d6; }
+.tChipPlus { font-size: 30px; line-height: 1; color: #8892b8; font-weight: 700; }
+
 /* ── Stats ── */
 .statGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 14px; }
 .statCard { background: #161b30; border: 1px solid #3a3d5c; border-radius: 12px; padding: 14px; text-align: center; }

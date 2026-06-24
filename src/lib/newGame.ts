@@ -1,37 +1,47 @@
 import type { GameState, Trainer, OwnedPokemon } from '../types/gameState';
+import type { PokemonSpecies } from '../types/pokemon';
 import { expToLevel, calcHp } from './formulas';
 import { EMPTY_PITY } from './encounterGenerator';
 import { getSpecies } from '../data/species';
+import { getMove } from '../data/moves';
 
-export function createNewGame(): GameState {
-  const species = getSpecies('pikachu');
-  if (!species) throw new Error('[newGame] pikachu not found in species data');
+const STARTER_LEVEL = 1;
 
-  const startLevel = 1;
-  const startExp   = expToLevel(startLevel);
-  const maxHp      = calcHp(species.baseStats.hp, startLevel);
+/** The four choosable starter species (by id), in display order. */
+export const STARTER_IDS = ['pikachu', 'bulbasaur', 'charmander', 'squirtle'] as const;
+export type StarterId = typeof STARTER_IDS[number];
 
-  const pikachu: OwnedPokemon = {
+/** Moves a freshly-caught starter knows: those learnt by the starting level
+ *  (capped at 4), falling back to its first learnset entries so it always has
+ *  something to attack with. */
+function starterMoves(species: PokemonSpecies): OwnedPokemon['moves'] {
+  const known  = species.learnset.filter((lm) => lm.level <= STARTER_LEVEL);
+  const picked = known.length ? known.slice(-4) : species.learnset.slice(0, 2);
+  return picked.map((lm) => ({ moveId: lm.moveId, currentPp: getMove(lm.moveId)?.pp ?? 20 }));
+}
+
+/** Build a brand-new trainer with the chosen name and starter Pokémon. */
+export function makeTrainer(name: string, starterId: string): Trainer {
+  const species = getSpecies(starterId);
+  if (!species) throw new Error(`[newGame] starter not found: ${starterId}`);
+
+  const starter: OwnedPokemon = {
     instanceId: crypto.randomUUID(),
-    speciesId:  'pikachu',
-    totalExp:   startExp,
-    currentHp:  maxHp,
-    moves: [
-      { moveId: 'thundershock', currentPp: 30 },
-      { moveId: 'growl',        currentPp: 40 },
-    ],
+    speciesId:  starterId,
+    totalExp:   expToLevel(STARTER_LEVEL),
+    currentHp:  calcHp(species.baseStats.hp, STARTER_LEVEL),
+    moves:      starterMoves(species),
   };
 
-  const trainer: Trainer = {
-    id:            crypto.randomUUID(),
-    name:          'Ash',
-    caughtPokemon:  [pikachu],
-    party:          [pikachu.instanceId],
-    leadInstanceId: pikachu.instanceId,
-    pokeDollars:   500,
-    pokeballs:     { pokeball: 5, greatBall: 0, ultraBall: 0 },
-    // (no floors — difficulty scales with opponent level)
-    potions:       { potion: 3, superPotion: 0, hyperPotion: 0 },
+  return {
+    id:             crypto.randomUUID(),
+    name:           name.trim() || 'Trainer',
+    caughtPokemon:  [starter],
+    party:          [starter.instanceId],
+    leadInstanceId: starter.instanceId,
+    pokeDollars:    500,
+    pokeballs:      { pokeball: 5, greatBall: 0, ultraBall: 0 },
+    potions:        { potion: 3, superPotion: 0, hyperPotion: 0 },
     stats: {
       totalProblemsAttempted: 0,
       totalProblemsSolved:    0,
@@ -47,11 +57,12 @@ export function createNewGame(): GameState {
     mathWindow:    [],
     encounterPity: { ...EMPTY_PITY },
   };
+}
 
-  return {
-    version:         1,
-    activeTrainerId: trainer.id,
-    trainers:        [trainer],
-    settings:        {},
-  };
+/**
+ * A brand-new game has no trainers yet — the player creates their first trainer
+ * (name + starter) on the New Trainer screen before the game begins.
+ */
+export function createNewGame(): GameState {
+  return { version: 1, activeTrainerId: '', trainers: [], settings: {} };
 }

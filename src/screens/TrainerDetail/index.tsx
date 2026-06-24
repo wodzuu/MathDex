@@ -6,9 +6,12 @@
  */
 
 import { useNavigate } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 
-import { useActiveTrainer } from '../../store/gameStore';
+import { useActiveTrainer, useGameStore, getLeadInstanceId } from '../../store/gameStore';
 import { MATH_RANKS, MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, clampMathRank } from '../../data/curriculum';
+import { getSpecies } from '../../data/species';
+import { getIdleSpriteUrl } from '../../lib/sprites';
 import { asset } from '../../lib/assets';
 
 import s from './TrainerDetail.module.css';
@@ -21,6 +24,10 @@ const TARGET_CORRECT = Math.round(MATH_WINDOW_SIZE * MATH_RANKUP_THRESHOLD);
 export default function TrainerDetailScreen() {
   const navigate = useNavigate();
   const trainer  = useActiveTrainer();
+
+  const { trainers, activeTrainerId, setActiveTrainer } = useGameStore(
+    useShallow((st) => ({ trainers: st.trainers, activeTrainerId: st.activeTrainerId, setActiveTrainer: st.setActiveTrainer })),
+  );
 
   const currentRank      = clampMathRank(trainer.mathRank ?? 1);
   const correctInWindow  = (trainer.mathWindow ?? []).filter(Boolean).length;
@@ -39,6 +46,30 @@ export default function TrainerDetailScreen() {
       <div className={s.hero}>
         <img className={s.avatar} src={TRAINER_IMG} alt={trainer.name} />
         <div className={s.name}>{trainer.name}</div>
+      </div>
+
+      <div className={s.sectionLabel}>Trainers</div>
+      <div className={s.trainerRow}>
+        {trainers.map((t) => {
+          const lead = t.caughtPokemon.find((p) => p.instanceId === getLeadInstanceId(t));
+          const dex  = lead ? getSpecies(lead.speciesId)?.dexNumber ?? 1 : 1;
+          const isActive = t.id === activeTrainerId;
+          return (
+            <button
+              key={t.id}
+              className={`${s.tChip} ${isActive ? s.tChipActive : ''}`}
+              onClick={() => { if (!isActive) setActiveTrainer(t.id); }}
+            >
+              <img className={s.tChipImg} src={getIdleSpriteUrl(dex)} alt="" />
+              <span className={s.tChipName}>{t.name}</span>
+              {isActive && <span className={s.tChipBadge}>ACTIVE</span>}
+            </button>
+          );
+        })}
+        <button className={`${s.tChip} ${s.tChipNew}`} onClick={() => navigate('/new-trainer')}>
+          <span className={s.tChipPlus}>+</span>
+          <span className={s.tChipName}>New</span>
+        </button>
       </div>
 
       <div className={s.sectionLabel}>Stats</div>
