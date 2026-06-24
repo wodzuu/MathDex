@@ -270,9 +270,17 @@ export default function BattleScreen() {
   // ── Component state ─────────────────────────────────────────────────────────
   const [panel, setPanel]               = useState<Panel>('moves');
   const [selectedMove, setSelectedMove] = useState<MoveSlot | null>(null);
-  const [currentPuzzle, setPuzzle]      = useState<MathPuzzle | null>(null);
   const [answer, setAnswer]             = useState('');
   const [timer, setTimer]               = useState(6);
+  // Multi-challenge attack: picking a move queues several math puzzles. The
+  // player answers them one at a time — each with its own timer — with NO
+  // feedback; once all are answered we reveal ✅/❌, subtract a fixed deduction
+  // per wrong answer from the move's damage, then show a "Deal N damage" button.
+  const [challenges, setChallenges]     = useState<MathPuzzle[]>([]);
+  const [chAnswers, setChAnswers]       = useState<(number | null)[]>([]);
+  const [chBaseDmg, setChBaseDmg]       = useState(0);   // move's full damage (incl. crit)
+  const [chIsCrit, setChIsCrit]         = useState(false);
+  // Catch-math feedback ('ok'/'no' after the catch answer is submitted).
   const [result, setResult]             = useState<'ok' | 'no' | null>(null);
   const [enemyHpPct, setEnemyHpPct]     = useState(initEnemyHp);
   const [playerHpPct, setPlayerHpPct]   = useState(initPlayerHp);
@@ -304,7 +312,6 @@ export default function BattleScreen() {
   const tiRef        = useRef<ReturnType<typeof setInterval> | null>(null);
   const inpRef       = useRef<HTMLInputElement>(null);
   const moveRef      = useRef<MoveSlot | null>(null);
-  const resultRef    = useRef<'ok' | 'no' | null>(null);
   const focusPipsRef = useRef(initFocusPips);
   const playerHpPctRef = useRef(initPlayerHp);
   // Mid-battle party switching: mirror of the active fighter id + a per-member
@@ -312,11 +319,14 @@ export default function BattleScreen() {
   const activeIdRef = useRef(battle?.activePlayerInstanceId ?? '');
   const hpStashRef  = useRef<Record<string, number>>({});
   const seededRef   = useRef(false);
-  // Guards resolveAttack against re-entry: each puzzle resolves exactly once.
-  // resolveAttack is recreated every render (stats are fresh objects), so the
-  // timer-expiry effect can otherwise fire it repeatedly. Reset on new puzzle.
+  // Guards the final damage application against re-entry: the "Deal damage"
+  // button resolves the move exactly once. Reset when a new move is picked.
   const resolvedRef = useRef(false);
-  const puzzleRef   = useRef<MathPuzzle | null>(null);
+  // Synchronous mirrors so the per-challenge timer (a long-lived interval) and
+  // appendAnswer always read the current queue / answers / typed value.
+  const challengesRef = useRef<MathPuzzle[]>([]);
+  const chAnswersRef  = useRef<(number | null)[]>([]);
+  const answerRef     = useRef('');
   // Battle stat modifiers from status moves (1 = no change). Persist for the
   // whole battle; reset naturally because a new battle remounts this screen.
   const enemyAtkMultRef = useRef(1);
@@ -329,9 +339,10 @@ export default function BattleScreen() {
   // Pokémon keeps what it earned even if the enemy is later caught. Spec §4.7.
   const expAccRef = useRef<Record<string, { name: string; dexNumber: number; expAdded: number; oldLevel: number }>>({});
 
-  useEffect(() => { moveRef.current      = selectedMove; }, [selectedMove]);
-  useEffect(() => { resultRef.current    = result; }, [result]);
-  useEffect(() => { puzzleRef.current    = currentPuzzle; }, [currentPuzzle]);
+  useEffect(() => { moveRef.current       = selectedMove; }, [selectedMove]);
+  useEffect(() => { answerRef.current      = answer; }, [answer]);
+  useEffect(() => { challengesRef.current  = challenges; }, [challenges]);
+  useEffect(() => { chAnswersRef.current   = chAnswers; }, [chAnswers]);
   useEffect(() => { focusPipsRef.current = focusPips; }, [focusPips]);
   // Persist the Focus meter to the trainer so it survives battles + sessions.
   useEffect(() => { if (battle) setFocus(focusPips); }, [focusPips, battle, setFocus]);
@@ -445,9 +456,11 @@ export default function BattleScreen() {
     setPlayerHpPct(hp);
     playerHpPctRef.current = hp;
     setPanel('moves');
-    setResult(null);
     setSelectedMove(null);
-    setPuzzle(null);
+    setChallenges([]);  challengesRef.current = [];
+    setChAnswers([]);   chAnswersRef.current  = [];
+    setAnswer('');      answerRef.current = '';
+    if (tiRef.current) { clearInterval(tiRef.current); tiRef.current = null; }
   }, []);
 
   // ── Victory / flee navigation ───────────────────────────────────────────────
@@ -560,68 +573,93 @@ export default function BattleScreen() {
     return () => clearTimeout(t);
   }, [battle, enemyAttack, handleBlackout, firstAlive, switchTo, markOpeningResolved]);
 
-  // ── Attack resolution ───────────────────────────────────────────────────────
+  // ── Per-challenge timer ─────────────────────────────────────────────────────
+  // Each challenge gets its own countdown. The interval keeps `remaining` in a
+  // local so it never reads stale React state; on expiry it locks in whatever is
+  // typed (blank → null) and advances via appendAnswer.
 
-  const resolveAttack = useCallback((correct: boolean, slot: MoveSlot) => {
-    if (resolvedRef.current) return;   // this puzzle was already resolved
-    resolvedRef.current = true;
+  function startChallengeTimer(seconds: number) {
     if (tiRef.current) clearInterval(tiRef.current);
-    setResult(correct ? 'ok' : 'no');
+    setTimer(seconds);
+    let remaining = seconds;
+    tiRef.current = setInterval(() => {
+      remaining -= 1;
+      setTimer(Math.max(0, remaining));
+      if (remaining <= 0) {
+        clearInterval(tiRef.current!);
+        tiRef.current = null;
+        const v = parseInt(answerRef.current, 10);
+        appendAnswer(Number.isNaN(v) ? null : v);
+      }
+    }, 1000);
+  }
 
-    const mult         = effectiveMultiplier(slot.type, activeEnemyTypes);
-    const accuracyMult = correct ? 1.0 : 0.75;
+  // Lock in the current challenge's answer and move to the next one (or, when the
+  // last is answered, stop the clock so the reveal + "Deal damage" button shows).
+  function appendAnswer(value: number | null) {
+    const total = challengesRef.current.length;
+    const prev  = chAnswersRef.current;
+    if (total === 0 || prev.length >= total) return;   // nothing pending
+    const next = [...prev, value];
+    chAnswersRef.current = next;
+    setChAnswers(next);
+    setAnswer('');
+    answerRef.current = '';
+    if (next.length < total) {
+      startChallengeTimer(challengesRef.current[next.length].timeLimitSeconds ?? 6);
+      setTimeout(() => inpRef.current?.focus(), 60);
+    } else if (tiRef.current) {
+      clearInterval(tiRef.current);
+      tiRef.current = null;
+    }
+  }
 
-    const stabMult: 1 | 1.5 = activePlayerTypes.some((t) => t === slot.type) ? 1.5 : 1;
-    // Charged attack: when the Focus Meter is full (5 pips), a correct answer
-    // lands a 2× critical hit and discharges the meter. Spec §4.4.
-    const isCrit    = correct && focusPipsRef.current >= 5;
-    const critMult: 1 | 2 = isCrit ? 2 : 1;
+  // Timer expiry — catch math (its own single-puzzle timer)
+  useEffect(() => {
+    if (timer > 0 || panel !== 'catch' || catchResult !== null) return;
+    handleSubmitCatch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer, panel, catchResult]);
 
-    let damage    = 0;
-    let damagePct = 0;
+  // ── Apply the resolved move ─────────────────────────────────────────────────
+  // Called from the "Deal N damage" button once every challenge is answered.
+  // Damage = baseDmg − (wrong answers × deduction), where deduction = baseDmg/N.
 
-    // Every move chips the opponent. Status moves (power 0) deal a small fixed
-    // amount AND apply their stat effect below, so they always do something visible.
-    const STATUS_CHIP_POWER = 20;
-    const effPower = slot.power > 0 ? slot.power : STATUS_CHIP_POWER;
+  function applyComputedAttack() {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
+    if (tiRef.current) { clearInterval(tiRef.current); tiRef.current = null; }
 
-    const atkStat = slot.category === 'special'
-      ? (playerStats?.spAtk   ?? 10)
-      : (playerStats?.attack  ?? 10);
-    const baseDef = slot.category === 'special'
-      ? (enemyStats?.spDef    ?? 10)
-      : (enemyStats?.defense  ?? 10);
-    // Apply any enemy DEFENSE debuff accumulated from status moves.
-    const defStat = Math.max(1, baseDef * enemyDefMultRef.current);
+    const slot = selectedMove;
+    if (!slot) return;
 
-    damage = calcDamage({
-      movePower:          effPower,
-      itemBonus:          0,
-      attackerAtk:        atkStat,
-      defenderDef:        defStat,
-      attackerLevel:      playerLevel,
-      typeMultiplier:     mult as 0 | 0.5 | 1 | 2,
-      stabMultiplier:     stabMult,
-      critMultiplier:     critMult,
-      accuracyMultiplier: accuracyMult,
+    const total        = challenges.length;
+    const correctCount = challenges.reduce((c, p, i) => c + (chAnswers[i] != null && chAnswers[i] === p.answer ? 1 : 0), 0);
+    const wrongCount   = total - correctCount;
+    const allCorrect   = wrongCount === 0;
+    const guaranteed   = Math.round(chBaseDmg * 0.5);   // 50% is always dealt
+    const deduction    = total ? Math.round((chBaseDmg - guaranteed) / total) : 0;
+    const damage       = Math.max(guaranteed, chBaseDmg - wrongCount * deduction);
+
+    // Each challenge counts toward math-rank progress against its own topic.
+    challenges.forEach((p, i) => {
+      const ok = chAnswers[i] != null && chAnswers[i] === p.answer;
+      recordMathAttempt(p.topic ?? ('addition' as MathTopic), ok, p.isReview ?? false);
     });
 
-    damagePct = enemyMaxHp
+    const damagePct = enemyMaxHp
       ? Math.min(100, Math.round((damage / enemyMaxHp) * 100))
-      : Math.max(1, damage);
+      : Math.max(0, damage);
 
-    // ── The player's hit — applies status effect, enemy damage, EXP, focus,
-    //    the damage float and records the math attempt. Returns whether the
-    //    enemy fainted.
     const performPlayerHit = (): boolean => {
-      // Status move — additionally apply its battle stat modifier + show a message.
+      // Status move — apply its battle stat modifier; full effect only if flawless.
       if (slot.power === 0) {
         const eff    = statusEffectFor(slot.moveId);
-        const factor = softenFactor(eff.factor, correct);
+        const factor = softenFactor(eff.factor, allCorrect);
         if (eff.target === 'enemyAtk')  { enemyAtkMultRef.current  *= factor; setEnemyAtkMult(enemyAtkMultRef.current); }
         if (eff.target === 'enemyDef')  { enemyDefMultRef.current  *= factor; setEnemyDefMult(enemyDefMultRef.current); }
         if (eff.target === 'playerDef') { playerDefMultRef.current *= factor; setPlayerDefMult(playerDefMultRef.current); }
-        setStatusMsg(correct ? eff.msg : `${eff.msg} (weak)`);
+        setStatusMsg(allCorrect ? eff.msg : `${eff.msg} (weak)`);
         setTimeout(() => setStatusMsg(null), 1400);
       }
 
@@ -632,71 +670,47 @@ export default function BattleScreen() {
         enemyHpRef.current = newEnemyHp;
       }
 
-      // Award EXP immediately for the HP fraction actually removed (capped at the
-      // enemy's remaining HP), proportional to the enemy's total EXP value. The
-      // attacker is the currently-active Pokémon. Sum across all hits ≈ full reward.
       const hpFractionRemoved = oldEnemyHp - newEnemyHp;   // 0–100 (% of max HP)
       if (hpFractionRemoved > 0) {
         const totalExpReward = expGained(enemySpecies?.baseExp ?? 64, enemyLevel);
         awardExp(Math.round(totalExpReward * hpFractionRemoved / 100));
       }
 
-      setFocusPips(isCrit ? 0 : correct ? Math.min(5, focusPipsRef.current + 1) : 0);
+      setFocusPips(chIsCrit ? 0 : allCorrect ? Math.min(5, focusPipsRef.current + 1) : 0);
 
       if (damagePct > 0) {
         const floatId = Date.now();
-        setFloats((f) => [...f, { id: floatId, amount: damage, correct, crit: isCrit, target: 'enemy' }]);
+        setFloats((f) => [...f, { id: floatId, amount: damage, correct: allCorrect, crit: chIsCrit, target: 'enemy' }]);
         setTimeout(() => setFloats((f) => f.filter((x) => x.id !== floatId)), 1800);
       }
-
-      // Record the math attempt against the active puzzle's topic
-      recordMathAttempt(puzzleRef.current?.topic ?? ('addition' as MathTopic), correct, puzzleRef.current?.isReview ?? false);
 
       return newEnemyHp <= 0;
     };
 
     const nextTurn = () => {
       setPanel('moves');
-      setResult(null);
-      setAnswer('');
       setSelectedMove(null);
-      setPuzzle(null);
+      setChallenges([]);  challengesRef.current = [];
+      setChAnswers([]);   chAnswersRef.current  = [];
+      setAnswer('');      answerRef.current = '';
     };
 
-    // The player always initiates each turn by solving the puzzle, so their move
-    // lands first; the wild Pokémon then counterattacks. (A faster enemy already
-    // took its extra hit as the opening strike at the start of the battle.)
+    // The player's move lands first, then the wild Pokémon counterattacks.
     if (performPlayerHit()) {
       setTimeout(handleVictory, 1200);   // enemy fainted — player wins outright
       return;
     }
     setTimeout(() => {
       if (enemyAttack()) {
-        // Active Pokémon fainted — send out the next healthy one, or black out.
         const next = firstAlive(activeIdRef.current);
         if (next) switchTo(next); else handleBlackout();
         return;
       }
       nextTurn();
     }, 1200);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeEnemyTypes, activePlayerTypes, enemyMaxHp, playerMaxHp, playerStats, enemyStats, handleVictory, handleBlackout, recordMathAttempt, awardExp, enemyAttack, firstAlive, switchTo]);
+  }
 
-  // Timer expiry — attack math
-  useEffect(() => {
-    if (timer > 0 || panel !== 'math' || resultRef.current !== null) return;
-    const slot = moveRef.current;
-    if (slot) resolveAttack(false, slot);
-  }, [timer, panel, resolveAttack]);
-
-  // Timer expiry — catch math
-  useEffect(() => {
-    if (timer > 0 || panel !== 'catch' || catchResult !== null) return;
-    handleSubmitCatch();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer, panel, catchResult]);
-
-  // ── Pick move → generate puzzle → start timer ───────────────────────────────
+  // ── Pick move → queue N challenges → start the first timer ───────────────────
 
   function handlePickMove(slot: MoveSlot) {
     if (slot.currentPp === 0) return;
@@ -710,21 +724,36 @@ export default function BattleScreen() {
       updatePokemon(playerPokemon.instanceId, { moves: newMoves });
     }
 
-    const puzzle       = generateRankedPuzzle(mathRank);
-    const initialTimer = puzzle.timeLimitSeconds ?? 6;
+    // The move's full damage vs this enemy (matches the number on the move row,
+    // including a charged crit) — the damage a flawless answer set would deal.
+    const isCrit  = focusPipsRef.current >= 5;
+    const baseDmg = Math.max(1, Math.round(calcDamage({
+      movePower:          slot.power > 0 ? slot.power : 20,
+      itemBonus:          0,
+      attackerAtk:        slot.category === 'special' ? (playerStats?.spAtk ?? 10) : (playerStats?.attack ?? 10),
+      defenderDef:        Math.max(1, (slot.category === 'special' ? (enemyStats?.spDef ?? 10) : (enemyStats?.defense ?? 10)) * enemyDefMultRef.current),
+      attackerLevel:      playerLevel,
+      typeMultiplier:     effectiveMultiplier(slot.type, activeEnemyTypes) as 0 | 0.5 | 1 | 2,
+      stabMultiplier:     activePlayerTypes.some((t) => t === slot.type) ? 1.5 : 1,
+      critMultiplier:     isCrit ? 2 : 1,
+      accuracyMultiplier: 1,
+    })));
+
+    // How many challenges: aim for ~5 across the fight, scaled by the share of the
+    // enemy's max HP this move removes. N = ceil(min(1, DMG/MHP) × 5), at least 1.
+    const chunk   = enemyMaxHp ? Math.min(1, baseDmg / enemyMaxHp) : 1;
+    const count   = Math.max(1, Math.ceil(chunk * 5));
+    const puzzles = Array.from({ length: count }, () => generateRankedPuzzle(mathRank));
 
     setSelectedMove(slot);
-    setPuzzle(puzzle);
-    setAnswer('');
-    setResult(null);
-    resolvedRef.current = false;   // arm resolution for the new puzzle
+    setChallenges(puzzles);   challengesRef.current = puzzles;
+    setChAnswers([]);         chAnswersRef.current  = [];
+    setChBaseDmg(baseDmg);
+    setChIsCrit(isCrit);
+    setAnswer('');            answerRef.current = '';
+    resolvedRef.current = false;   // arm the final resolution
     setPanel('math');
-    setTimer(initialTimer);
-
-    if (tiRef.current) clearInterval(tiRef.current);
-    tiRef.current = setInterval(() => {
-      setTimer((t) => { if (t <= 1) { clearInterval(tiRef.current!); return 0; } return t - 1; });
-    }, 1000);
+    startChallengeTimer(puzzles[0].timeLimitSeconds ?? 6);
 
     setTimeout(() => inpRef.current?.focus(), 80);
   }
@@ -732,10 +761,11 @@ export default function BattleScreen() {
   // ── Submit answer ───────────────────────────────────────────────────────────
 
   function handleSubmitAnswer() {
-    if (!currentPuzzle || !selectedMove || result !== null) return;
+    // Lock in the current challenge's answer (no feedback yet) and advance.
+    if (challenges.length === 0 || chAnswers.length >= challenges.length) return;
     const v = parseInt(answer, 10);
     if (isNaN(v)) return;
-    resolveAttack(v === currentPuzzle.answer, selectedMove);
+    appendAnswer(v);
   }
 
   // ── Use potion ──────────────────────────────────────────────────────────────
@@ -845,6 +875,20 @@ export default function BattleScreen() {
     : false;
 
   const mathBg      = result === 'ok' ? '#0d2a10' : result === 'no' ? '#2a0d0d' : D.card;
+
+  // Multi-challenge attack — values derived for the math panel.
+  const chIdx          = chAnswers.length;                          // current (unanswered) challenge
+  const allAnswered    = challenges.length > 0 && chIdx >= challenges.length;
+  const chCorrectCount = challenges.reduce((c, p, i) => c + (chAnswers[i] != null && chAnswers[i] === p.answer ? 1 : 0), 0);
+  const chWrongCount   = challenges.length - chCorrectCount;
+  // Half the move's damage is guaranteed; the other half is earned by the math.
+  // Each wrong answer forfeits an equal share of that earnable half.
+  const chGuaranteed   = Math.round(chBaseDmg * 0.5);
+  const chDeduction    = challenges.length ? Math.round((chBaseDmg - chGuaranteed) / challenges.length) : 0;
+  const chFinalDamage  = Math.max(chGuaranteed, chBaseDmg - chWrongCount * chDeduction);
+  const curChallenge   = challenges[chIdx];
+  const curTimeLimit   = curChallenge?.timeLimitSeconds ?? 6;
+
   const totalPotions = potions.potion + potions.superPotion + potions.hyperPotion;
   const totalBalls   = (trainer.pokeballs.pokeball ?? 0) + (trainer.pokeballs.greatBall ?? 0) + (trainer.pokeballs.ultraBall ?? 0);
   const hpCol = (pct: number) => (pct > 50 ? '#48c774' : pct > 20 ? '#F8D030' : '#CC0000');
@@ -1110,50 +1154,89 @@ export default function BattleScreen() {
             </div>
           )}
 
-        {/* ── MATH PUZZLE PANEL ── */}
-        {panel === 'math' && selectedMove && currentPuzzle && (
+        {/* ── MATH CHALLENGE PANEL (multiple challenges per move) ── */}
+        {panel === 'math' && selectedMove && challenges.length > 0 && (
           <div className="fade-up" style={{ background: mathBg, border: `3px solid ${D.yellow}`, borderRadius: 16, padding: 16, boxShadow: `4px 4px 0 ${D.yellow}40`, transition: 'background .4s' }}>
+            {/* Header: move + progress + (current) timer */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                   <TypeBadge type={selectedMove.type} large />
                   <span style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{selectedMove.name.toUpperCase()}</span>
                 </div>
-                <div style={{ fontFamily: FONT_PIXEL, fontSize: 19, color: D.yellow, lineHeight: 1.8 }}>
-                  {currentPuzzle.isReview && <span title="Review challenge — keeps earlier skills sharp">⭐ </span>}
-                  {currentPuzzle.equation}
+                <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>
+                  {allAnswered ? `${chCorrectCount}/${challenges.length} CORRECT` : `CHALLENGE ${chIdx + 1}/${challenges.length}`}
                 </div>
                 {isSuperEff && <div className="supereff-badge" style={{ marginTop: 8 }}>SUPER EFFECTIVE!</div>}
               </div>
-              {/* Timer */}
-              <div style={{ textAlign: 'center', minWidth: 44, flexShrink: 0 }}>
-                <div style={{ fontFamily: FONT_PIXEL, fontSize: 24, lineHeight: 1.2, color: timer <= 2 ? D.red : timer <= 4 ? D.yellow : D.white, ...(timer <= 2 ? { animation: 'timerPulse .4s ease-in-out infinite' } : {}) }}>
-                  {timer}
+              {/* Current-challenge timer (each challenge has its own countdown) */}
+              {!allAnswered && (
+                <div style={{ textAlign: 'center', minWidth: 44, flexShrink: 0 }}>
+                  <div style={{ fontFamily: FONT_PIXEL, fontSize: 24, lineHeight: 1.2, color: timer <= 2 ? D.red : timer <= 4 ? D.yellow : D.white, ...(timer <= 2 ? { animation: 'timerPulse .4s ease-in-out infinite' } : {}) }}>
+                    {timer}
+                  </div>
+                  <div style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted, marginTop: 2 }}>SEC</div>
+                  <div style={{ width: 38, height: 4, background: '#111', border: `1px solid ${D.border}`, borderRadius: 2, margin: '5px auto 0', overflow: 'hidden' }}>
+                    <div style={{ width: `${(timer / curTimeLimit) * 100}%`, height: '100%', background: D.yellow, transition: 'width 1s linear' }} />
+                  </div>
                 </div>
-                <div style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted, marginTop: 2 }}>SEC</div>
-                <div style={{ width: 38, height: 4, background: '#111', border: `1px solid ${D.border}`, borderRadius: 2, margin: '5px auto 0', overflow: 'hidden' }}>
-                  <div style={{ width: `${(timer / (currentPuzzle.timeLimitSeconds ?? 6)) * 100}%`, height: '100%', background: D.yellow, transition: 'width 1s linear' }} />
-                </div>
-              </div>
+              )}
             </div>
 
-            <input ref={inpRef} type="number" value={answer} placeholder="?" inputMode="numeric"
-              onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmitAnswer()}
-              style={{ width: '100%', fontFamily: FONT_PIXEL, fontSize: 22, textAlign: 'center', background: result === 'ok' ? '#0a1a0a' : result === 'no' ? '#1a0a0a' : D.darker, color: D.white, border: `2px solid ${result === 'ok' ? D.green : result === 'no' ? D.red : D.border2}`, borderRadius: 10, padding: 12, outline: 'none', transition: 'all .2s', boxSizing: 'border-box' }}
-            />
+            {/* Stacked challenges — earlier ones stay visible with the typed answer.
+                ✅/❌ + the damage penalty stay hidden until every answer is in. */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+              {challenges.map((p, i) => {
+                const ans       = chAnswers[i];
+                const isCurrent = !allAnswered && i === chIdx;
+                const isDone    = i < chIdx;                       // answered, pre-reveal
+                const correct   = ans != null && ans === p.answer;
+                // Substitute the player's answer into the equation once it's locked in;
+                // the live row reflects what's being typed right now.
+                const filled    = ans == null ? '·' : String(ans);
+                const liveTyped = answer.trim() !== '' ? answer : '?';
+                const shown     = isCurrent
+                  ? p.equation.replace('?', liveTyped)
+                  : (isDone || allAnswered) ? p.equation.replace('?', filled) : p.equation;
+                const rowBg     = allAnswered ? (correct ? '#0d2a10' : '#2a0d0d')
+                                : isCurrent ? '#1a1c12' : D.darker;
+                const rowBd     = allAnswered ? (correct ? D.green : D.red)
+                                : isCurrent ? D.yellow : D.border;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: rowBg, border: `2px solid ${rowBd}`, borderRadius: 10, padding: '9px 11px', opacity: !allAnswered && i > chIdx ? 0.45 : 1 }}>
+                    <span style={{ fontFamily: FONT_PIXEL, fontSize: 15, color: isCurrent ? D.yellow : D.white, lineHeight: 1.5, flex: 1 }}>
+                      {p.isReview && <span title="Review challenge">⭐ </span>}{shown}
+                    </span>
+                    {allAnswered && (correct
+                      ? <span style={{ fontSize: 16 }}>✅</span>
+                      : <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: D.red }}>-{chDeduction}</span>
+                          <span style={{ fontSize: 16 }}>❌</span>
+                        </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
-            {result ? (
-              <div style={{ textAlign: 'center', fontFamily: FONT_PIXEL, fontSize: 10, marginTop: 10, color: result === 'ok' ? D.green : D.red }}>
-                {selectedMove && selectedMove.power === 0
-                  ? (result === 'ok' ? 'CORRECT! Full effect!' : 'WRONG! Weak effect...')
-                  : (result === 'ok' ? 'CORRECT! Full power!'  : 'WRONG! 75% power...')}
-              </div>
+            {!allAnswered ? (
+              <>
+                <input ref={inpRef} type="number" value={answer} placeholder="?" inputMode="numeric"
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSubmitAnswer()}
+                  style={{ width: '100%', fontFamily: FONT_PIXEL, fontSize: 22, textAlign: 'center', background: D.darker, color: D.white, border: `2px solid ${D.border2}`, borderRadius: 10, padding: 12, outline: 'none', transition: 'all .2s', boxSizing: 'border-box' }}
+                />
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginTop: 10 }}>
+                  <button onClick={handleSubmitAnswer} style={{ padding: '12px 14px', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: D.yellow, color: D.darker, border: '2px solid rgba(0,0,0,.15)', borderRadius: 12, cursor: 'pointer', boxShadow: '0 4px 0 #a07800' }}>
+                    {chIdx === challenges.length - 1 ? 'CHECK' : 'NEXT'}
+                  </button>
+                  <button onClick={() => { if (tiRef.current) { clearInterval(tiRef.current); tiRef.current = null; } setPanel('moves'); }} style={{ padding: '12px 14px', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, background: 'transparent', color: D.muted, border: `2px solid ${D.border}`, borderRadius: 12, cursor: 'pointer' }}>←</button>
+                </div>
+              </>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginTop: 10 }}>
-                <button onClick={handleSubmitAnswer} style={{ padding: '12px 14px', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: D.yellow, color: D.darker, border: '2px solid rgba(0,0,0,.15)', borderRadius: 12, cursor: 'pointer', boxShadow: '0 4px 0 #a07800' }}>ATTACK!</button>
-                <button onClick={() => { if (tiRef.current) clearInterval(tiRef.current); setPanel('moves'); }} style={{ padding: '12px 14px', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, background: 'transparent', color: D.muted, border: `2px solid ${D.border}`, borderRadius: 12, cursor: 'pointer' }}>←</button>
-              </div>
+              <button onClick={applyComputedAttack} style={{ width: '100%', padding: '14px', fontFamily: FONT_UI, fontSize: 16, fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: chFinalDamage > 0 ? D.green : D.border2, color: chFinalDamage > 0 ? '#06210e' : D.muted, border: '2px solid rgba(0,0,0,.15)', borderRadius: 12, cursor: 'pointer', boxShadow: chFinalDamage > 0 ? '0 4px 0 #1d6b38' : 'none' }}>
+                Deal {chFinalDamage} damage
+              </button>
             )}
           </div>
         )}
