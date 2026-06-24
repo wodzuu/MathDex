@@ -69,11 +69,9 @@ export default function SummaryScreen() {
         fontFamily: FONT_UI, color: '#eafff0', cursor: 'pointer', overflow: 'hidden',
       }}
     >
-      {/* Background + dimming scrim */}
+      {/* Background */}
       <img src={outcome === 'caught' ? CAUGHT_BG : WON_BG} alt="" aria-hidden
         style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 420, height: '100%', objectFit: 'cover', objectPosition: 'center', zIndex: 0, pointerEvents: 'none' }} />
-      <div aria-hidden
-        style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 420, height: '100%', background: 'linear-gradient(180deg, rgba(6,18,10,0.45) 0%, rgba(6,18,10,0.35) 45%, rgba(6,18,10,0.72) 100%)', zIndex: 0, pointerEvents: 'none' }} />
 
       {/* Centered outcome text */}
       <div className="fade-up" style={{ position: 'relative', zIndex: 1, width: '100%', textAlign: 'center' }}>
@@ -89,7 +87,7 @@ export default function SummaryScreen() {
             style={{ width: 188, height: 188, objectFit: 'contain', margin: '0 auto 14px', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.5))' }} />
         ) : outcome === 'victory' ? (
           <img src={VICTORY_IMG} alt="" aria-hidden
-            style={{ width: 188, height: 188, objectFit: 'contain', margin: '0 auto 14px', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.5))' }} />
+            style={{ width: 'min(300px, 82vw)', height: 'auto', objectFit: 'contain', margin: '0 auto 14px', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.5))' }} />
         ) : (
           <div style={{ fontSize: 46, lineHeight: 1, marginBottom: 14, filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.6))' }}>
             🎯

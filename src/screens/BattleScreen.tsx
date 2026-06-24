@@ -889,12 +889,19 @@ export default function BattleScreen() {
   const curChallenge   = challenges[chIdx];
   const curTimeLimit   = curChallenge?.timeLimitSeconds ?? 6;
 
-  // Once every challenge is answered, Enter fires the "Deal damage" button (no
-  // input is focused at that point, so we listen at the window level).
+  // Once every challenge is answered, a *deliberate* Enter press fires the "Deal
+  // damage" button (no input is focused then, so we listen at the window level).
+  // The Enter that solved the last challenge must NOT carry through and auto-deal,
+  // so we ignore key auto-repeats and any Enter within a short settle window after
+  // the reveal appears — the player has to press Enter again (or click the button).
   useEffect(() => {
     if (panel !== 'math' || !allAnswered) return;
+    const revealedAt = Date.now();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') { e.preventDefault(); applyComputedAttack(); }
+      if (e.key !== 'Enter' || e.repeat) return;
+      if (Date.now() - revealedAt < 400) return;   // the answer-submission Enter
+      e.preventDefault();
+      applyComputedAttack();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
