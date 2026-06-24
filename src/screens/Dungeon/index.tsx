@@ -1,7 +1,7 @@
 /**
  * Dungeon screen — a child-friendly "battle stage" matchup picker.
  *
- * A painted forest backdrop (public/forest.png) with two circular platforms:
+ * A painted forest backdrop (public/forest.jpg) with two circular platforms:
  * the player's Pokémon stands on the near platform, the chosen wild Pokémon on
  * the far one, with a VS badge between. The player swipes / taps arrows to pick
  * which party member fights (left) and which of the 3 wild Pokémon to face
@@ -36,7 +36,7 @@ import type { PokeType } from '../../types/pokemon';
 import { asset } from '../../lib/assets';
 import s from './Dungeon.module.css';
 
-const FOREST_URL  = asset('forest.png');
+const FOREST_URL  = asset('forest.jpg');
 const TRAINER_IMG = asset('trainer.png');
 
 // ── Build an OwnedPokemon from encounter data for battleStore.startBattle() ───

@@ -18,7 +18,7 @@ import type { MathTopic } from '../types/math';
 import b from './Battle.module.css';
 
 // Painted forest-clearing backdrop for the whole battle screen.
-const BATTLE_URL = asset('battle.png');
+const BATTLE_URL = asset('battle.jpg');
 // Impact "poof" shown over a Pokémon while it's taking damage.
 const HIT_URL = asset('misc/hit.png');
 // Trainer portrait — a small badge on "my" Pokémon's panel.

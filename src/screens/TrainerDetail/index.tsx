@@ -14,7 +14,7 @@ import { asset } from '../../lib/assets';
 import s from './TrainerDetail.module.css';
 
 const TRAINER_IMG = asset('trainer.png');
-const TRAINER_BG  = asset('trainer_bg.png');
+const TRAINER_BG  = asset('trainer_bg.jpg');
 // Correct answers (out of the rolling window) needed to advance a rank.
 const TARGET_CORRECT = Math.round(MATH_WINDOW_SIZE * MATH_RANKUP_THRESHOLD);
 

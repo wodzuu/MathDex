@@ -1,5 +1,5 @@
 /**
- * Town hub — a forest backdrop (public/forest.png) split into two zones:
+ * Town hub — a forest backdrop (public/town.jpg) split into two zones:
  *
  *   Top (forest + path)  → tapping enters the dungeon (/dungeon).
  *   Grass (lower)        → building panels:
@@ -21,7 +21,7 @@ import { usePwaStore } from '../../store/pwaStore';
 import { asset } from '../../lib/assets';
 import s from './Town.module.css';
 
-const TOWN_URL    = asset('town.png');
+const TOWN_URL    = asset('town.jpg');
 const TRAINER_IMG = asset('trainer.png');
 
 // Build timestamp injected by Vite (set by the GitHub Pages workflow). Formatted
