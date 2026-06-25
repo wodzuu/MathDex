@@ -85,6 +85,43 @@
 .tChipNew { border-style: dashed; justify-content: center; color: #aeb8d6; }
 .tChipPlus { font-size: 30px; line-height: 1; color: #8892b8; font-weight: 700; }
 
+.deleteLink {
+  display: block; margin: 22px 14px 8px; padding: 12px; width: calc(100% - 28px);
+  background: #3a1414; border: 1.5px solid #8a1f1f; border-radius: 11px;
+  color: #f6a39b; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.deleteLink:active { background: #4a1818; }
+
+/* ── Delete confirmation modal ── */
+.modalOverlay {
+  position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: rgba(4, 6, 12, 0.78);
+}
+.modalCard {
+  width: 100%; max-width: 340px; background: #161b30; border: 2px solid #CC0000; border-radius: 16px;
+  padding: 20px 18px; text-align: center; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+.modalWarn { font-size: 44px; line-height: 1; margin-bottom: 8px; }
+.modalTitle { font-size: 19px; font-weight: 900; color: #f0f4ff; margin-bottom: 10px; }
+.modalText { font-size: 13px; line-height: 1.55; color: #c7cfe8; margin-bottom: 14px; }
+.modalText b { color: #f6a39b; }
+.modalHint { font-size: 13px; color: #aeb8d6; margin-bottom: 8px; }
+.modalHint b { color: #FFCB05; }
+.modalInput {
+  width: 100%; box-sizing: border-box; font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 800; text-align: center;
+  background: #0c1020; color: #f0f4ff; border: 2px solid #3a3d5c; border-radius: 10px; padding: 11px; outline: none; margin-bottom: 14px;
+}
+.modalRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btnGhost {
+  padding: 12px; border-radius: 11px; background: transparent; border: 2px solid #3a3d5c; color: #aeb8d6;
+  font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer;
+}
+.btnDanger {
+  padding: 12px; border-radius: 11px; background: #8a1f1f; border: 2px solid #CC0000; color: #ffe6e3;
+  font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 900; cursor: pointer;
+}
+.btnDanger:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ── Stats ── */
 .statGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 14px; }
 .statCard { background: #161b30; border: 1px solid #3a3d5c; border-radius: 12px; padding: 14px; text-align: center; }

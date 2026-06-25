@@ -26,8 +26,8 @@ export default function TrainerDetailScreen() {
   const navigate = useNavigate();
   const trainer  = useActiveTrainer();
 
-  const { trainers, activeTrainerId, setActiveTrainer, renameActiveTrainer } = useGameStore(
-    useShallow((st) => ({ trainers: st.trainers, activeTrainerId: st.activeTrainerId, setActiveTrainer: st.setActiveTrainer, renameActiveTrainer: st.renameActiveTrainer })),
+  const { trainers, activeTrainerId, setActiveTrainer, renameActiveTrainer, deleteTrainer } = useGameStore(
+    useShallow((st) => ({ trainers: st.trainers, activeTrainerId: st.activeTrainerId, setActiveTrainer: st.setActiveTrainer, renameActiveTrainer: st.renameActiveTrainer, deleteTrainer: st.deleteTrainer })),
   );
 
   // Inline name editing.
@@ -35,6 +35,19 @@ export default function TrainerDetailScreen() {
   const [draft, setDraft]     = useState('');
   const startEdit  = () => { setDraft(trainer.name); setEditing(true); };
   const commitEdit = () => { renameActiveTrainer(draft); setEditing(false); };
+
+  // Delete confirmation — requires typing the word "delete".
+  const [confirming, setConfirming] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const canDelete = confirmText.trim().toLowerCase() === 'delete';
+  const openConfirm  = () => { setConfirmText(''); setConfirming(true); };
+  const handleDelete = () => {
+    if (!canDelete) return;
+    const wasLast = trainers.length <= 1;
+    deleteTrainer(activeTrainerId);
+    setConfirming(false);
+    if (wasLast) navigate('/new-trainer', { replace: true });
+  };
 
   const currentRank      = clampMathRank(trainer.mathRank ?? 1);
   const correctInWindow  = (trainer.mathWindow ?? []).filter(Boolean).length;
@@ -148,6 +161,34 @@ export default function TrainerDetailScreen() {
           );
         })}
       </div>
+
+      <button className={s.deleteLink} onClick={openConfirm}>🗑 Delete {trainer.name}</button>
+
+      {confirming && (
+        <div className={s.modalOverlay} role="dialog" aria-modal="true">
+          <div className={s.modalCard}>
+            <div className={s.modalWarn}>⚠️</div>
+            <div className={s.modalTitle}>Delete {trainer.name}?</div>
+            <div className={s.modalText}>
+              This <b>permanently</b> deletes this trainer along with all their Pokémon,
+              items, money, and progress. This <b>cannot be undone</b>.
+            </div>
+            <div className={s.modalHint}>Type <b>delete</b> to confirm:</div>
+            <input
+              className={s.modalInput}
+              value={confirmText}
+              autoFocus
+              placeholder="delete"
+              onChange={(e) => setConfirmText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(); if (e.key === 'Escape') setConfirming(false); }}
+            />
+            <div className={s.modalRow}>
+              <button className={s.btnGhost} onClick={() => setConfirming(false)}>Cancel</button>
+              <button className={s.btnDanger} onClick={handleDelete} disabled={!canDelete}>Delete forever</button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
