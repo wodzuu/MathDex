@@ -76,6 +76,8 @@ interface GameStoreState extends GameState {
   createTrainer:    (name: string, starterId: string) => void;
   /** Switch the active trainer to a previously-created one. */
   setActiveTrainer: (id: string) => void;
+  /** Rename the active trainer (no-op on an empty name). */
+  renameActiveTrainer: (name: string) => void;
 
   updatePokemon:    (instanceId: string, patch: Partial<OwnedPokemon>) => void;
   addCaughtPokemon: (pokemon: Omit<OwnedPokemon, 'instanceId'>) => OwnedPokemon;
@@ -119,6 +121,13 @@ export const useGameStore = create<GameStoreState>()(
 
       setActiveTrainer: (id) =>
         set((s) => (s.trainers.some((t) => t.id === id) ? { activeTrainerId: id } : {}), false, 'setActiveTrainer'),
+
+      renameActiveTrainer: (name) =>
+        set((s) => {
+          const trimmed = name.trim();
+          if (!trimmed) return {};
+          return patchTrainer(s, () => ({ name: trimmed }));
+        }, false, 'renameActiveTrainer'),
 
       updatePokemon: (instanceId, patch) =>
         set((s) => patchTrainer(s, (t) => ({

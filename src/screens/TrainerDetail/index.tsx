@@ -5,6 +5,7 @@
  * close the player is to ranking up.
  */
 
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -25,9 +26,15 @@ export default function TrainerDetailScreen() {
   const navigate = useNavigate();
   const trainer  = useActiveTrainer();
 
-  const { trainers, activeTrainerId, setActiveTrainer } = useGameStore(
-    useShallow((st) => ({ trainers: st.trainers, activeTrainerId: st.activeTrainerId, setActiveTrainer: st.setActiveTrainer })),
+  const { trainers, activeTrainerId, setActiveTrainer, renameActiveTrainer } = useGameStore(
+    useShallow((st) => ({ trainers: st.trainers, activeTrainerId: st.activeTrainerId, setActiveTrainer: st.setActiveTrainer, renameActiveTrainer: st.renameActiveTrainer })),
   );
+
+  // Inline name editing.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft]     = useState('');
+  const startEdit  = () => { setDraft(trainer.name); setEditing(true); };
+  const commitEdit = () => { renameActiveTrainer(draft); setEditing(false); };
 
   const currentRank      = clampMathRank(trainer.mathRank ?? 1);
   const correctInWindow  = (trainer.mathWindow ?? []).filter(Boolean).length;
@@ -45,7 +52,25 @@ export default function TrainerDetailScreen() {
 
       <div className={s.hero}>
         <img className={s.avatar} src={TRAINER_IMG} alt={trainer.name} />
-        <div className={s.name}>{trainer.name}</div>
+        {editing ? (
+          <div className={s.nameEdit}>
+            <input
+              className={s.nameInput}
+              value={draft}
+              maxLength={12}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditing(false); }}
+            />
+            <button className={s.nameSave} onClick={commitEdit} disabled={!draft.trim()}>✓</button>
+            <button className={s.nameCancel} onClick={() => setEditing(false)}>✕</button>
+          </div>
+        ) : (
+          <button className={s.nameBtn} onClick={startEdit} aria-label="Edit trainer name">
+            <span className={s.name}>{trainer.name}</span>
+            <span className={s.editIcon}>✎</span>
+          </button>
+        )}
       </div>
 
       <div className={s.sectionLabel}>Trainers</div>
