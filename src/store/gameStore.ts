@@ -87,6 +87,9 @@ interface GameStoreState extends GameState {
   setLead:          (instanceId: string) => void;
   depositPokemon:   (instanceId: string) => void;
   withdrawPokemon:  (instanceId: string) => void;
+  /** Swap a boxed Pokémon into the party slot held by a party Pokémon (which
+   *  goes to the box). Lets the player change their team even with one slot. */
+  swapPokemon:      (boxId: string, partyId: string) => void;
   healParty:        () => void;
 
   earnPokeDollars:  (amount: number) => void;
@@ -193,6 +196,16 @@ export const useGameStore = create<GameStoreState>()(
           if (t.party.length >= getMaxPartySize(t) || t.party.includes(instanceId)) return {};
           return { party: [...t.party, instanceId] };
         }), false, 'withdrawPokemon'),
+
+      swapPokemon: (boxId, partyId) =>
+        set((s) => patchTrainer(s, (t) => {
+          // boxId must be owned-but-boxed; partyId must be in the party.
+          if (!t.party.includes(partyId) || t.party.includes(boxId)) return {};
+          if (!t.caughtPokemon.some((p) => p.instanceId === boxId)) return {};
+          const party = t.party.map((id) => (id === partyId ? boxId : id));  // same slot
+          const leadInstanceId = t.leadInstanceId === partyId ? boxId : t.leadInstanceId;
+          return { party, leadInstanceId };
+        }), false, 'swapPokemon'),
 
       healParty: () =>
         set((s) => patchTrainer(s, (t) => ({

@@ -84,6 +84,7 @@ export default function PCScreen() {
   const trainer = useActiveTrainer();
   const depositPokemon  = useGameStore(s => s.depositPokemon);
   const withdrawPokemon = useGameStore(s => s.withdrawPokemon);
+  const swapPokemon     = useGameStore(s => s.swapPokemon);
 
   const maxPartySize = getMaxPartySize(trainer);
   const boxIds       = getPcBoxPokemon(trainer).map(p => p.instanceId);
@@ -97,6 +98,22 @@ export default function PCScreen() {
 
   const partyFull  = partyDisplay.length >= maxPartySize;
   const partyAlone = partyDisplay.length <= 1;
+
+  // Swapping: when the party is full, a boxed Pokémon can take a party slot. With
+  // a single party member there's no choice — swap straight away; otherwise the
+  // player picks which party Pokémon to send to the box.
+  const [pendingSwapId, setPendingSwapId] = useState<string | null>(null);
+  const pendingSwapName = pendingSwapId ? boxDisplay.find(p => p.instanceId === pendingSwapId)?.name : undefined;
+
+  const handleSwapIn = useCallback((boxId: string) => {
+    if (partyDisplay.length === 1) swapPokemon(boxId, partyDisplay[0].instanceId);
+    else setPendingSwapId(boxId);
+  }, [partyDisplay, swapPokemon]);
+
+  const handleSwapHere = useCallback((partyId: string) => {
+    if (pendingSwapId) swapPokemon(pendingSwapId, partyId);
+    setPendingSwapId(null);
+  }, [pendingSwapId, swapPokemon]);
 
   // PC Box sort — by level descending by default. Re-clicking a key flips direction.
   const [sortKey, setSortKey] = useState<SortKey>('level');
@@ -138,6 +155,16 @@ export default function PCScreen() {
         </div>
       </div>
 
+      {/* Swap-in instruction banner */}
+      {pendingSwapId && (
+        <div style={{ margin: '12px 14px 0', padding: '10px 12px', background: '#1a1400', border: `1px solid ${D.yellow}`, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: D.yellow, flex: 1 }}>
+            Swapping in {pendingSwapName ?? 'Pokémon'} — pick a party Pokémon to send to the box.
+          </span>
+          <button onClick={() => setPendingSwapId(null)} style={{ flexShrink: 0, padding: '6px 10px', background: 'transparent', border: `1px solid ${D.border}`, borderRadius: 8, color: D.muted, fontFamily: FONT_UI, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>Cancel</button>
+        </div>
+      )}
+
       {/* ── PARTY ── */}
       <div style={{ padding: '14px 14px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -154,12 +181,12 @@ export default function PCScreen() {
             <PCRow
               key={pk.instanceId}
               pk={pk}
-              actionLabel="Deposit"
-              actionColor={D.muted}
-              actionBg={D.card2}
-              disabled={partyAlone}
-              disabledHint={partyAlone ? 'Need 1 in party' : undefined}
-              onAction={() => handleDeposit(pk.instanceId)}
+              actionLabel={pendingSwapId ? 'Swap here' : 'Deposit'}
+              actionColor={pendingSwapId ? D.yellow : D.muted}
+              actionBg={pendingSwapId ? '#1a1400' : D.card2}
+              disabled={!pendingSwapId && partyAlone}
+              disabledHint={!pendingSwapId && partyAlone ? 'Need 1 in party' : undefined}
+              onAction={() => (pendingSwapId ? handleSwapHere(pk.instanceId) : handleDeposit(pk.instanceId))}
               onAvatar={() => navigate(`/pokemon/${pk.speciesId}`)}
             />
           ))
@@ -233,19 +260,24 @@ export default function PCScreen() {
             </div>
           </div>
         ) : (
-          sortedBox.map((pk) => (
-            <PCRow
-              key={pk.instanceId}
-              pk={pk}
-              actionLabel="Join party"
-              actionColor={D.green}
-              actionBg="#0a1a0a"
-              disabled={partyFull}
-              disabledHint={partyFull ? `Party full (${maxPartySize}/${maxPartySize})` : undefined}
-              onAction={() => handleWithdraw(pk.instanceId)}
-              onAvatar={() => navigate(`/pokemon/${pk.speciesId}`)}
-            />
-          ))
+          sortedBox.map((pk) => {
+            const isPending = pendingSwapId === pk.instanceId;
+            return (
+              <PCRow
+                key={pk.instanceId}
+                pk={pk}
+                actionLabel={pendingSwapId ? (isPending ? 'Cancel' : 'Swap in') : partyFull ? 'Swap in' : 'Join party'}
+                actionColor={pendingSwapId ? D.muted : partyFull ? D.yellow : D.green}
+                actionBg={pendingSwapId ? D.card2 : partyFull ? '#1a1400' : '#0a1a0a'}
+                disabled={!!pendingSwapId && !isPending}
+                onAction={() => {
+                  if (pendingSwapId) { setPendingSwapId(null); return; }   // Cancel
+                  partyFull ? handleSwapIn(pk.instanceId) : handleWithdraw(pk.instanceId);
+                }}
+                onAvatar={() => navigate(`/pokemon/${pk.speciesId}`)}
+              />
+            );
+          })
         )}
       </div>
       </div>
