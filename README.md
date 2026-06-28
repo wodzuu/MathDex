@@ -10,7 +10,7 @@ installable as a PWA.
 > 🤖 This project was **vibe-coded with Claude (Opus 4.8)** — design, gameplay logic,
 > and UI were built collaboratively through conversation.
 
-## Download to play
+## Play in your browser
 
 <p align="center">
   <a href="https://wodzuu.github.io/MathDex/"><img src="docs/download-qr.png" alt="QR code to play MathDex" width="220" height="220" /></a>
