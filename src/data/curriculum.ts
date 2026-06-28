@@ -23,6 +23,15 @@ export const MATH_WINDOW_SIZE = 100;
 /** Correct fraction of a full window required to advance one rank. */
 export const MATH_RANKUP_THRESHOLD = 0.8;
 
+/**
+ * Fast-track: when a player enters a new rank, the first MATH_FASTTRACK_SIZE
+ * challenges are scored on their own. ≤ MATH_FASTTRACK_MAX_MISTAKES wrong → rank
+ * up immediately (skip math they clearly already know). Otherwise fall back to
+ * the normal rolling-window rule above.
+ */
+export const MATH_FASTTRACK_SIZE = 20;
+export const MATH_FASTTRACK_MAX_MISTAKES = 2;
+
 /** Probability a challenge is pulled from a random lower rank as review. */
 export const MATH_REVIEW_FRACTION = 0.3;
 
@@ -40,18 +49,27 @@ export interface MathRankDef {
  * generator. `genLevel` reuses the generator's existing difficulty steps.
  */
 export const MATH_RANKS: readonly MathRankDef[] = [
-  { genLevel: 1,  topic: 'addition',    label: 'Addition to 10' },
-  { genLevel: 3,  topic: 'addition',    label: 'Addition to 20' },
-  { genLevel: 4,  topic: 'addition',    label: 'Addition to 50' },
-  { genLevel: 5,  topic: 'addition',    label: 'Harder addition to 50' },
-  { genLevel: 6,  topic: 'addition',    label: 'Addition to 100' },
-  { genLevel: 7,  topic: 'subtraction', label: 'Subtraction to 10' },
-  { genLevel: 8,  topic: 'subtraction', label: 'Subtraction to 20' },
-  { genLevel: 9,  topic: 'subtraction', label: 'Subtraction to 50' },
-  { genLevel: 10, topic: 'subtraction', label: 'Subtraction with borrowing' },
-  { genLevel: 11, topic: 'subtraction', label: 'Negative answers to 10' },
-  { genLevel: 12, topic: 'subtraction', label: 'Negative answers to 20' },
-  { genLevel: 13, topic: 'subtraction', label: 'Negative answers to 50' },
+  { genLevel: 1,  topic: 'addition',       label: 'Addition to 10' },
+  { genLevel: 2,  topic: 'addition',       label: 'Addition to 20' },
+  { genLevel: 3,  topic: 'subtraction',    label: 'Subtraction to 10' },
+  { genLevel: 4,  topic: 'addition',       label: 'Addition to 50' },
+  { genLevel: 5,  topic: 'subtraction',    label: 'Subtraction to 20' },
+  { genLevel: 6,  topic: 'addition',       label: 'Harder addition to 50' },
+  { genLevel: 7,  topic: 'addition',       label: 'Addition to 100' },
+  { genLevel: 8,  topic: 'subtraction',    label: 'Subtraction to 50' },
+  { genLevel: 9,  topic: 'subtraction',    label: 'Subtraction with borrowing' },
+  { genLevel: 10, topic: 'subtraction',    label: 'Subtraction to 10, negative answers' },
+  { genLevel: 11, topic: 'multiplication', label: 'Multiplication to 20' },
+  { genLevel: 12, topic: 'subtraction',    label: 'Subtraction to 20, negative answers' },
+  { genLevel: 13, topic: 'multiplication', label: 'Multiplication to 50' },
+  { genLevel: 14, topic: 'subtraction',    label: 'Subtraction to 50, negative answers' },
+  { genLevel: 15, topic: 'multiplication', label: 'Multiplication table 10x10' },
+  { genLevel: 16, topic: 'division',       label: 'Division table 10x10' },
+  { genLevel: 17, topic: 'division',       label: 'Division to 24' },
+  { genLevel: 18, topic: 'multiplication', label: 'Multiplication to 100 (max 20x?)' },
+  { genLevel: 19, topic: 'division',       label: 'Division to 48' },
+  { genLevel: 20, topic: 'multiplication', label: 'Multiplication to 100 (max 50x?)' },
+  { genLevel: 21, topic: 'division',       label: 'Division to 100' },
 ];
 
 /** Highest rank with distinct generated content (ceiling for rank-ups). */

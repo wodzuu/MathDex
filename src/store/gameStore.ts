@@ -6,7 +6,7 @@ import type { EncounterData } from '../types/dungeon';
 import { levelFromExp, calcHp, partySlotsForLevel } from '../lib/formulas';
 import { getSpecies } from '../data/species';
 import { getMove } from '../data/moves';
-import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK } from '../data/curriculum';
+import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, MATH_FASTTRACK_SIZE, MATH_FASTTRACK_MAX_MISTAKES } from '../data/curriculum';
 import { evolveOnLevelUp } from '../lib/evolution';
 import { pickLevel, pickEncounterSpecies, buildEncounter, EMPTY_PITY } from '../lib/encounterGenerator';
 import { makeTrainer } from '../lib/newGame';
@@ -245,18 +245,23 @@ export const useGameStore = create<GameStoreState>()(
           const newStreak = correct ? t.stats.currentStreak + 1 : 0;
 
           // Math Rank progression (spec §3): only current-rank challenges count
-          // toward the rolling window; review challenges are excluded. Rank up
-          // when a full window clears the threshold, then reset. Never demote.
+          // toward the rolling window; review challenges are excluded. The window
+          // resets on every rank-up, so its first entries are this rank's first
+          // challenges. Two ways to rank up (never demote):
+          //   1. Fast-track — ≤2 mistakes in the first 20 challenges of the rank.
+          //   2. Normal     — a full 100-window scoring ≥80% correct.
           let mathRank   = t.mathRank ?? 1;
           let mathWindow = t.mathWindow ?? [];
           if (!isReview && mathRank < MAX_MATH_RANK) {
             mathWindow = [...mathWindow, correct].slice(-MATH_WINDOW_SIZE);
-            if (mathWindow.length >= MATH_WINDOW_SIZE) {
-              const rate = mathWindow.filter(Boolean).length / mathWindow.length;
-              if (rate >= MATH_RANKUP_THRESHOLD) {
-                mathRank += 1;
-                mathWindow = [];
-              }
+            const correctCount = mathWindow.filter(Boolean).length;
+            const mistakes     = mathWindow.length - correctCount;
+            if (mathWindow.length === MATH_FASTTRACK_SIZE && mistakes <= MATH_FASTTRACK_MAX_MISTAKES) {
+              mathRank += 1;
+              mathWindow = [];
+            } else if (mathWindow.length >= MATH_WINDOW_SIZE && correctCount / mathWindow.length >= MATH_RANKUP_THRESHOLD) {
+              mathRank += 1;
+              mathWindow = [];
             }
           }
 
