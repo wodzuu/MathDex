@@ -4,15 +4,16 @@
 
 A Pokémon-Inspired Mathematics Learning Game
 
-*Full Game Design Specification  ·  v1.6*
+*Full Game Design Specification  ·  v1.7*
 
-*Revised (v1.6): Level-only evolution implemented for both the player and wild Pokémon; encounters stage-gate by level (base → final, opponents evolve too) with rarity-weighted selection + a pity guarantee replacing the fixed rarity bag (see §6.2, §6.5).*
+*Revised (v1.7): Curriculum extended to 21 Math Ranks adding multiplication and division (incl. ×/÷ "tables"); fast-track rank-up; multi-challenge battle puzzles with a 50% damage floor; multiple trainers (create with name + starter, switch, rename, delete) with a New Trainer first-run screen; full-screen battle-outcome summary; PC swap for a full party (see §3, §4.3, §7.4).*
+*Earlier (v1.6): Level-only evolution implemented for both the player and wild Pokémon; encounters stage-gate by level (base → final, opponents evolve too) with rarity-weighted selection + a pity guarantee replacing the fixed rarity bag (see §6.2, §6.5).*
 *Earlier (v1.5): Math difficulty decoupled from opponent level into a mastery-gated **Math Rank** with a moving accuracy window and interleaved review (see §3).*
 *Earlier (v1.4): Dungeon floors removed; combat scales with opponent level; Pokémon rarity system; incremental damage-proportional EXP; speed-based turn order.*
 
 Target audience: ages 9–11
 
-Math scope: addition then subtraction, advanced by a mastery-gated Math Rank (decoupled from Pokémon/opponent level)
+Math scope: addition, subtraction, multiplication, and division, advanced by a mastery-gated Math Rank (decoupled from Pokémon/opponent level)
 
 Genre: Endless wild-encounter RPG with level-driven progression
 
@@ -88,6 +89,20 @@ Changes made in implementation review (this is the version the live build reflec
 | **Mid-battle switching (free) + per-member HP** | 4,6 | Switching via the carousel costs no turn. Each party member keeps its own HP through the battle; all are persisted at battle end. A faster enemy's opening strike hits the Pokémon the player entered with. When the active Pokémon faints the next healthy one is sent out; the player blacks out only when the whole party faints. |
 | **Focus is a trainer property, persisted** | 4,7,11 | The Focus meter belongs to the trainer (not a Pokémon): one battle-wide meter shown in a neutral strip, carrying across switches *and* battles, persisted in game state. |
 
+## **v1.6 → v1.7**
+
+Changes made in this implementation pass (reflected in the live build):
+
+| Change | Affected sections | Rationale |
+| :---- | :---- | :---- |
+| **Curriculum extended to 21 ranks (×, ÷ added)** | 3,11,12 | Multiplication and division now ship as live content (including a "Multiplication table 10×10" and a "Division table 10×10"), interleaved with addition/subtraction rather than appended after. Each rank maps to a `genLevel` handled by a config table in the generator. |
+| **Fast-track rank-up** | 3 | On *entering* a rank, ≤2 mistakes in the first 20 challenges levels the player up immediately — lets a child who already knows a skill skip the grind. 3+ mistakes fall back to the standard 80%-of-last-100 window. |
+| **Multi-challenge battle puzzles + 50% damage floor** | 4 | A move now poses several stacked challenges (more math per fight). 50% of the move's damage is guaranteed; the other 50% is earned across the challenges (each wrong answer forfeits an equal share). Feedback is withheld until all are answered, then a **Deal N damage** button (click or Enter) applies the hit. Replaces the single-puzzle 75% partial-credit model in battle. |
+| **Multiple trainers** | 7,8,11 | A save can hold many trainers. A brand-new game starts with no trainer on a **New Trainer** screen (pick a name + one of four starters: Pikachu / Bulbasaur / Charmander / Squirtle). The Trainer view switches between trainers and supports rename and (typed-confirmation) delete. |
+| **Full-screen battle summary** | 4,8 | Wins, catches, and blackouts route through a full-screen outcome splash (replacing the small inline dungeon banner) before continuing — to the dungeon on a win/catch, to town on a blackout. |
+| **PC swap into a full party** | 6 | A boxed Pokémon can be swapped directly into a party slot, so a single-slot party is no longer frozen (couldn't deposit the last member nor join a full party). |
+| **Backdrops switched to JPG** | 11 | Town / dungeon / battle / trainer backdrops use `.jpg` assets. |
+
 # **1. Vision and Design Philosophy**
 
 MathDex is a Pokémon-style RPG in which every act of progression — attacking, catching Pokémon, and (later) identifying and equipping items — is gated or enhanced by solving arithmetic problems. The core insight driving the design is that mathematics should be load-bearing, not decorative. Equations are not doors to pass through before the fun begins; they are the mechanism that generates the fun.
@@ -98,7 +113,7 @@ The primary inspiration is the loot-and-grow loop of action RPGs: fight enemies,
 
 * **Math as mechanism, not gate.** Answering correctly makes numbers bigger. That is the game. Incorrect answers still produce a result — a weaker one. The child never hits a wall; they hit a floor (a minimum outcome).
 
-* **One number at a time.** The battle UI shows one equation. The catch screen shows one puzzle.
+* **One number at a time.** Even when a move poses several challenges, they are answered one at a time (only the current equation is active). The catch screen shows one puzzle.
 
 * **Complexity unlocks with strength.** The simplified core is complete and satisfying. Advanced mechanics arrive as the player's Pokémon grow.
 
@@ -124,6 +139,8 @@ The game operates between two locations: the Town (hub) and the Dungeon (action)
 
 **There are no floors.** The Dungeon is an endless sequence of single wild-Pokémon encounters. After each encounter resolves (win, catch, or flee) a fresh wild Pokémon appears. The player returns to town whenever they choose.
 
+**First run.** A brand-new save has no trainer; the player first creates one on the New Trainer screen (name + one of four starters) before the loop below begins (see §7.4).
+
 ## **2.1 Phase 1 — Battle-Only (Before Item System Activation)**
 
 This phase lasts from the start of the game until the first Pokémon in the player's party reaches level 20. During this phase the item system does not exist in any form — no slots, no drops, no identification screen, no equip screen. Professor Oak's lab is closed.
@@ -148,10 +165,10 @@ Triggered when the first Pokémon reaches level 20. Professor Oak sends a field 
 There is no floor-based soft gating. Progression is driven entirely by Pokémon **level**:
 
 * The strength of wild Pokémon scales with the player's strongest party Pokémon (see §2.4).
-* Math difficulty scales with the opponent's level (see §3).
+* Math difficulty is driven by the player's **Math Rank**, decoupled from opponent level (see §3).
 * The item system, evolutions, and item slots are per-Pokémon level milestones.
 
-Because survival requires accurate math, math fluency and progression are the same thing — never stated explicitly. A struggling player naturally faces lower-level opponents (their party is lower level) with easier math; a confident player's party climbs and the opponents/math climb with it.
+Because accurate math makes Pokémon stronger, math fluency and progression reinforce each other — never stated explicitly. Combat strength (enemy level, damage, EXP, money) tracks the player's party level, while the *maths* itself advances only with the player's mastered Math Rank (§3), so a struggling player is never dragged past skills they haven't learned.
 
 ## **2.4 Encounter Generation**
 
@@ -160,7 +177,7 @@ When the player enters the Dungeon or advances to the next wild Pokémon, an enc
 * **Opponent level** = `max(1, partyHighestLevel + ⌊random·3⌋ − 1)` — i.e. the level of the player's strongest party member, ±1.
 * **Species** is stage-gated by level then rarity-weighted, with a persisted per-tier pity guarantee so rarer Pokémon always show up on a schedule (see §6.2).
 * **Species** is then chosen uniformly at random from the Pokémon of that rarity, and rendered at the opponent's level (rarity is independent of level — an early legendary is simply a low-level one).
-* The highest opponent level the player has ever encountered is recorded and shown on the Trainer Card ("Top Lv").
+* The highest opponent level the player has ever encountered is recorded and shown in the Trainer view ("Top enemy").
 
 ## **2.5 The Lead Pokémon**
 
@@ -176,35 +193,43 @@ Math difficulty is driven by the player's **Math Rank** — an educational progr
 
 ## **3.1 The Math Rank Ladder**
 
-`mathRank` is a 1-based index into `MATH_RANKS` (`src/data/curriculum.ts`); it only ever climbs (never demotes). Current ranks (extensible as new topics are generated):
+`mathRank` is a 1-based index into `MATH_RANKS` (`src/data/curriculum.ts`); it only ever climbs (never demotes). Each rank maps to a `genLevel` difficulty step handled by the generator's config table (`src/lib/mathProblemGenerator.ts`). The live ladder (21 ranks) interleaves the four operations so a player meets each one early:
 
-| Rank | Operation | Problem |
-| :---- | :---- | :---- |
-| 1 | addition | result up to 10 |
-| 2 | addition | result between 10 and 20 |
-| 3 | addition | result up to 50, with one addend in 0–9 |
-| 4 | addition | result between 20 and 50 |
-| 5 | addition | result between 40 and 100 |
-| 6 | subtraction | operands up to 10, no negative result |
-| 7 | subtraction | operands up to 20, no negative result |
-| 8 | subtraction | operands up to 50, no negative result, **no borrowing** |
-| 9 | subtraction | operands up to 50, **borrowing required** |
-| 10 | subtraction | operands up to 10, negative results allowed |
-| 11 | subtraction | operands up to 20, negative results allowed |
-| 12 | subtraction | operands up to 50, negative results allowed |
+| Rank | Label | Operation | Problem |
+| :---- | :---- | :---- | :---- |
+| 1 | Addition to 10 | addition | sum 2–10 |
+| 2 | Addition to 20 | addition | sum 10–20 |
+| 3 | Subtraction to 10 | subtraction | operands ≤ 10, no negative |
+| 4 | Addition to 50 | addition | one small addend (0–9), sum ≤ 50 |
+| 5 | Subtraction to 20 | subtraction | operands ≤ 20, no negative |
+| 6 | Harder addition to 50 | addition | sum 20–50 |
+| 7 | Addition to 100 | addition | sum 40–100 |
+| 8 | Subtraction to 50 | subtraction | operands ≤ 50, no negative, **no borrowing** |
+| 9 | Subtraction with borrowing | subtraction | operands ≤ 50, no negative, **borrowing required** |
+| 10 | Subtraction to 10, negative answers | subtraction | operands ≤ 10, negatives allowed |
+| 11 | Multiplication to 20 | multiplication | product ≤ 20, factors ≤ 10 |
+| 12 | Subtraction to 20, negative answers | subtraction | operands ≤ 20, negatives allowed |
+| 13 | Multiplication to 50 | multiplication | product ≤ 50, factors ≤ 10 |
+| 14 | Subtraction to 50, negative answers | subtraction | operands ≤ 50, negatives allowed |
+| 15 | Multiplication table 10x10 | multiplication | factors 1–10 (product ≤ 100) |
+| 16 | Division table 10x10 | division | divisor & quotient 1–10, exact |
+| 17 | Division to 24 | division | dividend < 24, divisor < 10, exact |
+| 18 | Multiplication to 100 (max 20x?) | multiplication | product ≤ 100, factors ≤ 20 |
+| 19 | Division to 48 | division | dividend < 48, divisor < 20, exact |
+| 20 | Multiplication to 100 (max 50x?) | multiplication | product ≤ 100, factors ≤ 50 |
+| 21 | Division to 100 | division | dividend < 100, divisor < 20, exact |
 
-For addition the order of the two addends is randomised; subtraction keeps order (`a − b`). Every problem has exactly one whole-number answer (which may be negative at ranks 10+). The skill labels above are **internal** (for the rank table and docs) — the UI shows only the rank **number**, never the operation/range.
+Addition and multiplication randomise operand order (commutative); subtraction and division keep order (`a − b`, `a ÷ b`). Division is always exact (integral quotient, divisor ≥ 2 except in the 10×10 table). Every problem has exactly one whole-number answer (which may be negative at the "negative answers" ranks). The labels are surfaced in the Trainer view's rank ladder, but the **battle puzzle and the card headline show only the rank number**.
 
 ## **3.2 Mastery-Gated Rank-Up**
 
-Rank-up is gated by a **moving window of recent current-rank challenges** (tunable constants in `curriculum.ts`):
+There are **two ways to rank up** (tunable constants in `curriculum.ts`); since the window resets on every rank-up, its first entries are this rank's first challenges:
 
-* `MATH_WINDOW_SIZE = 100` — the window scores the last 100 *current-rank* challenges.
-* `MATH_RANKUP_THRESHOLD = 0.80` — when the window is **full** and **≥ 80%** are correct, the rank advances by one and the window **resets**.
+* **Fast-track** — `MATH_FASTTRACK_SIZE = 20`, `MATH_FASTTRACK_MAX_MISTAKES = 2`. On entering a rank, if the **first 20** current-rank challenges contain **≤ 2 mistakes**, the player ranks up immediately. This lets a child who already knows a skill skip the grind. If the first 20 hold **3+ mistakes**, the fast-track fails and the standard window rule takes over.
+* **Standard window** — `MATH_WINDOW_SIZE = 100`, `MATH_RANKUP_THRESHOLD = 0.80`. When the rolling window of the last 100 *current-rank* challenges is **full** and **≥ 80%** are correct, the rank advances and the window resets.
 * **Never demote.** A struggling child simply stays on the current rank, getting the repetition they need, until they are reliably accurate.
-* A full window is required, so each rank takes a **minimum of ~100 current-rank challenges** — deliberately strict for genuine mastery.
 
-The window persists in game state (`Trainer.mathWindow`). Time pressure is part of difficulty: the puzzle timer is `battleTimerSeconds(genLevel)` for the rank's generator step.
+A strong player can chain fast-tracks (≈20 challenges per rank); a struggling one takes the full ~100-challenge window. The window persists in game state (`Trainer.mathWindow`). Time pressure is part of difficulty: each challenge's timer is `battleTimerSeconds(genLevel)` for the rank's generator step.
 
 ## **3.3 Interleaved Review**
 
@@ -218,16 +243,16 @@ So roughly 70% of challenges are at the current rank (the ones that count) and 3
 
 ## **3.4 Partial Credit Design**
 
-* Battle puzzles: correct = 100% move power; incorrect or time-expired = 75% power.
-* Catch puzzles: correct = full catch accuracy; incorrect or expired = 75% of catch accuracy.
+* Battle puzzles: a move poses several challenges (see §4.3). **50% of the move's damage is guaranteed**; the other 50% is earned across the challenges, each wrong/expired answer forfeiting an equal share. A flawless set deals 100%; an all-wrong set still deals 50%.
+* Catch puzzles: a single Math-Rank puzzle — correct = full catch accuracy; incorrect or expired = 75% of catch accuracy.
 * No puzzle produces a zero outcome. The child always makes progress.
 
 | Pedagogical note: Spaced repetition occurs naturally through play. A child grinding encounters solves dozens of addition and subtraction problems per session without perceiving it as drilling. |
 | :---- |
 
-## **3.5 Extension Path (not in the live build)**
+## **3.5 Extension Path**
 
-The richer curriculum from earlier versions — multiplication, division, order of operations, fractions, percentages, and introductory algebra — remains a documented extension path: append new entries to `MATH_RANKS` (and teach the generator the new operations) and they slot onto the top of the ladder automatically, gated by the same mastery window.
+Addition, subtraction, multiplication, and division are **live** (§3.1). The remaining richer topics — order of operations, fractions, percentages, and introductory algebra — remain a documented extension path: append new entries to `MATH_RANKS`, add their `genLevel` configs to the generator's table, and they slot onto the ladder automatically, gated by the same mastery window and fast-track rules.
 
 # **4. Battle System**
 
@@ -246,21 +271,25 @@ Each turn the player picks one of the active Pokémon's moves (the puzzle then r
 * **Type Multiplier** comes from the simplified type chart (see §6.3); pairs not in that chart default to ×1.
 * **STAB** is ×1.5 when the move's type matches one of the attacker's types, otherwise ×1.
 * **Crit** is ×2 on a charged critical hit (see §4.4), otherwise ×1.
-* **Accuracy** is ×1.0 on a correct answer and ×0.75 on a wrong/expired answer (partial credit).
-* The engine evaluates the full formula; the player only ever sees the addition puzzle.
+* **Accuracy / answer outcome.** For a **battle move**, the formula is evaluated at full accuracy to get the move's potential damage, then the multi-challenge split (§4.3) scales it between **50% (all wrong) and 100% (all correct)**. For a **catch attempt** (a single puzzle), accuracy is ×1.0 correct / ×0.75 wrong.
+* The engine evaluates the full formula; the player only ever sees the math puzzles.
 
 Status moves (move power 0) deal a small fixed chip of damage and additionally apply a stat modifier (see §4.5).
 
-## **4.3 The Battle Math Puzzle**
+## **4.3 The Battle Math Puzzle — Multiple Challenges per Move**
 
-* When the player selects a move, an addition equation appears, generated from the opponent's level (see §3).
-* Timer: 8 seconds at opponent level 1, down to 4 seconds at level 40+.
-* Correct: the move fires at 100% power and the Focus meter advances one pip.
-* Incorrect or expired: the move fires at 75% power and the Focus meter resets.
+Selecting a move poses **several** Math-Rank challenges (more maths per fight), all generated from the player's Math Rank (see §3):
+
+* **How many.** `N = ceil( min(1, DMG ÷ enemyMaxHP) × 5 )`, at least 1 — i.e. aim for ~5 challenges across a fight, scaled by the share of the enemy's HP the move would remove (a big hit asks more questions). `DMG` is the move's full potential damage.
+* **Stacked, sequential, no early feedback.** Challenges are answered one at a time, each with **its own timer** (`battleTimerSeconds(genLevel)`); answered ones stay on screen showing the typed answer. ✅/❌ are **withheld until every challenge is answered** (an expired timer counts as blank/wrong).
+* **Reveal + Deal.** Once all are in, each row reveals ✅/❌, each wrong answer shows its damage penalty, and a **"Deal N damage"** button appears. Pressing it (click, or **Enter** as a deliberate second key-press) applies the hit.
+* **Damage.** 50% of the move's damage is guaranteed; the other 50% is split evenly across the N challenges, so each wrong answer forfeits `round( 0.5 × DMG ÷ N )`. Final damage = `max(50% DMG, DMG − wrong × share)`.
+* **Focus.** The move advances the Focus meter one pip only if **every** challenge was correct; any wrong answer resets it (see §4.4).
+* Each challenge still records toward Math-Rank progress and lifetime stats (§3).
 
 ## **4.4 Focus Meter and Charged Critical Hits**
 
-Focus is a property of the **trainer**, not of any Pokémon — a single battle-wide meter shown in a neutral strip between the opponent and active-Pokémon panels. Each consecutive correct answer fills one of five pips; at five pips the next correct answer triggers a **Charged Critical Hit (×2 damage)** and discharges the meter. Any wrong answer resets it to zero.
+Focus is a property of the **trainer**, not of any Pokémon — a single battle-wide meter shown in a neutral strip between the opponent and active-Pokémon panels. Each move whose challenge set is **fully correct** fills one of five pips; at five pips the next all-correct move lands a **Charged Critical Hit (×2 damage)** and discharges the meter. A move with any wrong answer resets it to zero.
 
 Because Focus is the trainer's accuracy streak, it **carries across party switches and across battles**, and it is **persisted in game state** (`Trainer.focus`). A hot streak is never lost by switching Pokémon or leaving the dungeon — only a wrong answer or discharging the crit resets it. This rewards sustained accuracy without requiring the child to understand the mechanic explicitly.
 
@@ -302,9 +331,19 @@ Consequences:
 * **Active-Pokémon panel** (below): name, level, type badge(s), rarity tag, HP bar, EXP bar, Atk/Def/Spd chips (modified stats shown in colour). Carries left/right **carousel arrows** and a party-position dot row when the party has more than one member, and contains the **move list** ("Choose a move") for the active Pokémon. (Focus is *not* shown here — it belongs to the trainer.)
 * **Secondary actions**: Ball / Potion / Flee, beneath the active-Pokémon panel.
 * **Move-type cue**: a super-effective move shows a small `×2 vs <TYPE>` tag next to its name.
-* **Contextual panel**: the move list / Math / Ball / Potion / Catch view swaps in below the panels based on the current decision.
+* **Contextual panel**: the move list / Math / Ball / Potion / Catch view swaps in below the panels based on the current decision. The **Math panel** stacks the move's challenges (§4.3): a per-challenge timer, the answered rows, an input for the current one, and — once all are answered — the ✅/❌ reveal with per-wrong penalties and the **Deal N damage** button.
 * **Damage floaters**: animated numbers over the relevant combatant after each hit; the wild Pokémon's hits also raise an attribution banner over the player.
-* **Sprites**: the battle uses the animated "walk" sprite with a drop shadow; out-of-battle screens use the "idle" sprite (also enlarged with a drop shadow).
+* **Sprites**: the battle uses the animated "walk" sprite with a drop shadow; the **opponent's sprite is mirrored** so the two Pokémon face each other. Out-of-battle screens use the "idle" sprite (also enlarged with a drop shadow).
+
+### **Battle outcome summary (full screen)**
+
+A win, a successful catch, or a blackout routes to a full-screen outcome splash before the player continues:
+
+* **Victory** — `victory.png` over `won.jpg`, "<Name> defeated!", Pokédollars earned, and per-participant EXP (with level-up / evolution badges). Tap → back to the dungeon.
+* **Caught** — the caught Pokémon shown emerging from an open Poké Ball over `caught.jpg`, "<Name> caught!". The old in-battle "caught" panel is gone — a catch jumps straight here. Tap → back to the dungeon.
+* **Blackout (fainted)** — `fainted.png`, "You blacked out!". Tap → back to **town**.
+
+The splash carries the outcome to the dungeon (which retires the defeated encounter) or town via router state; reloading it (no state) simply returns to the dungeon.
 
 # **5. Loot and Item System**
 
@@ -446,6 +485,7 @@ When an owned Pokémon evolves it keeps its EXP, current HP, and moves; only the
 
   Locked slots are shown in the PC Terminal as placeholder rows with their unlock level, so the player can see what's coming. *(Replaces the removed boss-floor growth trigger.)*
 * The **PC Box** is unlimited. Box Pokémon earn nothing — only party Pokémon grow.
+* **Swapping.** A boxed Pokémon can be **swapped** straight into an occupied party slot (the party member it replaces goes to the box). This keeps the team editable even with a single slot — where you can neither deposit the last member nor join a full party. With one party member the swap is immediate; with several full slots the player picks which member to send to the box.
 * The **Lead** is the Pokémon the player enters battle with; during battle any party member can be made active via the carousel (see §4.6). EXP follows the damage-proportional rule in §4.7.
 * **Per-member HP in battle.** Each party member keeps its own HP as the player switches; every member's HP is persisted at battle end (a member that fainted stays fainted at 0 HP). When the active member faints the next healthy one is sent out automatically; the player blacks out only when the whole party has fainted — at which point all members are returned to town at 0 HP to be healed at the Pokémon Center.
 
@@ -457,7 +497,7 @@ The catch screen shows two visible inputs and one new informational panel:
 * **HP zone colour** — green (high HP, low catch), orange (below 50%, moderate), red (below 25%, high).
 * **Already-caught indicator** — a panel beside the chance indicator that tells the player whether this species is already in their collection ("New! You haven't caught *X* yet" vs "You've already caught *X*").
 
-The catch math is a Math-Rank puzzle (identical difficulty to a battle hit — same Math Rank generator, including possible ⭐ review; see §3). Catch success probability is computed by the engine from the species' capture rate, the ball's base rate, and the opponent's current HP, multiplied by the answer-accuracy factor (1.0 correct, 0.75 wrong). A successfully weakened-then-caught Pokémon lets the weakener keep its earned EXP (see §4.7).
+The catch math is a single Math-Rank puzzle (same generator as a battle challenge but never a ⭐ review; see §3). Catch success probability is computed by the engine from the species' capture rate, the ball's base rate, and the opponent's current HP, multiplied by the answer-accuracy factor (1.0 correct, 0.75 wrong). On success the game jumps to the full-screen catch summary (§4.8); a successfully weakened-then-caught Pokémon lets the weakener keep its earned EXP (see §4.7). On failure the wild Pokémon counterattacks and the battle continues.
 
 # **7. Progression and Economy**
 
@@ -504,15 +544,19 @@ Money is awarded **only on defeat** — never on catch or flee.
 
 Medium-Fast curve: total EXP to reach level N = N³. The EXP value of an opponent is `⌊Base EXP × opponent level ÷ 7⌋`, distributed across hits in proportion to damage (see §4.7).
 
-## **7.4 Trainer Card**
+## **7.4 Trainers and the Trainer View**
 
-Personal progress dashboard — no social features. The live build shows:
+A save can hold **multiple trainers**, each with its own Pokémon, party, economy, stats, Focus, and Math Rank. One is the **active** trainer at any time.
 
-* **Math Rank** — the current rank *number only* (e.g. "Math Rank 5"), the educational headline of the card. The skill label (e.g. "Addition to 100") is intentionally **not** surfaced in the UI — the child sees only the number, both here and on the battle puzzle (see §3).
-* **Correct** — total problems solved.
-* **Streak** — longest accuracy streak.
-* **Caught** — total Pokémon caught.
-* **Top Lv** — the highest opponent level ever encountered (persisted in game state).
+**Creating a trainer (New Trainer screen).** A brand-new game starts with **no trainer**. A route guard sends any gameplay screen to the **New Trainer** screen until one exists. There the player enters a **name** (≤ 12 chars) and picks one of **four starters** — **Pikachu, Bulbasaur, Charmander, Squirtle** — and the adventure begins (drops into Town). The same screen is reachable later to add more trainers (then it offers Cancel).
+
+**The Trainer view** (opened from the Town trainer card) shows, for the active trainer:
+
+* **Avatar + name.** The name is **edited inline** (tap the ✎, type, ✓/Enter to save, ✕/Esc to cancel; blank names rejected).
+* **Trainers switcher** — a grid (4 per row) of all trainers (each chip shows its lead Pokémon's sprite + name, the active one badged). Tapping a chip switches the active trainer; a **+ New** chip opens the New Trainer screen.
+* **Stats grid** — **Correct answers** (total solved), **Best streak** (longest), **Pokémon caught**, and **Top enemy** ("Level N" — the highest opponent level ever encountered, persisted).
+* **Math Rank ladder** — every rank with its skill label, completion state, and a progress bar for the current rank. (The battle puzzle and any headline still show the rank **number** only; the ladder is where the labels appear.)
+* **Delete** — a bottom "Delete <name>" button opens a warning modal requiring the player to type **"delete"** to confirm. Deleting reassigns the active trainer; deleting the last one returns to the New Trainer screen.
 
 Accuracy-by-topic is still tracked under the hood for a future teacher/parent dashboard.
 
@@ -529,7 +573,7 @@ Accuracy-by-topic is still tracked under the hood for a future teacher/parent da
 * **Professor Oak's Lab**: identification queue. Locked until the item system activates (first Pokémon level 20).
 * **PC Terminal**: party and PC Box management. Always available.
 * **Dungeon Entrance**: enters the endless wild-encounter stream. Always available.
-* **Trainer Card**: Correct / Streak / Caught / Top Lv (see §7.4).
+* **Trainer card**: opens the Trainer view — stats, the Math Rank ladder, inline name edit, switching between trainers, creating new ones, and delete (see §7.4). A brand-new game opens the New Trainer screen first.
 
 Party members are shown as cards with an enlarged, drop-shadowed sprite, name/level, type badge, rarity tag, HP and EXP bars, and Atk/Def/Spd chips. The lead is shown with a larger sprite and a highlighted frame (no separate text tag).
 
@@ -553,20 +597,20 @@ Every simplified mechanic has a documented extension path, now triggered by **Po
 
 | Mechanic | Simplified core | Extension trigger | Full version |
 | :---- | :---- | :---- | :---- |
-| Math curriculum | Addition then subtraction, Math-Rank ladder | Mastery window (decoupled from level) | Multiplication → division → order of ops → fractions → percentages → algebra, appended to `MATH_RANKS` |
+| Math curriculum | +, −, ×, ÷ across a 21-rank Math-Rank ladder | Mastery window + fast-track (decoupled from level) | Order of operations → fractions → percentages → algebra, appended to `MATH_RANKS` |
 | Item system | Hidden until Pokémon level 20 | First Pokémon level 20 | Drops, slots, identification, equip |
 | Item slots | 1 / 2 / 3 at lv 20 / 36 / 50 | Pokémon level | Multi-item optimisation |
 | Type chart | 6 types | Opponent level | Full 18-type chart |
 | STAB / dual-type | STAB ×1.5 applied | Later | Shown explicitly as math |
 | Speed / turn order | Faster acts first (live) | — | Full speed display each turn |
-| Party size | Fixed (growth trigger TBD) | New milestone TBD | Up to 6 Pokémon |
+| Party size | 1 → 4 slots, gated by strongest owned level (live) | Level milestones | Up to 6 Pokémon |
 | Status conditions | Status moves modify stats | Later | Catch-rate and battle modifiers |
 | Mid-battle switching | Free carousel switch (live) | — | Switch as a costed turn action (v1.3 design) |
 | Trainer battles / Gyms | Removed | Later | Math-boss encounters |
 
 ## **9.1 Difficulty (live build)**
 
-The live build uses a single default tuning: a level-based battle timer (8 s → 4 s) and 75% partial credit on a wrong/expired answer. The Explorer / Trainer / Champion difficulty presets from v1.3 remain a design option layered on top of these values.
+The live build uses a single default tuning: a per-challenge battle timer (`battleTimerSeconds(genLevel)`, ~8 s down with rank), the 50%-floor multi-challenge battle model (§4.3), and 75% partial credit on a wrong/expired **catch** answer. The Explorer / Trainer / Champion difficulty presets from v1.3 remain a design option layered on top of these values.
 
 # **10. Narrative and Characters**
 
@@ -578,7 +622,7 @@ Unchanged from v1.3. The player is a junior researcher under Professor Oak; the 
 
 ## **11.1 Math Problem Generation**
 
-Addition puzzles are generated at runtime from the opponent's level (see §3). Each puzzle has exactly one whole-number answer. The same generator serves both attack and catch puzzles.
+Puzzles are generated at runtime from the player's **Math Rank** (not opponent level; see §3). Each rank's `genLevel` indexes a config table in `mathProblemGenerator.ts` declaring the operation (`+ − × ÷`) and an operand builder (sum-range / no-borrow / borrow-required / negative / product-capped / exact-division / ×-and-÷ "tables"). Each puzzle has exactly one whole-number answer. The same generator serves battle and catch puzzles; battle moves draw `N` of them (§4.3) and may include ⭐ lower-rank review, while catch draws a single non-review puzzle.
 
 ## **11.2 Item System State**
 
@@ -590,7 +634,7 @@ The damage formula (§4.2) is evaluated by the engine. Item Bonus is zero while 
 
 ## **11.4 Save State**
 
-Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caught Pokémon, party, lead, Pokédollars, Pokéballs, potions, stats, the **encounter pity** counters, see §6.2 — and the **Focus** meter, see §4.4), the active trainer id, and settings. (Max party size is **derived** from the strongest Pokémon's level — see §6.6 — not stored.) Each owned Pokémon stores its species id, total EXP, current HP (every party member's HP is written back at battle end), and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
+Game state is persisted to IndexedDB (Dexie). It holds: a list of **trainers** (each with caught Pokémon, party, lead, Pokédollars, Pokéballs, potions, stats, math rank + window, the **encounter pity** counters, see §6.2 — and the **Focus** meter, see §4.4), the active trainer id, and settings. A fresh save has an **empty** trainer list (the New Trainer screen creates the first; trainers can be added, switched, renamed, and deleted — see §7.4). (Max party size is **derived** from the strongest Pokémon's level — see §6.6 — not stored.) Each owned Pokémon stores its species id, total EXP, current HP (every party member's HP is written back at battle end), and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
 
 ## **11.5 Build & Deployment**
 
@@ -604,10 +648,12 @@ Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caug
 | :---- | :---- | :---- |
 | Turn-based battles | Yes | Actions: Attack, Ball, Potion, Flee |
 | Endless wild encounters | Yes | One opponent at a time; no floors/rooms/map |
-| Opponent level = party-high ±1 | Yes | Drives difficulty and rewards |
-| Addition + subtraction curriculum by level | Yes | See §3 |
-| Level-based battle timer | Yes | 8 s → 4 s |
-| Partial credit (75%) | Yes | Wrong/expired answers |
+| Opponent level = party-high ±1 | Yes | Drives combat difficulty and rewards (not math) |
+| +, −, ×, ÷ curriculum by Math Rank | Yes | 21 ranks, decoupled from opponent level (§3) |
+| Fast-track rank-up | Yes | ≤2 mistakes in a rank's first 20 challenges → instant level-up |
+| Multi-challenge battle puzzles | Yes | N per move; 50% damage guaranteed + earned (§4.3) |
+| Per-challenge battle timer | Yes | `battleTimerSeconds(genLevel)`, ~8 s down with rank |
+| Partial credit | Yes | Battle: 50% floor + earned; Catch: 75% wrong/expired |
 | Damage formula | Yes | Item Bonus = 0 until activation |
 | STAB ×1.5 | Yes | Move type matches attacker type |
 | Charged crit ×2 | Yes | Five-pip trainer Focus meter (persisted; carries across switches + battles) |
@@ -622,33 +668,34 @@ Game state is persisted to IndexedDB (Dexie). It holds: trainers (each with caug
 | All 151 Gen-1 Pokémon | Yes | Config in `pokemon.json` |
 | Encounter selection | Yes | Level-stage-gated + rarity-weighted + persisted pity (Rare ≤8 / Epic ≤30 / Legendary ≤200) |
 | Lead via party strip + battle carousel | Yes | Free mid-battle switching; per-member HP |
+| PC swap into a full party | Yes | Box ↔ party slot; unfreezes a single-slot team |
 | Blackout → fainted Pokémon at 0 HP, no money lost | Yes | Heal at the Pokémon Center before re-entering |
-| Trainer Card (Correct/Streak/Caught/Top Lv) | Yes | Top Lv persisted |
+| Full-screen battle outcome summary | Yes | Win/catch → dungeon, blackout → town (§4.8) |
+| Multiple trainers | Yes | Create (name + starter) / switch / rename / delete (§7.4) |
+| New Trainer first-run screen | Yes | Fresh save has no trainer until one is created |
+| Trainer view (Correct answers/Best streak/Pokémon caught/Top enemy) | Yes | Plus the Math Rank ladder with skill labels |
 | PC Box | Yes | Unlimited; box Pokémon don't grow |
+| Party-size growth (1→4 by level) | Yes | Gated by strongest owned Pokémon's level |
+| Multiplication & division | Yes | Live ranks (incl. ×/÷ tables) |
 | Item system (Phase 2) | Designed, level-gated | Activates at first level 20 |
 | Dungeon floors / rooms / boss rooms | No | Removed in v1.4 |
 | Floor-based soft gating | No | Replaced by level scaling |
-| Multiplication/division/etc. tiers | No | Extension path only |
-| In-battle switching | No | Lead chosen pre-battle |
-| Party-size growth | Not yet | Trigger to be redefined |
+| Order of ops / fractions / % / algebra | No | Extension path only |
 | TMs / stones / trainer battles / multiplayer | No | Long-term extensions |
 
 ## **12.2 Curriculum at a Glance**
 
-| Opponent level | Operation | Notes |
-| :---- | :---- | :---- |
-| 1–2 | addition | result up to 10 |
-| 3 | addition | result 10–20 |
-| 4 | addition | result up to 50, one addend 0–9 |
-| 5 | addition | result 20–50 |
-| 6 | addition | result 40–100 |
-| 7 | subtraction | operands ≤ 10, no negative |
-| 8 | subtraction | operands ≤ 20, no negative |
-| 9 | subtraction | operands ≤ 50, no negative, no borrow |
-| 10 | subtraction | operands ≤ 50, no negative, borrow required |
-| 11 | subtraction | operands ≤ 10, negatives allowed |
-| 12 | subtraction | operands ≤ 20, negatives allowed |
-| 13+ | subtraction | operands ≤ 50, negatives allowed |
+Keyed by **Math Rank** (not opponent level). Full per-rank detail is in §3.1.
+
+| Ranks | Operations covered |
+| :---- | :---- |
+| 1–9 | addition (to 10/20/50/100) and subtraction (to 10/20/50, no-borrow then borrowing), interleaved |
+| 10, 12, 14 | subtraction with negative answers (operands ≤ 10 / 20 / 50) |
+| 11, 13, 15 | multiplication (product ≤ 20 / 50; then the 10×10 table) |
+| 16, 17, 19, 21 | division — the 10×10 table, then exact division to 24 / 48 / 100 |
+| 18, 20 | multiplication to 100 (factors ≤ 20, then ≤ 50) |
+
+Rank-up: fast-track (≤2 wrong in first 20) or the 80%-of-last-100 window (§3.2).
 
 ## **12.3 Type Chart — Simplified Core (6 Types)**
 
