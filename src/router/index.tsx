@@ -1,7 +1,7 @@
 import { createHashRouter, RouterProvider } from 'react-router-dom';
-import TownScreen from '../screens/TownScreen';
+import TownScreen from '../screens/Town';
 import DungeonScreen from '../screens/Dungeon';
-import BattleScreen from '../screens/BattleScreen';
+import BattleScreen from '../screens/Battle';
 import SummaryScreen from '../screens/SummaryScreen';
 import IdentifyScreen from '../screens/IdentifyScreen';
 import EquipScreen from '../screens/EquipScreen';

@@ -1,26 +1,21 @@
 // ── Curriculum ────────────────────────────────────────────────────────────────
-// Difficulty scales with the opponent's level (not dungeon floors).
+// Puzzle difficulty is driven by the player's Math Rank (data/curriculum.ts),
+// decoupled from Pokémon/opponent levels. Spec §3.
 
+/**
+ * The operation family a puzzle belongs to. The first four are live content
+ * (MATH_RANKS); the rest are the documented extension path. Used for per-topic
+ * accuracy tracking in TrainerStats.
+ */
 export type MathTopic =
-  | 'addition'          // Lv 1–10  (combined with subtraction)
-  | 'subtraction'       // Lv 1–10
-  | 'multiplication'    // Lv 11–20
-  | 'division'          // Lv 21–30
-  | 'orderOfOperations' // Lv 31–40
-  | 'fractions'         // Lv 41–50
-  | 'percentages'       // Lv 51–60
-  | 'algebra';          // Lv 61+
-
-/** Maps an opponent level to the active MathTopic for that battle. */
-export const LEVEL_TOPIC: ReadonlyArray<{ maxLevel: number; topic: MathTopic }> = [
-  { maxLevel: 10,         topic: 'addition' },
-  { maxLevel: 20,         topic: 'multiplication' },
-  { maxLevel: 30,         topic: 'division' },
-  { maxLevel: 40,         topic: 'orderOfOperations' },
-  { maxLevel: 50,         topic: 'fractions' },
-  { maxLevel: 60,         topic: 'percentages' },
-  { maxLevel: Infinity,   topic: 'algebra' },
-];
+  | 'addition'
+  | 'subtraction'
+  | 'multiplication'
+  | 'division'
+  | 'orderOfOperations'
+  | 'fractions'
+  | 'percentages'
+  | 'algebra';
 
 // ── Puzzle ────────────────────────────────────────────────────────────────────
 

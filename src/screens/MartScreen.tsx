@@ -1,18 +1,17 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { D, FONT_PIXEL, FONT_UI } from '../styles/tokens';
 import { useGameStore, useActiveTrainer } from '../store/gameStore';
 import { getBallSpriteUrl, getItemSpriteUrl } from '../lib/sprites';
 import { asset } from '../lib/assets';
+import ScreenBackdrop from '../components/ui/ScreenBackdrop';
 import type { Pokeballs, Potions } from '../types/gameState';
 
 const ITEM_SPRITE_STYLE = { width: 34, height: 34, imageRendering: 'pixelated' as const, objectFit: 'contain' as const, flexShrink: 0 };
 
 // Dimmed Poké Mart backdrop, fixed to the column behind the shop UI.
 const MART_BG = asset('pokemart.jpg');
-const BACKDROP: CSSProperties = { position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 420, height: '100%', zIndex: 0, pointerEvents: 'none' };
-const MART_BG_STYLE: CSSProperties = { ...BACKDROP, objectFit: 'cover', objectPosition: 'top center' };
-const MART_SCRIM_STYLE: CSSProperties = { ...BACKDROP, background: 'linear-gradient(180deg, rgba(10,18,32,0.55) 0%, rgba(10,18,32,0.72) 50%, rgba(10,18,32,0.82) 100%)' };
+const MART_SCRIM = 'linear-gradient(180deg, rgba(10,18,32,0.55) 0%, rgba(10,18,32,0.72) 50%, rgba(10,18,32,0.82) 100%)';
 
 interface BallMartItem {
   key:   keyof Pokeballs;
@@ -153,8 +152,7 @@ export default function MartScreen() {
 
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', fontFamily: FONT_UI, color: D.white, paddingBottom: 120, position: 'relative' }}>
-      <img src={MART_BG} alt="" aria-hidden style={MART_BG_STYLE} />
-      <div aria-hidden style={MART_SCRIM_STYLE} />
+      <ScreenBackdrop src={MART_BG} scrim={MART_SCRIM} />
       <div style={{ position: 'relative', zIndex: 1 }}>
 
       {/* Header */}

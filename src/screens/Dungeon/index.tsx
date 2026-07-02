@@ -21,10 +21,11 @@ import { useGameStore, useActiveTrainer, getPartyPokemon, isItemSystemActive, ge
 import { useDungeonStore } from '../../store/dungeonStore';
 import { useBattleStore }  from '../../store/battleStore';
 import RarityBadge from '../../components/RarityBadge';
+import TypeBadge from '../../components/ui/TypeBadge';
 import { typeColors } from '../../styles/tokens';
 import { getSpecies }      from '../../data/species';
 import { getMove }         from '../../data/moves';
-import { calcHp, calcAllStats, expToLevel, levelFromExp } from '../../lib/formulas';
+import { calcHp, calcAllStats, expToLevel, levelFromExp, totalPotions, totalBalls } from '../../lib/formulas';
 import { damageRange, wildMoveIds, type Fighter } from '../../lib/matchup';
 import { effectiveMultiplier } from '../../lib/mathProblemGenerator';
 import { getIdleSpriteUrl, getItemSpriteUrl, getBallSpriteUrl } from '../../lib/sprites';
@@ -56,13 +57,6 @@ function buildEnemyPokemon(encounter: EncounterData): OwnedPokemon {
 // ── Touch swipe ────────────────────────────────────────────────────────────────
 
 interface ArenaSwipe { x: number; side: 'me' | 'wild'; }
-
-// ── Type badge pill ──────────────────────────────────────────────────────────
-
-function TypeBadge({ type }: { type: string }) {
-  const c = typeColors(type);
-  return <span className={s.typeBadge} style={{ background: c.bg, color: c.fg, border: `1px solid ${c.bdr}` }}>{type}</span>;
-}
 
 // ── Stat comparison chip ────────────────────────────────────────────────────────
 
@@ -129,8 +123,8 @@ export default function DungeonScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const totalPotions = trainer.potions.potion + trainer.potions.superPotion + trainer.potions.hyperPotion;
-  const totalBalls   = trainer.pokeballs.pokeball + trainer.pokeballs.greatBall + trainer.pokeballs.ultraBall;
+  const potionCount = totalPotions(trainer.potions);
+  const ballCount   = totalBalls(trainer.pokeballs);
 
   const safePartyIdx = Math.min(partyIdx, Math.max(0, party.length - 1));
   const safeWildIdx  = Math.min(wildIdx,  Math.max(0, encounters.length - 1));
@@ -253,11 +247,11 @@ export default function DungeonScreen() {
         <div className={s.header}>
           <button className={s.backBtn} onClick={handleReturnToTown}>← Town</button>
           <div className={s.invChips}>
-            <span className={s.invChip} style={{ color: totalPotions > 0 ? '#eef2ff' : '#e0574f' }}>
-              <img src={getItemSpriteUrl('potion')} alt="" style={{ width: 16, height: 16, imageRendering: 'pixelated', objectFit: 'contain' }} />×{totalPotions}
+            <span className={s.invChip} style={{ color: potionCount > 0 ? '#eef2ff' : '#e0574f' }}>
+              <img src={getItemSpriteUrl('potion')} alt="" style={{ width: 16, height: 16, imageRendering: 'pixelated', objectFit: 'contain' }} />×{potionCount}
             </span>
-            <span className={s.invChip} style={{ color: totalBalls > 0 ? '#eef2ff' : '#e0574f' }}>
-              <img src={getBallSpriteUrl('pokeball')} alt="" style={{ width: 16, height: 16, imageRendering: 'pixelated', objectFit: 'contain' }} />×{totalBalls}
+            <span className={s.invChip} style={{ color: ballCount > 0 ? '#eef2ff' : '#e0574f' }}>
+              <img src={getBallSpriteUrl('pokeball')} alt="" style={{ width: 16, height: 16, imageRendering: 'pixelated', objectFit: 'contain' }} />×{ballCount}
             </span>
             <span className={s.invChip} style={{ color: '#FFCB05' }}>
               ₽{trainer.pokeDollars.toLocaleString()}

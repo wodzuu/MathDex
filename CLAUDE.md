@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MathDex is a Pokémon-inspired dungeon-crawling RPG for ages 9–11 where every progression mechanic (attacking, catching, equipping items) is gated by solving arithmetic problems. Target platform: mobile web (max 420 px wide), installable as a PWA.
 
-**Stack:** React 18 + Vite 5 + TypeScript 5 · React Router 6 · Zustand 4 · Dexie 3 (IndexedDB) · vite-plugin-pwa
+**Stack:** React 18 + Vite 5 + TypeScript 5 · React Router 6 (hash router) · Zustand 4 · Dexie 3 (IndexedDB) · vite-plugin-pwa
 
 ## Commands
 
@@ -19,15 +19,15 @@ npm run typecheck  # Type-check only (no emit)
 
 ## Game Design Specification
 
-`docs/specification.md` (v1.4) is the authoritative source for all game mechanics. Read it before implementing any game logic. (v1.4 supersedes the earlier floor-based design: floors are removed and progression is level-based — see the changelog at the top of the spec.) Key sections:
+`docs/specification.md` (v1.7) is the authoritative source for all game mechanics. Read it before implementing any game logic. Key sections:
 
-- **§2** – Core game loop: endless wild encounters (no floors), encounter generation (opponent level = party-high ±1), the Lead Pokémon
-- **§3** – Mathematics curriculum: addition only, re-tuned by opponent level
-- **§4** – Battle system: damage formula, speed-based turn order, incremental damage-proportional EXP, Focus/charged crit
-- **§6** – Pokémon system: rarity tiers (from capture rate), rarity-weighted encounters, types, evolution, catching
-- **§5** – Item system (Phase 2, level-gated: activation trigger, rarity tiers, per-Pokémon slot progression)
-- **§7** – Progression & economy (money on defeat only, Trainer Card)
-- **§11** – Technical implementation notes (`itemSystemActive` derivation, math problem generation, save-state schema)
+- **§2** – Core game loop: endless wild encounters (no floors), encounter generation (opponent level = party-high ±1), first-run trainer creation
+- **§3** – Mathematics curriculum: 21 Math Ranks (+, −, ×, ÷) decoupled from opponent level; fast-track + windowed rank-up; interleaved ⭐ review
+- **§4** – Battle system: damage formula, multi-challenge puzzles with a 50% damage floor, speed-based turn order, incremental damage-proportional EXP, Focus/charged crit, full-screen outcome summary
+- **§5** – Item system (Phase 2, level-gated: activation trigger, rarity tiers, per-Pokémon slot progression — designed, not yet built)
+- **§6** – Pokémon system: rarity tiers (from capture rate), rarity-weighted encounters + pity, types, evolution, catching, party/PC Box (incl. swap)
+- **§7** – Progression & economy (money on defeat only), trainers & the Trainer view (create/switch/rename/delete)
+- **§11** – Technical implementation notes (math generation, save-state schema)
 
 ## Project Structure
 
@@ -38,88 +38,90 @@ src/
     tokens.ts     D palette, TYPE_COLORS, STAT_COLORS, RARITY_COLORS, font constants
     animations.ts Global keyframes + utility CSS classes; useGlobalAnimations() hook
   store/
-    gameStore.ts  Zustand: item system gate, party, economy, trainer card/stats
-    battleStore.ts Zustand: full battle state machine (phase, enemy, focus meter, floats)
+    gameStore.ts    Zustand: trainers (create/switch/rename/delete), party/box, economy, math rank, stats
+    battleStore.ts  Zustand: minimal battle state that survives navigation (enemy, HP%, active id, openingResolved)
+    dungeonStore.ts Zustand: the three rolled wild encounters + active selection
+    pwaStore.ts     Zustand: PWA update prompt state
   db/
-    db.ts         Dexie schema + persistSave() / loadSave() / clearSave() helpers
+    db.ts         Dexie schema (single `saves` table, one GameState row, id=1) + load/save/clear helpers
+  hooks/
+    useGameInit.ts    Load-or-create save on boot + debounced autosave subscription
+    usePartyDisplay.ts Derived display data for party/box cards
   lib/
-    formulas.ts   Pure functions: calcDamage, calcAllStats, expGained, itemSlotCount, …
+    formulas.ts   Pure functions: calcDamage, calcAllStats, expGained, itemSlotCount, totalPotions/totalBalls, …
+    battleMath.ts playerMoveDamage / enemyMoveDamage — the single code path for battle damage numbers
+    mathProblemGenerator.ts  GEN config table (one entry per Math Rank genLevel) + generateRankedPuzzle
+    encounterGenerator.ts    Stage-gated, rarity-weighted encounter rolls with pity
+    newGame.ts    makeTrainer(name, starterId) + createNewGame() (empty — no trainer until created)
+    assets.ts     asset(path) — BASE_URL + cache-busting ?v=<build> for public/ images
+    sprites.ts    Sprite URL helpers (idle/walk/ball/item)
   router/
-    index.tsx     createBrowserRouter with all 5 routes
-  screens/        One file per top-level route (Town, Dungeon, Battle, Identify, Equip)
+    index.tsx     createHashRouter; gameplay routes wrapped in <TrainerGuard> (redirects to /new-trainer)
+  screens/        One file or directory per route. Directory screens (Battle/, Dungeon/, Town/,
+                  Pokedex/, PokemonDetail/, TrainerDetail/) pair index.tsx with a CSS module.
+    Battle/       index.tsx (orchestrator) · useChallengeQueue.ts (multi-challenge state machine)
+                  · panels.tsx (MoveList/Math/Potion/Ball/Catch) · battleData.ts (types + catalogues)
   components/
-    ui/           Shared presentational atoms: TypeBadge, RarityBadge, HPBar, Card, Btn
-  data/           Static game data: species.ts, moves.ts, items.ts, typeChart.ts, curriculum.ts
-  assets/         Static assets (sprites, sounds — not present yet)
-  App.tsx         Calls useGlobalAnimations(), mounts AppRouter — keep thin
+    TrainerGuard.tsx, PartyMemberCard.tsx, RarityBadge.tsx, PwaUpdater.tsx
+    ui/           Shared presentational atoms: TypeBadge, ScreenBackdrop
+  data/           Static game data: pokemon.json + gen1.ts (all 151), species.ts, moves.ts, curriculum.ts
+  App.tsx         useGlobalAnimations() + useGameInit() gate, mounts AppRouter — keep thin
   main.tsx        createRoot entry point
 
-public/
-  favicon.svg
-  pwa-192x192.png  (add before production build — not in repo)
-  pwa-512x512.png  (add before production build — not in repo)
+public/           Backdrops (.jpg), sprites, PWA icons
 ```
-
-## Architecture of the Reference Mockups
-
-The files in `reference/` are standalone React prototypes — paste into CodeSandbox/StackBlitz to preview. They have no build system; all styles are inline.
-
-### Shared patterns (carry into production code)
-
-- **All styling is inline.** No CSS files, no CSS-in-JS libraries. Styles are written as JS objects passed to `style={}`. Import colours from `src/styles/tokens.ts`.
-- **CSS animation classes** (`.fade-up`, `.slide-up`, `.pulsing`, `.glowY`) are injected once by `useGlobalAnimations()` in App.tsx and referenced as `className` strings.
-- **Two font families:** `FONT_PIXEL` (`'Press Start 2P'`) for labels/numbers, `FONT_UI` (`'Nunito'`) for body/buttons — both constants live in `tokens.ts`.
-- **Type colours:** `typeColors(type)` from `tokens.ts` returns `{ bg, fg, bdr }` for any `PokeType`. Falls back to Normal for unknown strings.
-
-### Screen-level architecture
-
-- **`mathdex_mockups.jsx`** — all five screens in one file, with a tab nav bar. Contains the shared `TypeBadge`, `RarityBadge`, `HPBar`, `Card`, `Btn` components to port to `src/components/ui/`.
-- **`mathdex_dungeon.jsx`** — floor path, party HP top bar (Lead Pokémon larger + `LEAD` badge), bottom-sheet overlays for Encounter / Chest / Stairs / Loot Drop.
-- **`mathdex_equip.jsx`** — party list → Pokémon detail (two-screen nav), item browser bottom sheet with live stat preview delta.
 
 ## Critical Game Logic
 
-### Two-phase item system
+### Math Rank progression (spec §3)
 
-The single most important architectural constraint. `itemSystemActive` in `gameStore` is set when **any** party Pokémon first reaches level 20. Once true it never resets.
+`MATH_RANKS` in `src/data/curriculum.ts` is the 21-rank ladder; each rank's `genLevel` indexes the `GEN` config table in `mathProblemGenerator.ts`. Rank-up happens in `gameStore.recordMathAttempt`:
+- **Fast-track:** ≤ `MATH_FASTTRACK_MAX_MISTAKES` (2) wrong in the first `MATH_FASTTRACK_SIZE` (20) challenges of a rank → immediate rank-up.
+- **Window:** otherwise ≥ 80% correct over the last 100 current-rank challenges.
+- ⭐ review challenges (~30%, drawn from lower ranks) never count toward rank-up.
 
-Before activation: item slots, wild Pokémon drops, the identification screen, the equip screen, and Prof. Oak's lab **must be completely invisible** — no placeholders, no locked icons. Spec §5.0.
+### Multi-challenge battle math (spec §4.3)
 
-`gameStore.updatePokemon()` automatically fires `activateItemSystem()` when a level-20 threshold is crossed, so callers don't need to check manually.
+Picking a move queues `N = ceil(min(1, DMG/enemyMaxHP) × 5)` puzzles (`useChallengeQueue` in `screens/Battle/`). No ✅/❌ feedback until all are answered; then a "Deal N damage" button applies `max(50% DMG, DMG − wrong × round(50% DMG / N))`. Catch attempts are a single puzzle with 75% accuracy on a wrong/expired answer.
 
 ### Damage formula
 
 ```
-Damage = (MovePower + ItemBonus) × Atk ÷ Def × TypeMultiplier × STAB ÷ 50
+Damage = (MovePower + ItemBonus) × Atk ÷ Def × TypeMultiplier × STAB × Crit × Accuracy ÷ 50
 ```
 
-`ItemBonus = 0` when `itemSystemActive` is false. Call `calcDamage()` from `src/lib/formulas.ts`. Spec §4.2.
+`ItemBonus = 0` until the item system exists. Always go through `playerMoveDamage()` / `enemyMoveDamage()` in `src/lib/battleMath.ts` so the move-list preview, the actual hit, and the enemy damage range can't drift apart. Spec §4.2.
 
-### Item slot progression (per Pokémon, not global)
+### EXP is incremental and damage-proportional (spec §4.7)
 
-| Level | Slots |
-|-------|-------|
-| 1–19  | 0     |
-| 20–35 | 1 (first Pokémon to reach 20 triggers global activation) |
-| 36–49 | 2     |
-| 50+   | 3     |
+EXP is granted the instant damage lands, to the Pokémon that dealt it, proportional to the HP fraction removed — persisted immediately (kept even if the enemy is later caught). There is no participant set and no end-of-battle split.
 
-`itemSlotCount(level)` in `src/lib/formulas.ts`. `updatePokemon()` resizes `heldItemUids` automatically on level change. Spec §5.6.
+### Two-phase item system (spec §5 — designed, not yet built)
 
-### XP participation rule
+`isItemSystemActive(trainer)` is **derived** (any owned Pokémon ≥ level 20), never stored. Before activation the item system must be completely invisible — no placeholders, no locked icons. `itemSlotCount(level)` in `formulas.ts`: 0 / 1 / 2 / 3 slots at levels 1 / 20 / 36 / 50.
 
-Every Pokémon **sent out** during a battle receives the **full** EXP (not split). Pokémon that stayed in reserve receive nothing. `battleStore.participantUids` tracks who was sent out. `switchActive()` adds the incoming Pokémon to that set. Spec §4.7.
+### Trainers
 
-### Math partial credit
-
-- Battle: wrong/expired answer → 75% power (`partialCreditMultiplier` from `DifficultyConfig`). Never 0. Spec §3.3.
-- Identification: wrong answer → ≈60% of the stat value unlocked. `solvedPuzzles[i] = false` in `BagItem`. Spec §5.4.
+A save holds multiple trainers; a fresh save has **none** — `TrainerGuard` redirects to `/new-trainer` until the first is created (name + one of four starters). Party size (1–4) is derived from the strongest owned Pokémon's level via `partySlotsForLevel`, never stored.
 
 ## State Management
 
-Two Zustand stores with Redux DevTools enabled:
+Four Zustand stores with Redux DevTools enabled:
 
-- **`useGameStore`** — persistent world state (everything that should survive between dungeon runs). Saved to Dexie via `persistSave()` on every room transition and on town return.
-- **`useBattleStore`** — transient battle state. `battle` is `null` outside of an encounter. `endBattle()` clears it completely.
+- **`useGameStore`** — persistent world state (trainers, Pokémon, economy, math rank, stats). `useGameInit` autosaves it to Dexie (debounced) on every change.
+- **`useBattleStore`** — transient battle state, deliberately minimal: only what must survive client-side navigation (enemy, enemy HP%, active fighter id, `openingResolved`). Everything else (panels, puzzles, timers, floats, focus) is BattleScreen component state. `battle` is `null` outside an encounter.
+- **`useDungeonStore`** — the current three wild-encounter rolls.
+- **`usePwaStore`** — service-worker update prompt.
 
-Save/load is handled by `src/db/db.ts`. The Dexie schema has three tables: `pokemon` (indexed by `inParty`, `partySlot`), `bag` (indexed by `identified`), and `save` (single row, id=1).
+Save/load is `src/db/db.ts`: a single `saves` table holding one `GameState` row (id = 1).
+
+## Styling Conventions
+
+- Two font families: `FONT_PIXEL` (`'Press Start 2P'`) for labels/numbers, `FONT_UI` (`'Nunito'`) for body/buttons — constants in `tokens.ts`. Colours come from `D` / `typeColors()` in `tokens.ts` (`typeColors` falls back to Normal for unknown strings).
+- Animation classes (`.fade-up`, `.pulsing`, …) are injected once by `useGlobalAnimations()` and referenced as `className` strings.
+- Screens are split between inline styles and CSS modules. **Prefer a directory + CSS module for new screens** (the Dungeon/Town/TrainerDetail pattern); shared atoms go in `src/components/ui/`.
+- Full-screen painted backdrops use `<ScreenBackdrop src scrim />` from `components/ui`.
+
+## Reference Mockups
+
+`reference/` holds standalone React prototypes (paste into CodeSandbox/StackBlitz to preview) from the original design phase — useful for visual intent, but the production code has since diverged (e.g. they predate CSS modules and the floor-less dungeon). Treat them as historical, not authoritative.

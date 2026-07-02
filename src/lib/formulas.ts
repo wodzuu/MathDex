@@ -8,6 +8,7 @@
  */
 
 import type { BaseStats, PokemonRarity } from '../types/pokemon';
+import type { Pokeballs, Potions } from '../types/gameState';
 
 // ── Stat formula ──────────────────────────────────────────────────────────────
 // Spec §6.1: Stat at level N = floor((2 × Base + 15) × N ÷ 100) + 5
@@ -194,11 +195,16 @@ export function catchProbability(
   return Math.min(1, speciesRate * ballBaseRate * zoneMultiplier);
 }
 
-// ── Pokédollars loss on blackout ──────────────────────────────────────────────
-// Spec §2.6: blackout causes loss of half current Pokédollars.
+// ── Consumable totals ─────────────────────────────────────────────────────────
 
-export function pokeDollarsAfterBlackout(current: number): number {
-  return Math.floor(current / 2);
+/** Total potions of every tier — shown on toolbar chips and action buttons. */
+export function totalPotions(p: Potions): number {
+  return (p.potion ?? 0) + (p.superPotion ?? 0) + (p.hyperPotion ?? 0);
+}
+
+/** Total Poké Balls of every tier — shown on toolbar chips and action buttons. */
+export function totalBalls(b: Pokeballs): number {
+  return (b.pokeball ?? 0) + (b.greatBall ?? 0) + (b.ultraBall ?? 0);
 }
 
 // ── Pokédollars earned on defeat ──────────────────────────────────────────────

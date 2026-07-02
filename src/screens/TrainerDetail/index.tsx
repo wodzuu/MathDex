@@ -14,11 +14,14 @@ import { MATH_RANKS, MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, cla
 import { getSpecies } from '../../data/species';
 import { getIdleSpriteUrl } from '../../lib/sprites';
 import { asset } from '../../lib/assets';
+import ScreenBackdrop from '../../components/ui/ScreenBackdrop';
 
 import s from './TrainerDetail.module.css';
 
 const TRAINER_IMG = asset('trainer.png');
 const TRAINER_BG  = asset('trainer_bg.jpg');
+// Dims the house backdrop toward the bottom for readability.
+const TRAINER_SCRIM = 'linear-gradient(180deg, rgba(10, 18, 32, 0.35) 0%, rgba(10, 18, 32, 0.45) 45%, rgba(10, 18, 32, 0.82) 100%)';
 // Correct answers (out of the rolling window) needed to advance a rank.
 const TARGET_CORRECT = Math.round(MATH_WINDOW_SIZE * MATH_RANKUP_THRESHOLD);
 
@@ -54,8 +57,7 @@ export default function TrainerDetailScreen() {
 
   return (
     <div className={s.screen}>
-      <img className={s.bg} src={TRAINER_BG} alt="" aria-hidden="true" />
-      <div className={s.scrim} aria-hidden="true" />
+      <ScreenBackdrop src={TRAINER_BG} scrim={TRAINER_SCRIM} />
       <div className={s.content}>
       <div className={s.header}>
         <button className={s.back} onClick={() => navigate(-1)}>← Back</button>

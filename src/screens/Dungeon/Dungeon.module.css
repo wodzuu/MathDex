@@ -145,7 +145,6 @@
 .nameRow { display: flex; align-items: center; gap: 8px; }
 .nameText { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; color: #f0f4ff; }
 .nameLv { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #aeb8d6; }
-.typeBadge { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; display: inline-block; line-height: 1.4; }
 
 .hpRow { display: flex; align-items: center; gap: 6px; }
 .hpLabel { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #8892b8; }

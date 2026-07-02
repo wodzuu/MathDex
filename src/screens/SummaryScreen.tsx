@@ -13,6 +13,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 import { getIdleSpriteUrl } from '../lib/sprites';
 import { asset } from '../lib/assets';
+import ScreenBackdrop from '../components/ui/ScreenBackdrop';
 import { FONT_PIXEL, FONT_UI } from '../styles/tokens';
 
 const WON_BG     = asset('won.jpg');
@@ -69,9 +70,7 @@ export default function SummaryScreen() {
         fontFamily: FONT_UI, color: '#eafff0', cursor: 'pointer', overflow: 'hidden',
       }}
     >
-      {/* Background */}
-      <img src={outcome === 'caught' ? CAUGHT_BG : WON_BG} alt="" aria-hidden
-        style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 420, height: '100%', objectFit: 'cover', objectPosition: 'center', zIndex: 0, pointerEvents: 'none' }} />
+      <ScreenBackdrop src={outcome === 'caught' ? CAUGHT_BG : WON_BG} objectPosition="center" />
 
       {/* Centered outcome text */}
       <div className="fade-up" style={{ position: 'relative', zIndex: 1, width: '100%', textAlign: 'center' }}>

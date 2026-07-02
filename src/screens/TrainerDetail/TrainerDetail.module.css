@@ -15,15 +15,7 @@
   padding-bottom: calc(28px + env(safe-area-inset-bottom));
 }
 
-/* Painted house backdrop — fixed to the column so content scrolls over it,
-   with a dimming scrim that darkens toward the bottom for readability. */
-.bg, .scrim {
-  position: fixed; top: 0; left: 50%; transform: translateX(-50%);
-  width: 100%; max-width: 420px; height: 100%; z-index: 0; pointer-events: none;
-}
-.bg { object-fit: cover; object-position: top center; }
-.scrim { background: linear-gradient(180deg, rgba(10, 18, 32, 0.35) 0%, rgba(10, 18, 32, 0.45) 45%, rgba(10, 18, 32, 0.82) 100%); }
-
+/* The painted house backdrop + scrim render via the shared <ScreenBackdrop>. */
 .content { position: relative; z-index: 1; }
 
 /* ── Header ── */

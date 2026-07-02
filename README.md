@@ -7,7 +7,7 @@ weaken-and-catch them with a Poké Ball, level up your party, and the puzzles sc
 with your opponents. It's built as a mobile-web app (max 420 px wide) and is
 installable as a PWA.
 
-> 🤖 This project was **vibe-coded with Claude (Opus 4.8)** — design, gameplay logic,
+> 🤖 This project was **vibe-coded with Claude (Opus 4.8 & Fable 5)** — design, gameplay logic,
 > and UI were built collaboratively through conversation.
 
 ## Play in your browser
