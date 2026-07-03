@@ -27,6 +27,7 @@ const GLOBAL_CSS = `
   @keyframes blinkcur  { 0%,49%{opacity:1} 50%,100%{opacity:0} }
   @keyframes superEff  { 0%{opacity:0;transform:scale(.5) rotate(-10deg)} 60%{opacity:1;transform:scale(1.1) rotate(2deg)} 100%{opacity:1;transform:scale(1) rotate(0)} }
   @keyframes timerPulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
+  @keyframes countPop  { 0%{transform:scale(1)} 40%{transform:scale(1.6);color:#48c774} 100%{transform:scale(1)} }
 
   /* ── Utility classes ───────────────────────────────────────────────── */
   .fade-up   { animation: fadeUp   .3s ease both; }
@@ -42,6 +43,7 @@ const GLOBAL_CSS = `
     animation:superEff .4s ease both; box-shadow:2px 2px 0 #CC0000;
   }
   .timer-pulse { animation: timerPulse .4s ease-in-out infinite; }
+  .count-pop   { display:inline-block; animation: countPop .35s ease both; }
 
   /* ── Scrollbar ─────────────────────────────────────────────────────── */
   ::-webkit-scrollbar { width:4px; }

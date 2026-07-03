@@ -14,10 +14,13 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useGameStore, useActiveTrainer, isItemSystemActive, getPartyHighestLevel } from '../../store/gameStore';
+import { useGameStore, useActiveTrainer, isItemSystemActive, getPartyHighestLevel, getPartyPokemon } from '../../store/gameStore';
 import { useDungeonStore } from '../../store/dungeonStore';
 import { usePwaStore } from '../../store/pwaStore';
 
+import { getSpecies } from '../../data/species';
+import { calcHp, levelFromExp } from '../../lib/formulas';
+import { getIdleSpriteUrl } from '../../lib/sprites';
 import { asset } from '../../lib/assets';
 import s from './Town.module.css';
 
@@ -42,6 +45,19 @@ export default function TownScreen() {
   const updateApp   = usePwaStore((st) => st.update);
 
   const itemActive = isItemSystemActive(trainer);
+
+  // Status strip: party at a glance (sprite + HP dot) and the wallet, so the
+  // player can tell from the hub whether to heal or shop.
+  const partyGlance = getPartyPokemon(trainer).map((pk) => {
+    const spec  = getSpecies(pk.speciesId);
+    const maxHp = spec ? calcHp(spec.baseStats.hp, levelFromExp(pk.totalExp)) : 1;
+    const pct   = maxHp > 0 ? (pk.currentHp / maxHp) * 100 : 0;
+    return {
+      id:  pk.instanceId,
+      dex: spec?.dexNumber ?? 0,
+      col: pct <= 0 ? '#555b70' : pct > 50 ? '#48c774' : pct > 20 ? '#F8D030' : '#CC0000',
+    };
+  });
 
   // Forest → stock the dungeon and head in.
   const enterDungeon = useCallback(() => {
@@ -70,6 +86,21 @@ export default function TownScreen() {
         {/* ── Forest backdrop: forest = dungeon, grass = building panels ── */}
         <div className={s.mapWrap}>
           <img className={s.map} src={TOWN_URL} alt="Town" />
+
+          {/* ── Status strip: wallet + party at a glance ── */}
+          <div className={s.statusStrip}>
+            <button className={s.statusChip} onClick={() => navigate('/mart')} aria-label="Pokédollars — open the Mart">
+              ₽{trainer.pokeDollars.toLocaleString()}
+            </button>
+            <button className={s.statusParty} onClick={() => navigate('/pc')} aria-label="Party — open the Pokémon Center">
+              {partyGlance.map((p) => (
+                <span key={p.id} className={s.statusMon}>
+                  <img src={getIdleSpriteUrl(p.dex)} alt="" />
+                  <span className={s.statusHpDot} style={{ background: p.col }} />
+                </span>
+              ))}
+            </button>
+          </div>
 
           {/* Top forest + path → enter the dungeon */}
           <button

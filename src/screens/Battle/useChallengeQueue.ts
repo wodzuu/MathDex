@@ -7,10 +7,12 @@
  * move's damage is guaranteed; each wrong answer forfeits an equal share of the
  * other 50%.
  *
- * The hook owns the queue, the typed answer, and the countdown interval. Refs
- * mirror the queue/answer so the long-lived interval never reads stale state.
- * The countdown is also reused by the single-puzzle catch flow (via startTimer
- * without an expiry callback — the caller watches `timer === 0` itself).
+ * The hook owns the queue, the typed answer, and the countdown. A short
+ * "get ready" beat (`ready`) precedes the first countdown so the clock never
+ * runs while the panel is still sliding in. Refs mirror the queue/answer so
+ * the long-lived interval never reads stale state. The countdown is also
+ * reused by the single-puzzle catch flow (via startTimer without an expiry
+ * callback — the caller watches `timer === 0` itself).
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -23,9 +25,10 @@ export interface ChallengeQueue {
   answer: string;
   setAnswer: (v: string) => void;
   timer: number;
+  /** True during the pre-countdown "get ready" beat — the clock isn't running yet. */
+  ready: boolean;
   baseDmg: number;
   isCrit: boolean;
-  inpRef: React.RefObject<HTMLInputElement>;
   // Derived
   idx: number;
   allAnswered: boolean;
@@ -40,17 +43,20 @@ export interface ChallengeQueue {
   begin: (puzzles: MathPuzzle[], baseDmg: number, isCrit: boolean) => void;
   submitTyped: () => void;
   clear: () => void;
-  startTimer: (seconds: number, onExpire?: () => void) => void;
+  startTimer: (seconds: number, onExpire?: () => void, delayMs?: number) => void;
   stopTimer: () => void;
 }
 
 const DEFAULT_TIME = 6;
+/** "Get ready" beat before the first countdown of a move / catch. */
+const READY_MS = 900;
 
 export function useChallengeQueue(): ChallengeQueue {
   const [challenges, setChallenges] = useState<MathPuzzle[]>([]);
   const [chAnswers, setChAnswers]   = useState<(number | null)[]>([]);
   const [answer, setAnswer]         = useState('');
   const [timer, setTimer]           = useState(DEFAULT_TIME);
+  const [ready, setReady]           = useState(false);
   const [baseDmg, setBaseDmg]       = useState(0);   // move's full damage (incl. crit)
   const [isCrit, setIsCrit]         = useState(false);
 
@@ -60,31 +66,43 @@ export function useChallengeQueue(): ChallengeQueue {
   const chAnswersRef  = useRef<(number | null)[]>([]);
   const answerRef     = useRef('');
   const tiRef         = useRef<ReturnType<typeof setInterval> | null>(null);
-  const inpRef        = useRef<HTMLInputElement>(null);
+  const readyRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { answerRef.current     = answer; }, [answer]);
   useEffect(() => { challengesRef.current = challenges; }, [challenges]);
   useEffect(() => { chAnswersRef.current  = chAnswers; }, [chAnswers]);
-  useEffect(() => () => { if (tiRef.current) clearInterval(tiRef.current); }, []);
+  useEffect(() => () => { stopTimer(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   function stopTimer() {
     if (tiRef.current) { clearInterval(tiRef.current); tiRef.current = null; }
+    if (readyRef.current) { clearTimeout(readyRef.current); readyRef.current = null; }
+    setReady(false);
   }
 
   // Countdown. `remaining` lives in a local so the interval never reads stale
-  // React state; on expiry it fires onExpire (or just rests at 0).
-  function startTimer(seconds: number, onExpire?: () => void) {
+  // React state; on expiry it fires onExpire (or just rests at 0). A delay
+  // shows the full time under a "READY…" flash before the clock starts.
+  function startTimer(seconds: number, onExpire?: () => void, delayMs = 0) {
     stopTimer();
     setTimer(seconds);
-    let remaining = seconds;
-    tiRef.current = setInterval(() => {
-      remaining -= 1;
-      setTimer(Math.max(0, remaining));
-      if (remaining <= 0) {
-        stopTimer();
-        onExpire?.();
-      }
-    }, 1000);
+    const run = () => {
+      setReady(false);
+      let remaining = seconds;
+      tiRef.current = setInterval(() => {
+        remaining -= 1;
+        setTimer(Math.max(0, remaining));
+        if (remaining <= 0) {
+          if (tiRef.current) { clearInterval(tiRef.current); tiRef.current = null; }
+          onExpire?.();
+        }
+      }, 1000);
+    };
+    if (delayMs > 0) {
+      setReady(true);
+      readyRef.current = setTimeout(run, delayMs);
+    } else {
+      run();
+    }
   }
 
   /** Expiry for a challenge countdown: lock in whatever is typed (blank → null). */
@@ -106,7 +124,6 @@ export function useChallengeQueue(): ChallengeQueue {
     answerRef.current = '';
     if (next.length < total) {
       startTimer(challengesRef.current[next.length].timeLimitSeconds ?? DEFAULT_TIME, expireChallenge);
-      setTimeout(() => inpRef.current?.focus(), 60);
     } else {
       stopTimer();
     }
@@ -118,8 +135,7 @@ export function useChallengeQueue(): ChallengeQueue {
     setBaseDmg(dmg);
     setIsCrit(crit);
     setAnswer('');            answerRef.current = '';
-    startTimer(puzzles[0]?.timeLimitSeconds ?? DEFAULT_TIME, expireChallenge);
-    setTimeout(() => inpRef.current?.focus(), 80);
+    startTimer(puzzles[0]?.timeLimitSeconds ?? DEFAULT_TIME, expireChallenge, READY_MS);
   }
 
   /** Lock in the typed answer (no feedback yet) and advance. */
@@ -150,7 +166,7 @@ export function useChallengeQueue(): ChallengeQueue {
   const curTimeLimit = challenges[idx]?.timeLimitSeconds ?? DEFAULT_TIME;
 
   return {
-    challenges, chAnswers, answer, setAnswer, timer, baseDmg, isCrit, inpRef,
+    challenges, chAnswers, answer, setAnswer, timer, ready, baseDmg, isCrit,
     idx, allAnswered, correctCount, wrongCount, deduction, finalDamage, curTimeLimit,
     begin, submitTyped, clear, startTimer, stopTimer,
   };

@@ -69,6 +69,48 @@
   display: block;
 }
 
+/* ── Status strip — wallet + party at a glance, floating over the map top ── */
+.statusStrip {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: 6;
+  line-height: normal;
+  pointer-events: none;   /* let the forest hotspot receive taps between chips */
+}
+.statusChip, .statusParty {
+  pointer-events: auto;
+  background: rgba(20, 23, 42, 0.88);
+  border: 1px solid #3a3d5c;
+  border-radius: 12px;
+  padding: 7px 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.statusChip {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: #FFCB05;
+}
+.statusParty {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+}
+.statusMon { position: relative; width: 28px; height: 28px; display: inline-block; }
+.statusMon img { width: 28px; height: 28px; image-rendering: pixelated; object-fit: contain; display: block; }
+.statusHpDot {
+  position: absolute; right: -3px; bottom: -2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid #10162a;
+}
+
 /* Transparent tappable region over a building / path. Faint persistent ring
    advertises tappability; brightens + reveals a tag on hover/press. */
 

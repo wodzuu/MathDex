@@ -226,7 +226,14 @@
 .powerEnds { display: flex; justify-content: space-between; margin-top: 3px; }
 .powerEnd { font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 800; }
 
-.chipGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+.detailsBtn {
+  display: block; width: 100%; margin-top: 10px; padding: 7px;
+  background: transparent; border: 1px solid #3a3d5c; border-radius: 9px;
+  font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; color: #8c98b8;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+
+.chipGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
 .chip { background: #222a40; border-radius: 10px; padding: 7px 4px; text-align: center; }
 .chipLabel { font-family: 'Nunito', sans-serif; font-size: 11px; color: #8892b8; font-weight: 700; margin-bottom: 4px; }
 .chipRow { display: flex; align-items: baseline; justify-content: center; gap: 6px; }

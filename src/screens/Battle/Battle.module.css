@@ -9,7 +9,9 @@
   margin: 0 auto;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow: hidden;
+  /* Vertical scroll allowed — the math panel + number pad can outgrow short screens. */
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #8fb35a;
   font-family: 'Nunito', sans-serif;
 }
@@ -32,11 +34,49 @@
 
 /* ── Battle stage ── */
 .arena { position: relative; height: 272px; flex-shrink: 0; }
+/* Whole-arena shudder when a hit lands. */
+.shake { animation: arenaShake 0.35s ease-in-out; }
+@keyframes arenaShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 2px); }
+  40% { transform: translate(4px, -2px); }
+  60% { transform: translate(-3px, -1px); }
+  80% { transform: translate(2px, 1px); }
+}
 
 .groundShadow { position: absolute; border-radius: 50%; background: rgba(18, 28, 12, 0.32); filter: blur(4px); z-index: 1; }
 .sprite { position: absolute; image-rendering: pixelated; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45)); z-index: 2; }
+/* Attacker lunges toward its target when the hit lands. The keyframes must
+   restate the sprites' base inline transforms (centering / enemy mirror). */
+.lungeRight { animation: lungeRight 0.4s ease-out; }
+@keyframes lungeRight {
+  0%, 100% { transform: translateX(-50%); }
+  35% { transform: translateX(calc(-50% + 46px)) translateY(-8px); }
+}
+.lungeLeft { animation: lungeLeft 0.4s ease-out; }
+@keyframes lungeLeft {
+  0%, 100% { transform: translateX(-50%) scaleX(-1); }
+  35% { transform: translateX(calc(-50% - 46px)) translateY(-8px) scaleX(-1); }
+}
 .hitFx { position: absolute; object-fit: contain; z-index: 2; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35)); animation: hitPop 0.16s ease-out; pointer-events: none; }
 @keyframes hitPop { from { transform: translateX(-50%) scale(0.55); opacity: 0.4; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+
+/* ── Poké Ball throw (catch suspense) ── */
+.ballFx { position: absolute; width: 40px; height: 40px; image-rendering: pixelated; object-fit: contain; z-index: 6; pointer-events: none; }
+/* Arc from the player's side over to the enemy platform. */
+.ballFly { animation: ballFly 0.65s cubic-bezier(0.35, -0.2, 0.6, 1) forwards; }
+@keyframes ballFly {
+  0%   { left: 30%; top: 190px; transform: translateX(-50%) scale(0.8) rotate(0deg); }
+  55%  { top: 70px; }
+  100% { left: 72%; top: 158px; transform: translateX(-50%) scale(1) rotate(540deg); }
+}
+/* Three tense wobbles on the ground, pivoting on the ball's base. */
+.ballWobble { left: 72%; top: 158px; transform: translateX(-50%); transform-origin: 50% 90%; animation: ballWobble 0.45s ease-in-out 3; }
+@keyframes ballWobble {
+  0%, 100% { transform: translateX(-50%) rotate(0deg); }
+  25% { transform: translateX(-50%) rotate(-24deg); }
+  75% { transform: translateX(-50%) rotate(24deg); }
+}
 
 .nameBadge {
   position: absolute; display: flex; flex-direction: column; gap: 5px;
@@ -59,8 +99,10 @@
 }
 .hpRow { display: flex; align-items: center; gap: 6px; }
 .hpLabel { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #8892b8; }
-.hpTrack { flex: 1; height: 8px; background: #0c1020; border-radius: 4px; overflow: hidden; }
-.hpFill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+.hpTrack { flex: 1; height: 8px; background: #0c1020; border-radius: 4px; overflow: hidden; position: relative; }
+.hpFill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px; transition: width 0.25s; z-index: 2; }
+/* Pale "damage ghost" left behind at the old HP value; drains away slowly. */
+.hpGhost { position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px; background: rgba(255, 255, 255, 0.55); transition: width 0.7s ease 0.15s; z-index: 1; }
 .hpText { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #c8d0e8; }
 
 .dmgRangeRow { display: flex; align-items: center; gap: 6px; margin-top: 1px; }
@@ -80,12 +122,22 @@
 
 /* ── Focus strip ── */
 .focusStrip { display: flex; align-items: center; gap: 8px; margin: 8px 12px 0; background: rgba(20, 23, 42, 0.92); border: 1px solid #3a3d5c; border-radius: 12px; padding: 7px 12px; }
-.focusStripFull { border-color: #FFCB05; }
+/* Fully charged — the strip glows, the pips flash: the next attack is a ×2 crit. */
+.focusStripFull { border-color: #FFCB05; animation: focusGlow 0.9s ease-in-out infinite alternate; }
+@keyframes focusGlow {
+  from { box-shadow: 0 0 4px rgba(255, 203, 5, 0.3); }
+  to   { box-shadow: 0 0 16px rgba(255, 203, 5, 0.85); }
+}
 .focusLabel { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #8892b8; letter-spacing: 1px; }
 .pip { width: 12px; height: 12px; border-radius: 50%; background: #10162a; border: 2px solid #3a3d5c; }
 .pipOn { background: #f6cf3f; border-color: #a07800; box-shadow: 0 0 6px rgba(246, 207, 63, 0.5); }
+.focusStripFull .pipOn { animation: pipFlash 0.6s ease-in-out infinite alternate; }
+@keyframes pipFlash {
+  from { box-shadow: 0 0 6px rgba(246, 207, 63, 0.5); transform: scale(1); }
+  to   { box-shadow: 0 0 12px rgba(246, 207, 63, 1); transform: scale(1.2); }
+}
 .focusHint { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 7px; color: #aeb8d6; }
-.focusHintFull { color: #FFCB05; }
+.focusHintFull { color: #FFCB05; animation: timerPulse 0.8s ease-in-out infinite; }
 
 /* ── Move panel ── */
 .bottom { margin: 8px 12px calc(12px + env(safe-area-inset-bottom)); }

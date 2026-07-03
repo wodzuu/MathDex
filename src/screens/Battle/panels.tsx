@@ -4,6 +4,7 @@
  * logic stays in the screen (index.tsx) and the challenge queue hook.
  */
 
+import { useEffect, useRef } from 'react';
 import type { PokeType } from '../../types/pokemon';
 import type { MathPuzzle } from '../../types/math';
 import type { Pokeballs, Potions } from '../../types/gameState';
@@ -11,6 +12,7 @@ import { D, FONT_PIXEL, FONT_UI, typeColors } from '../../styles/tokens';
 import { getBallSpriteUrl, getItemSpriteUrl } from '../../lib/sprites';
 import { catchProbability, hpZone } from '../../lib/formulas';
 import TypeBadge from '../../components/ui/TypeBadge';
+import NumberPad from '../../components/ui/NumberPad';
 import { BALLS, type BallOption, type MoveSlot } from './battleData';
 import type { ChallengeQueue } from './useChallengeQueue';
 import b from './Battle.module.css';
@@ -28,14 +30,17 @@ function BackBtn({ onClick }: { onClick: () => void }) {
   );
 }
 
-/** Countdown readout + progress bar shared by the math and catch panels. */
-function TimerBlock({ timer, limit }: { timer: number; limit: number }) {
+/** Countdown readout + progress bar shared by the math and catch panels.
+ *  While `ready` is true the clock hasn't started — a "READY…" beat flashes. */
+function TimerBlock({ timer, limit, ready }: { timer: number; limit: number; ready?: boolean }) {
   return (
     <div style={{ textAlign: 'center', minWidth: 44, flexShrink: 0 }}>
-      <div style={{ fontFamily: FONT_PIXEL, fontSize: 24, lineHeight: 1.2, color: timer <= 2 ? D.red : timer <= 4 ? D.yellow : D.white, ...(timer <= 2 ? { animation: 'timerPulse .4s ease-in-out infinite' } : {}) }}>
+      <div style={{ fontFamily: FONT_PIXEL, fontSize: 24, lineHeight: 1.2, color: ready ? D.muted : timer <= 2 ? D.red : timer <= 4 ? D.yellow : D.white, ...(!ready && timer <= 2 ? { animation: 'timerPulse .4s ease-in-out infinite' } : {}) }}>
         {timer}
       </div>
-      <div style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted, marginTop: 2 }}>SEC</div>
+      <div style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: ready ? D.yellow : D.muted, marginTop: 2, ...(ready ? { animation: 'timerPulse .5s ease-in-out infinite' } : {}) }}>
+        {ready ? 'READY…' : 'SEC'}
+      </div>
       <div style={{ width: 38, height: 4, background: '#111', border: `1px solid ${D.border}`, borderRadius: 2, margin: '5px auto 0', overflow: 'hidden' }}>
         <div style={{ width: `${(timer / limit) * 100}%`, height: '100%', background: D.yellow, transition: 'width 1s linear' }} />
       </div>
@@ -135,11 +140,12 @@ export function MathPanel({ move, q, isSuperEff, onBack, onDeal }: MathPanelProp
           {isSuperEff && <div className="supereff-badge" style={{ marginTop: 8 }}>SUPER EFFECTIVE!</div>}
         </div>
         {/* Current-challenge timer (each challenge has its own countdown) */}
-        {!allAnswered && <TimerBlock timer={timer} limit={q.curTimeLimit} />}
+        {!allAnswered && <TimerBlock timer={timer} limit={q.curTimeLimit} ready={q.ready} />}
       </div>
 
       {/* Stacked challenges — earlier ones stay visible with the typed answer.
-          ✅/❌ + the damage penalty stay hidden until every answer is in. */}
+          ✅/❌ + the damage penalty stay hidden until every answer is in; the
+          reveal also teaches the correct answer on every wrong row. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
         {challenges.map((p, i) => {
           const ans       = chAnswers[i];
@@ -150,17 +156,27 @@ export function MathPanel({ move, q, isSuperEff, onBack, onDeal }: MathPanelProp
           // the live row reflects what's being typed right now.
           const filled    = ans == null ? '·' : String(ans);
           const liveTyped = answer.trim() !== '' ? answer : '?';
-          const shown     = isCurrent
-            ? p.equation.replace('?', liveTyped)
-            : (isDone || allAnswered) ? p.equation.replace('?', filled) : p.equation;
           const rowBg     = allAnswered ? (correct ? '#0d2a10' : '#2a0d0d')
                           : isCurrent ? '#1a1c12' : D.darker;
           const rowBd     = allAnswered ? (correct ? D.green : D.red)
                           : isCurrent ? D.yellow : D.border;
+          const revealedWrong = allAnswered && !correct;
           return (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: rowBg, border: `2px solid ${rowBd}`, borderRadius: 10, padding: '9px 11px', opacity: !allAnswered && i > idx ? 0.45 : 1 }}>
               <span style={{ fontFamily: FONT_PIXEL, fontSize: 15, color: isCurrent ? D.yellow : D.white, lineHeight: 1.5, flex: 1 }}>
-                {p.isReview && <span title="Review challenge">⭐ </span>}{shown}
+                {p.isReview && <span title="Review challenge">⭐ </span>}
+                {revealedWrong ? (
+                  <>
+                    {p.equation.replace('?', '')}
+                    <s style={{ color: D.red, opacity: 0.85 }}>{filled}</s>
+                    {' '}
+                    <span style={{ color: D.green }}>{p.answer}</span>
+                  </>
+                ) : (
+                  isCurrent ? p.equation.replace('?', liveTyped)
+                  : (isDone || allAnswered) ? p.equation.replace('?', filled)
+                  : p.equation
+                )}
               </span>
               {allAnswered && (correct
                 ? <span style={{ fontSize: 16 }}>✅</span>
@@ -176,25 +192,39 @@ export function MathPanel({ move, q, isSuperEff, onBack, onDeal }: MathPanelProp
 
       {!allAnswered ? (
         <>
-          <input ref={q.inpRef} type="number" value={answer} placeholder="?" inputMode="numeric"
-            onChange={(e) => q.setAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && q.submitTyped()}
-            style={{ width: '100%', fontFamily: FONT_PIXEL, fontSize: 22, textAlign: 'center', background: D.darker, color: D.white, border: `2px solid ${D.border2}`, borderRadius: 10, padding: 12, outline: 'none', transition: 'all .2s', boxSizing: 'border-box' }}
+          <NumberPad
+            value={answer}
+            onChange={q.setAnswer}
+            onSubmit={() => q.submitTyped()}
+            submitLabel={idx === challenges.length - 1 ? 'CHECK' : 'NEXT'}
           />
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginTop: 10 }}>
-            <button onClick={() => q.submitTyped()} style={{ padding: '12px 14px', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: D.yellow, color: D.darker, border: '2px solid rgba(0,0,0,.15)', borderRadius: 12, cursor: 'pointer', boxShadow: '0 4px 0 #a07800' }}>
-              {idx === challenges.length - 1 ? 'CHECK' : 'NEXT'}
-            </button>
-            <button onClick={onBack} style={{ padding: '12px 14px', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, background: 'transparent', color: D.muted, border: `2px solid ${D.border}`, borderRadius: 12, cursor: 'pointer' }}>←</button>
-          </div>
+          <button onClick={onBack} style={{ width: '100%', marginTop: 8, padding: '8px', fontFamily: FONT_UI, fontSize: 12, fontWeight: 800, background: 'transparent', color: D.muted, border: `1px solid ${D.border}`, borderRadius: 10, cursor: 'pointer' }}>← Cancel move</button>
         </>
       ) : (
-        <button onClick={onDeal} style={{ width: '100%', padding: '14px', fontFamily: FONT_UI, fontSize: 16, fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: q.finalDamage > 0 ? D.green : D.border2, color: q.finalDamage > 0 ? '#06210e' : D.muted, border: '2px solid rgba(0,0,0,.15)', borderRadius: 12, cursor: 'pointer', boxShadow: q.finalDamage > 0 ? '0 4px 0 #1d6b38' : 'none' }}>
-          Deal {q.finalDamage} damage
-        </button>
+        <>
+          {q.wrongCount === 0 && (
+            <div className="pulsing" style={{ textAlign: 'center', fontFamily: FONT_PIXEL, fontSize: 10, color: D.yellow, marginBottom: 10 }}>
+              ⭐ PERFECT — FULL POWER! ⭐
+            </div>
+          )}
+          <button onClick={onDeal} style={{ width: '100%', padding: '14px', fontFamily: FONT_UI, fontSize: 16, fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: q.finalDamage > 0 ? D.green : D.border2, color: q.finalDamage > 0 ? '#06210e' : D.muted, border: '2px solid rgba(0,0,0,.15)', borderRadius: 12, cursor: 'pointer', boxShadow: q.finalDamage > 0 ? '0 4px 0 #1d6b38' : 'none' }}>
+            Deal {q.finalDamage} damage
+          </button>
+        </>
       )}
+      <ScrollAnchor deps={[idx, allAnswered]} />
     </div>
   );
+}
+
+/** Keeps the pad / deal button in view as the challenge stack grows. */
+function ScrollAnchor({ deps }: { deps: unknown[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return <div ref={ref} />;
 }
 
 // ── Potion panel ──────────────────────────────────────────────────────────────
@@ -314,16 +344,18 @@ interface CatchPanelProps {
   catchResult: 'caught' | 'escaped' | null;
   /** Answer feedback ('ok'/'no') once the throw resolves. */
   result: 'ok' | 'no' | null;
+  /** True while the ball-throw animation plays in the arena. */
+  throwing: boolean;
+  ready: boolean;
   enemyHpPct: number;
   timer: number;
   answer: string;
   setAnswer: (v: string) => void;
-  inpRef: React.RefObject<HTMLInputElement>;
   onSubmit: () => void;
   onBack: () => void;
 }
 
-export function CatchPanel({ ball, puzzle, catchResult, result, enemyHpPct, timer, answer, setAnswer, inpRef, onSubmit, onBack }: CatchPanelProps) {
+export function CatchPanel({ ball, puzzle, catchResult, result, throwing, ready, enemyHpPct, timer, answer, setAnswer, onSubmit, onBack }: CatchPanelProps) {
   const zone    = hpZone(enemyHpPct);
   const zoneCol = zone === 'red' ? D.red : zone === 'orange' ? D.yellow : D.green;
   const bgColor = catchResult === 'escaped' ? '#2a0d0d' : result === 'ok' ? '#0d2a10' : result === 'no' ? '#2a0d0d' : D.card;
@@ -342,27 +374,29 @@ export function CatchPanel({ ball, puzzle, catchResult, result, enemyHpPct, time
             {puzzle.equation}
           </div>
         </div>
-        {!catchResult && <TimerBlock timer={timer} limit={puzzle.timeLimitSeconds ?? 6} />}
+        {!catchResult && !throwing && <TimerBlock timer={timer} limit={puzzle.timeLimitSeconds ?? 6} ready={ready} />}
       </div>
 
-      {/* Escaped result, or the input. A successful catch skips this panel
-          entirely and jumps to the full-screen summary. */}
-      {catchResult === 'escaped' ? (
+      {/* Ball in flight, escaped result, or the answer pad. A successful catch
+          leaves this panel for the full-screen summary. */}
+      {throwing ? (
+        <div style={{ textAlign: 'center', padding: '18px 0' }}>
+          <div className="pulsing" style={{ fontFamily: FONT_PIXEL, fontSize: 10, color: D.yellow }}>
+            You threw a {ball.name.toUpperCase()}…
+          </div>
+        </div>
+      ) : catchResult === 'escaped' ? (
         <div style={{ textAlign: 'center', padding: '16px 0' }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>💨</div>
           <div style={{ fontFamily: FONT_PIXEL, fontSize: 11, color: D.red }}>It escaped!</div>
         </div>
       ) : (
         <>
-          <input ref={inpRef} type="number" value={answer} placeholder="?" inputMode="numeric"
-            onChange={(e) => setAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
-            style={{ width: '100%', fontFamily: FONT_PIXEL, fontSize: 22, textAlign: 'center', background: D.darker, color: D.white, border: `2px solid ${D.border2}`, borderRadius: 10, padding: 12, outline: 'none', boxSizing: 'border-box' }}
-          />
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginTop: 10 }}>
-            <button onClick={onSubmit} style={{ padding: '12px 14px', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: D.yellow, color: D.darker, border: '2px solid rgba(0,0,0,.15)', borderRadius: 12, cursor: 'pointer', boxShadow: '0 4px 0 #a07800' }}>THROW!</button>
-            <button onClick={onBack} style={{ padding: '12px 14px', fontFamily: FONT_UI, fontSize: 14, fontWeight: 900, background: 'transparent', color: D.muted, border: `2px solid ${D.border}`, borderRadius: 12, cursor: 'pointer' }}>←</button>
+          <div style={{ width: '100%', fontFamily: FONT_PIXEL, fontSize: 22, textAlign: 'center', background: D.darker, color: answer ? D.white : D.muted, border: `2px solid ${D.border2}`, borderRadius: 10, padding: 12, marginBottom: 8, boxSizing: 'border-box' }}>
+            {answer || '?'}
           </div>
+          <NumberPad value={answer} onChange={setAnswer} onSubmit={onSubmit} submitLabel="THROW!" />
+          <button onClick={onBack} style={{ width: '100%', marginTop: 8, padding: '8px', fontFamily: FONT_UI, fontSize: 12, fontWeight: 800, background: 'transparent', color: D.muted, border: `1px solid ${D.border}`, borderRadius: 10, cursor: 'pointer' }}>← Pick another ball</button>
         </>
       )}
     </div>

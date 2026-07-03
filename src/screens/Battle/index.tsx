@@ -20,7 +20,7 @@ import { getMove } from '../../data/moves';
 import { getSpecies } from '../../data/species';
 import { calcHp, calcAllStats, catchProbability, expGained, levelFromExp, expToLevel, moneyReward, totalPotions, totalBalls } from '../../lib/formulas';
 import { playerMoveDamage, enemyMoveDamage } from '../../lib/battleMath';
-import { getIdleSpriteUrl } from '../../lib/sprites';
+import { getIdleSpriteUrl, getBallSpriteUrl } from '../../lib/sprites';
 import { asset } from '../../lib/assets';
 import { generateRankedPuzzle, effectiveMultiplier, getTypeMultiplier } from '../../lib/mathProblemGenerator';
 import { useBattleStore } from '../../store/battleStore';
@@ -38,6 +38,27 @@ const HIT_URL = asset('misc/hit.png');
 const TRAINER_IMG = asset('trainer.png');
 
 type Panel = 'moves' | 'math' | 'potion' | 'ball' | 'catch';
+
+/** HP bar with a pale "damage ghost" that lingers at the old value and drains
+ *  after the real fill drops — makes every hit visibly bite. */
+function HpBar({ pct, color }: { pct: number; color: string }) {
+  const [ghost, setGhost] = useState(pct);
+  useEffect(() => {
+    const t = setTimeout(() => setGhost(pct), 250);
+    return () => clearTimeout(t);
+  }, [pct]);
+  return (
+    <div className={b.hpTrack}>
+      {/* Stays mounted so its width transition can play: holds the old value
+          for a beat, then drains down to meet the real fill. */}
+      <div className={b.hpGhost} style={{ width: `${Math.max(ghost, pct)}%` }} />
+      <div className={b.hpFill} style={{ width: `${pct}%`, background: color }} />
+    </div>
+  );
+}
+
+/** Phases of the Poké Ball throw animation (catch suspense). */
+type CatchPhase = null | 'fly' | 'wobble' | 'caught';
 
 export default function BattleScreen() {
   const navigate = useNavigate();
@@ -143,6 +164,13 @@ export default function BattleScreen() {
   const [selectedBall, setSelectedBall] = useState<BallOption | null>(null);
   const [catchPuzzle, setCatchPuzzle]   = useState<MathPuzzle | null>(null);
   const [catchResult, setCatchResult]   = useState<'caught' | 'escaped' | null>(null);
+  const [catchPhase, setCatchPhase]     = useState<CatchPhase>(null);
+  // Game-feel: attacker lunge + arena shake while a hit lands, and the
+  // level-up / evolution banner over the player's Pokémon.
+  const [playerLunge, setPlayerLunge]   = useState(false);
+  const [enemyLunge, setEnemyLunge]     = useState(false);
+  const [shaking, setShaking]           = useState(false);
+  const [levelUpMsg, setLevelUpMsg]     = useState<string | null>(null);
   // Party carousel: switching is locked until a faster enemy's opening strike has
   // landed, so that strike always hits the Pokémon the player entered with.
   const [canSwitch, setCanSwitch]       = useState(playerGoesFirst || !!battle?.openingResolved);
@@ -170,6 +198,9 @@ export default function BattleScreen() {
   // summary. The EXP is persisted to game state immediately on every hit, so a
   // Pokémon keeps what it earned even if the enemy is later caught. Spec §4.7.
   const expAccRef = useRef<Record<string, { name: string; dexNumber: number; expAdded: number; oldLevel: number }>>({});
+  // Pending level-up banner + hit-juice timeouts (overwritten per event).
+  const levelUpToRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const juiceToRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { focusPipsRef.current = focusPips; }, [focusPips]);
   // Persist the Focus meter to the trainer so it survives battles + sessions.
@@ -194,6 +225,18 @@ export default function BattleScreen() {
   // Keep the active-fighter id mirror in sync as the player switches.
   useEffect(() => { if (battle) activeIdRef.current = battle.activePlayerInstanceId; }, [battle]);
 
+  // Hit juice: the attacker lunges at its target and the arena shudders.
+  const hitJuice = useCallback((attacker: 'player' | 'enemy') => {
+    if (attacker === 'player') setPlayerLunge(true); else setEnemyLunge(true);
+    setShaking(true);
+    if (juiceToRef.current) clearTimeout(juiceToRef.current);
+    juiceToRef.current = setTimeout(() => {
+      setPlayerLunge(false);
+      setEnemyLunge(false);
+      setShaking(false);
+    }, 450);
+  }, []);
+
   // ── Incremental EXP award ────────────────────────────────────────────────────
   // Grant a slice of EXP to the currently-active Pokémon for damage it just dealt.
   // Persisted to game state immediately so the EXP bar updates live and survives a
@@ -216,7 +259,25 @@ export default function BattleScreen() {
     };
     acc.expAdded += expShare;
     expAccRef.current[instanceId] = acc;
+    const levelBefore = levelFromExp(pk.totalExp);
     store.updatePokemon(instanceId, { totalExp: pk.totalExp + expShare });
+
+    // Celebrate a mid-battle level-up (or evolution — updatePokemon evolves by
+    // level) the moment it happens, with a banner over the player's Pokémon.
+    const after = useGameStore.getState().trainers.find((x) => x.id === store.activeTrainerId)
+      ?.caughtPokemon.find((p) => p.instanceId === instanceId);
+    if (after) {
+      const levelAfter = levelFromExp(after.totalExp);
+      if (levelAfter > levelBefore) {
+        const evolved = after.speciesId !== pk.speciesId;
+        const msg = evolved
+          ? `🧬 EVOLVED INTO ${getSpecies(after.speciesId)?.name.toUpperCase() ?? '?'}!`
+          : `⬆ LEVEL ${levelAfter}!`;
+        setLevelUpMsg(msg);
+        if (levelUpToRef.current) clearTimeout(levelUpToRef.current);
+        levelUpToRef.current = setTimeout(() => setLevelUpMsg(null), 2000);
+      }
+    }
   }, []);
 
   // Build the end-of-battle EXP summary from everything awarded this battle,
@@ -358,6 +419,7 @@ export default function BattleScreen() {
     setPlayerHpPct(newPlayerHp);
     playerHpPctRef.current = newPlayerHp;
     hpStashRef.current[activeIdRef.current] = newPlayerHp;   // keep the stash in sync
+    hitJuice('enemy');
     // Float the damage received over the player's avatar.
     const dmgAmt = playerMaxHp ? Math.max(1, Math.round(enemyDamagePct / 100 * playerMaxHp)) : enemyDamagePct;
     const pfId   = Date.now();
@@ -368,7 +430,7 @@ export default function BattleScreen() {
     const actualHp = playerMaxHp ? Math.round(newPlayerHp / 100 * playerMaxHp) : newPlayerHp;
     return actualHp <= 0;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enemyStats, playerStats, playerMaxHp, enemyLevel, enemySpecies, activePlayerTypes]);
+  }, [enemyStats, playerStats, playerMaxHp, enemyLevel, enemySpecies, activePlayerTypes, hitJuice]);
 
   // ── Faster-enemy opening strike ──────────────────────────────────────────────
   // When the wild Pokémon is faster it gets one free hit at the very start of the
@@ -401,10 +463,10 @@ export default function BattleScreen() {
 
   // Timer expiry — catch math (its own single-puzzle countdown, no auto-advance)
   useEffect(() => {
-    if (q.timer > 0 || panel !== 'catch' || catchResult !== null) return;
+    if (q.timer > 0 || q.ready || panel !== 'catch' || catchResult !== null || catchPhase !== null) return;
     handleSubmitCatch();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q.timer, panel, catchResult]);
+  }, [q.timer, q.ready, panel, catchResult, catchPhase]);
 
   // ── Apply the resolved move ─────────────────────────────────────────────────
   // Called from the "Deal N damage" button once every challenge is answered.
@@ -461,6 +523,7 @@ export default function BattleScreen() {
       setFocusPips(isCrit ? 0 : allCorrect ? Math.min(5, focusPipsRef.current + 1) : 0);
 
       if (damagePct > 0) {
+        hitJuice('player');
         const floatId = Date.now();
         setFloats((f) => [...f, { id: floatId, amount: damage, correct: allCorrect, crit: isCrit, target: 'enemy' }]);
         setTimeout(() => setFloats((f) => f.filter((x) => x.id !== floatId)), 1800);
@@ -563,12 +626,12 @@ export default function BattleScreen() {
     q.setAnswer('');
     setResult(null);
     setPanel('catch');
-    q.startTimer(puzzle.timeLimitSeconds ?? 6);   // expiry handled by the effect above
-    setTimeout(() => q.inpRef.current?.focus(), 80);
+    // Expiry handled by the effect above; starts after the "get ready" beat.
+    q.startTimer(puzzle.timeLimitSeconds ?? 6, undefined, 900);
   }
 
   function handleSubmitCatch() {
-    if (!catchPuzzle || !selectedBall || catchResult !== null) return;
+    if (!catchPuzzle || !selectedBall || catchResult !== null || catchPhase !== null) return;
     const v = parseInt(q.answer, 10);
     if (isNaN(v)) return;
     q.stopTimer();
@@ -582,23 +645,34 @@ export default function BattleScreen() {
     adjustPokeballs(selectedBall.consumableKey, -1);
     setResult(correct ? 'ok' : 'no');
 
+    // Suspense ritual: the ball arcs over (fly), rocks three times on the
+    // ground (wobble), and only then does the catch resolve.
+    setCatchPhase('fly');
+    setTimeout(() => setCatchPhase('wobble'), 650);
+    setTimeout(() => resolveCatch(caught), 650 + 1450);
+  }
+
+  function resolveCatch(caught: boolean) {
     if (caught) {
-      // Skip the in-battle confirmation panel — go straight to the full-screen
-      // summary, which announces the catch.
-      if (battle) {
+      // Hold the stilled ball for a beat, then jump to the full-screen summary.
+      setCatchPhase('caught');
+      setTimeout(() => {
+        const bt = useBattleStore.getState().battle;
+        if (!bt) return;
         // Persist every party member's battle HP (catching shouldn't heal them).
         persistAllHp();
         addCaughtPokemon({
-          speciesId: battle.enemy.speciesId,
-          totalExp:  battle.enemy.totalExp,
-          currentHp: battle.enemy.currentHp,
-          moves:     battle.enemy.moves,
+          speciesId: bt.enemy.speciesId,
+          totalExp:  bt.enemy.totalExp,
+          currentHp: bt.enemy.currentHp,
+          moves:     bt.enemy.moves,
         });
-        const caughtSpecies = getSpecies(battle.enemy.speciesId);
+        const caughtSpecies = getSpecies(bt.enemy.speciesId);
         endBattle();
         navigate('/summary', { state: { battleOutcome: 'caught', name: caughtSpecies?.name ?? 'Pokémon', dexNumber: caughtSpecies?.dexNumber } });
-      }
+      }, 700);
     } else {
+      setCatchPhase(null);   // the ball vanishes, the Pokémon pops back out
       setCatchResult('escaped');
       setTimeout(() => {
         const enemyDmg = Math.max(1, Math.round(5 + Math.random() * 10));
@@ -781,7 +855,7 @@ export default function BattleScreen() {
         </div>
 
         {/* ── Battle stage ── */}
-        <div className={b.arena}>
+        <div className={`${b.arena} ${shaking ? b.shake : ''}`}>
 
           {/* My Pokémon — panel top-left, standing on the ground */}
           <div className={b.nameBadge} style={{ top: 10, left: '28%', transform: 'translateX(-50%)' }}>
@@ -793,7 +867,7 @@ export default function BattleScreen() {
             </div>
             <div className={b.hpRow}>
               <span className={b.hpLabel}>HP</span>
-              <div className={b.hpTrack}><div className={b.hpFill} style={{ width: `${playerHpPct}%`, background: hpCol(playerHpPct) }} /></div>
+              <HpBar pct={playerHpPct} color={hpCol(playerHpPct)} />
               <span className={b.hpText}>{playerMaxHp ? `${Math.max(0, Math.round(playerHpPct / 100 * playerMaxHp))}/${playerMaxHp}` : `${playerHpPct}%`}</span>
             </div>
             <div className={b.hpRow}>
@@ -805,7 +879,7 @@ export default function BattleScreen() {
           <div className={b.groundShadow} style={{ left: '28%', top: 202, width: 76, height: 14, transform: 'translateX(-50%)' }} />
           {playerHit
             ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '28%', top: 134, width: 120, height: 120, transform: 'translateX(-50%)' }} />
-            : <img key={activeId} className={b.sprite} src={getIdleSpriteUrl(playerDexNumber)} alt="" onClick={() => openSpeciesDetail(playerSpecies?.id)} style={{ left: '28%', top: 146, width: 96, height: 96, transform: 'translateX(-50%)', cursor: 'pointer' }} />}
+            : <img key={activeId} className={`${b.sprite} ${playerLunge ? b.lungeRight : ''}`} src={getIdleSpriteUrl(playerDexNumber)} alt="" onClick={() => openSpeciesDetail(playerSpecies?.id)} style={{ left: '28%', top: 146, width: 96, height: 96, transform: 'translateX(-50%)', cursor: 'pointer' }} />}
           {hasParty && (
             <>
               <button className={b.arrowBtn} style={{ left: 'calc(28% - 72px)', top: 176 }} disabled={!switchEnabled} onClick={() => switchDir(-1)} aria-label="Previous Pokémon">‹</button>
@@ -816,6 +890,13 @@ export default function BattleScreen() {
             <div key={f.id} className={b.float} style={{ left: '28%', top: 126, transform: 'translateX(-50%)', fontSize: 15, color: '#e0574f' }}>-{f.amount}</div>
           ))}
 
+          {/* Mid-battle level-up / evolution celebration over the player's Pokémon */}
+          {levelUpMsg && (
+            <div className={`${b.banner} pulsing`} style={{ top: 118, left: '28%', background: '#1a1400', border: '1px solid #FFCB05', color: '#FFCB05' }}>
+              {levelUpMsg}
+            </div>
+          )}
+
           {/* Opponent — panel top-right, standing on the ground */}
           <div className={b.nameBadge} style={{ top: 10, left: '72%', transform: 'translateX(-50%)' }}>
             <div className={b.nameRow}>
@@ -825,7 +906,7 @@ export default function BattleScreen() {
             </div>
             <div className={b.hpRow}>
               <span className={b.hpLabel}>HP</span>
-              <div className={b.hpTrack}><div className={b.hpFill} style={{ width: `${enemyHpPct}%`, background: hpCol(enemyHpPct) }} /></div>
+              <HpBar pct={enemyHpPct} color={hpCol(enemyHpPct)} />
               <span className={b.hpText}>{enemyMaxHp ? `${Math.max(0, Math.round(enemyHpPct / 100 * enemyMaxHp))}/${enemyMaxHp}` : `${enemyHpPct}%`}</span>
             </div>
             {enemyDmgRange && (
@@ -837,7 +918,18 @@ export default function BattleScreen() {
           <div className={b.groundShadow} style={{ left: '72%', top: 200, width: 72, height: 13, transform: 'translateX(-50%)' }} />
           {enemyHit
             ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '72%', top: 132, width: 120, height: 120, transform: 'translateX(-50%)' }} />
-            : <img className={b.sprite} src={getIdleSpriteUrl(enemyDexNumber)} alt="" onClick={() => openSpeciesDetail(enemySpecies?.id)} style={{ left: '72%', top: 146, width: 92, height: 92, transform: 'translateX(-50%) scaleX(-1)', cursor: 'pointer' }} />}
+            : (catchPhase === 'wobble' || catchPhase === 'caught')
+              ? null   /* inside the thrown Poké Ball */
+              : <img className={`${b.sprite} ${enemyLunge ? b.lungeLeft : ''}`} src={getIdleSpriteUrl(enemyDexNumber)} alt="" onClick={() => openSpeciesDetail(enemySpecies?.id)} style={{ left: '72%', top: 146, width: 92, height: 92, transform: 'translateX(-50%) scaleX(-1)', cursor: 'pointer' }} />}
+
+          {/* Thrown Poké Ball — arcs over, then wobbles on the ground */}
+          {catchPhase && selectedBall && (
+            <img
+              className={`${b.ballFx} ${catchPhase === 'fly' ? b.ballFly : b.ballWobble}`}
+              src={getBallSpriteUrl(selectedBall.consumableKey)}
+              alt=""
+            />
+          )}
           {floats.filter((f) => f.target === 'enemy').map((f) => (
             <div key={f.id} className={b.float} style={{ left: '72%', top: 126, transform: 'translateX(-50%)', fontSize: f.crit ? 20 : 15, color: f.crit ? '#ff7b00' : f.correct ? '#FFCB05' : '#e0574f' }}>
               {f.crit && <div style={{ fontSize: 8, color: '#ff7b00' }}>CRITICAL!</div>}-{f.amount}
@@ -906,11 +998,12 @@ export default function BattleScreen() {
               puzzle={catchPuzzle}
               catchResult={catchResult}
               result={result}
+              throwing={catchPhase !== null}
+              ready={q.ready}
               enemyHpPct={enemyHpPct}
               timer={q.timer}
               answer={q.answer}
               setAnswer={q.setAnswer}
-              inpRef={q.inpRef}
               onSubmit={handleSubmitCatch}
               onBack={() => { q.stopTimer(); setPanel('ball'); }}
             />

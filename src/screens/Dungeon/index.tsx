@@ -98,6 +98,8 @@ export default function DungeonScreen() {
   const initialPartyIdx = Math.max(0, party.findIndex((p) => p.instanceId === leadId));
   const [partyIdx, setPartyIdx] = useState(initialPartyIdx);
   const [wildIdx,  setWildIdx]  = useState(0);
+  // Stat-chip comparison is folded away by default (kid-first: verdict + power bar).
+  const [showStats, setShowStats] = useState(false);
 
   useEffect(() => { if (party.length && partyIdx >= party.length) setPartyIdx(party.length - 1); }, [party.length, partyIdx]);
   useEffect(() => { if (encounters.length && wildIdx >= encounters.length) setWildIdx(encounters.length - 1); }, [encounters.length, wildIdx]);
@@ -224,9 +226,9 @@ export default function DungeonScreen() {
   const hpPct  = matchup ? Math.round((matchup.player.curHp / Math.max(1, matchup.player.maxHp)) * 100) : 100;
   const hpCol  = hpPct > 50 ? '#5fc46a' : hpPct > 25 ? '#f0a030' : '#e0574f';
   const VERDICT = {
-    super:   { text: 'Super effective!', bg: '#d7f0cf', fg: '#1f5a23' },
-    careful: { text: 'Careful!',         bg: '#f6d3cd', fg: '#8a2d1d' },
-    even:    { text: 'Even match',       bg: '#dfe3ef', fg: '#3a4055' },
+    super:   { text: '👍 Great pick — your moves hit super hard!', bg: '#d7f0cf', fg: '#1f5a23' },
+    careful: { text: '⚠️ Careful — it hits your type hard!',       bg: '#f6d3cd', fg: '#8a2d1d' },
+    even:    { text: '⚖️ Fair fight!',                             bg: '#dfe3ef', fg: '#3a4055' },
   } as const;
   const powerPct  = matchup ? Math.round(matchup.yourShare * 100) : 50;
   // Disk colours follow each Pokémon's type; the darker tone forms the front edge.
@@ -325,13 +327,12 @@ export default function DungeonScreen() {
 
             {/* ── Matchup card ── */}
             <div className={s.matchCard}>
-              {matchup.verdict !== 'even' && (
-                <div className={s.verdictRow}>
-                  <span className={s.verdict} style={{ background: VERDICT[matchup.verdict].bg, color: VERDICT[matchup.verdict].fg }}>
-                    {VERDICT[matchup.verdict].text}
-                  </span>
-                </div>
-              )}
+              {/* Plain-language verdict — always shown, kid-readable. */}
+              <div className={s.verdictRow}>
+                <span className={s.verdict} style={{ background: VERDICT[matchup.verdict].bg, color: VERDICT[matchup.verdict].fg }}>
+                  {VERDICT[matchup.verdict].text}
+                </span>
+              </div>
 
               <div className={s.powerHead}>
                 <span className={s.powerLabel}>Power</span>
@@ -345,14 +346,20 @@ export default function DungeonScreen() {
                 <span className={s.powerEnd} style={{ color: '#e0574f' }}>Wild</span>
               </div>
 
-              <div className={s.chipGrid}>
-                <StatChip label="HP"      mine={matchup.player.maxHp}   theirs={matchup.wild.maxHp} />
-                <StatChip label="Attack"  mine={matchup.player.attack}  theirs={matchup.wild.attack} />
-                <StatChip label="Sp.Atk"  mine={matchup.player.spAtk}   theirs={matchup.wild.spAtk} />
-                <StatChip label="Speed"   mine={matchup.player.speed}   theirs={matchup.wild.speed} />
-                <StatChip label="Defense" mine={matchup.player.defense} theirs={matchup.wild.defense} />
-                <StatChip label="Sp.Def"  mine={matchup.player.spDef}   theirs={matchup.wild.spDef} />
-              </div>
+              {/* The six stat chips are trainer-brain detail — folded away by default. */}
+              <button className={s.detailsBtn} onClick={() => setShowStats((v) => !v)}>
+                {showStats ? 'Hide stats ▴' : 'Compare stats ▾'}
+              </button>
+              {showStats && (
+                <div className={s.chipGrid}>
+                  <StatChip label="HP"      mine={matchup.player.maxHp}   theirs={matchup.wild.maxHp} />
+                  <StatChip label="Attack"  mine={matchup.player.attack}  theirs={matchup.wild.attack} />
+                  <StatChip label="Sp.Atk"  mine={matchup.player.spAtk}   theirs={matchup.wild.spAtk} />
+                  <StatChip label="Speed"   mine={matchup.player.speed}   theirs={matchup.wild.speed} />
+                  <StatChip label="Defense" mine={matchup.player.defense} theirs={matchup.wild.defense} />
+                  <StatChip label="Sp.Def"  mine={matchup.player.spDef}   theirs={matchup.wild.spDef} />
+                </div>
+              )}
             </div>
 
             <button className={s.fightBtn} onClick={handleFight}>⚔️ Fight!</button>
