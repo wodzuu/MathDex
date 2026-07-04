@@ -111,6 +111,85 @@
   border: 2px solid #10162a;
 }
 
+/* ── Living town: the party hanging out on the grass ──────────────────────── */
+.sceneMon {
+  position: absolute;
+  width: 44px; height: 44px;
+  transform: translateX(-50%);
+  background: transparent; border: none; padding: 0;
+  cursor: pointer; z-index: 4; line-height: 0;
+  animation: monBob 2.6s ease-in-out infinite;
+  -webkit-tap-highlight-color: transparent;
+}
+.sceneMon img {
+  width: 100%; height: 100%;
+  image-rendering: pixelated; object-fit: contain;
+  filter: drop-shadow(0 4px 5px rgba(18, 28, 12, 0.45));
+}
+@keyframes monBob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(-4px); }
+}
+
+/* ❤ that pops over a party Pokémon when the player pets it. */
+.heart {
+  position: absolute;
+  font-size: 16px;
+  color: #e0574f;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 5;
+  animation: heartPop 0.95s ease-out forwards;
+}
+@keyframes heartPop {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(0.4); }
+  25%  { opacity: 1; transform: translateX(-50%) translateY(-24px) scale(1.25); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-46px) scale(1); }
+}
+
+/* ── Ambient motion: drifting cloud shadows, a falling leaf, twinkles ─────── */
+.cloud {
+  position: absolute;
+  left: -45%;
+  width: 170px; height: 56px;
+  background: radial-gradient(ellipse at center, rgba(12, 20, 10, 0.18) 0%, transparent 70%);
+  filter: blur(6px);
+  pointer-events: none;
+  animation: cloudDrift 52s linear infinite;
+}
+@keyframes cloudDrift {
+  from { left: -45%; }
+  to   { left: 115%; }
+}
+
+.leaf {
+  position: absolute;
+  top: -6%; left: 30%;
+  font-size: 14px;
+  pointer-events: none;
+  animation: leafFall 13s linear infinite;
+}
+@keyframes leafFall {
+  0%   { top: -6%;  transform: translateX(0)    rotate(0deg);   opacity: 0; }
+  6%   { opacity: 0.9; }
+  30%  { transform: translateX(34px)  rotate(120deg); }
+  55%  { transform: translateX(-14px) rotate(260deg); }
+  80%  { transform: translateX(26px)  rotate(380deg); }
+  96%  { opacity: 0.9; }
+  100% { top: 103%; transform: translateX(0)    rotate(480deg); opacity: 0; }
+}
+
+.sparkle {
+  position: absolute;
+  font-size: 13px;
+  pointer-events: none;
+  animation: twinkle 2.4s ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.7) rotate(-8deg); }
+  50%      { opacity: 1;    transform: scale(1.15) rotate(8deg); }
+}
+
 /* Transparent tappable region over a building / path. Faint persistent ring
    advertises tappability; brightens + reveals a tag on hover/press. */
 
@@ -212,6 +291,13 @@
   margin-top: 2px;
   /* colour applied inline per location */
 }
+
+/* Tiny Pokédex completion bar under its sub-line. */
+.dexBar {
+  display: block; width: 120px; height: 4px; margin-top: 5px;
+  background: rgba(255, 255, 255, 0.12); border-radius: 2px; overflow: hidden;
+}
+.dexFill { display: block; height: 100%; background: #e0574f; border-radius: 2px; transition: width 0.4s; }
 
 /* ── Build footer (under the map) ────────────────────────────────────────── */
 .footer {
