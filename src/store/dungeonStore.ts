@@ -11,18 +11,30 @@
 
 import { create }   from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { EncounterData } from '../types/dungeon';
+import type { EncounterData, EncounterTier } from '../types/dungeon';
 import { useGameStore } from './gameStore';
 
 /** How many opponents are offered at once. */
 export const ENCOUNTER_SLOTS = 3;
 
+/** An Alpha boss appears on the roll after every ALPHA_EVERY-th victory. */
+export const ALPHA_EVERY = 10;
+
 /**
  * Roll one encounter via the game store, which stage-gates by level,
- * rarity-weights the pick, and advances the pity counters (§6.2).
+ * rarity-weights the pick, power-scales the level, and advances the pity
+ * counters (§6.2). `tier` marks the strong/alpha rolls.
  */
-function rollOne(partyHighestLevel: number, itemSystemActive: boolean): EncounterData {
-  return useGameStore.getState().rollEncounter(partyHighestLevel, itemSystemActive);
+function rollOne(partyHighestLevel: number, itemSystemActive: boolean, tier?: EncounterTier): EncounterData {
+  return useGameStore.getState().rollEncounter(partyHighestLevel, itemSystemActive, tier);
+}
+
+/** True when the periodic Alpha boss is owed and none is already on offer. */
+function alphaDue(current: EncounterData[]): boolean {
+  const s = useGameStore.getState();
+  const t = s.trainers.find((x) => x.id === s.activeTrainerId);
+  const victories = t?.stats.totalBattles ?? 0;
+  return victories > 0 && victories % ALPHA_EVERY === 0 && !current.some((e) => e.tier === 'alpha');
 }
 
 interface DungeonState {
@@ -47,9 +59,18 @@ export const useDungeonStore = create<DungeonState>()(
       encounters: [],
       activeIndex: null,
 
+      // One of the three slots is always the risk/reward "strong" roll — or the
+      // periodic Alpha boss when one is owed (every ALPHA_EVERY victories).
       rollAll: (lvl, active) =>
         set(
-          { encounters: Array.from({ length: ENCOUNTER_SLOTS }, () => rollOne(lvl, active)), activeIndex: null },
+          {
+            encounters: [
+              rollOne(lvl, active),
+              rollOne(lvl, active),
+              rollOne(lvl, active, alphaDue([]) ? 'alpha' : 'strong'),
+            ],
+            activeIndex: null,
+          },
           false,
           'rollAll',
         ),
@@ -61,7 +82,13 @@ export const useDungeonStore = create<DungeonState>()(
           (s) => {
             if (s.activeIndex === null) return {};
             const encounters = s.encounters.slice();
-            encounters[s.activeIndex] = rollOne(lvl, active);
+            const remaining  = encounters.filter((_, i) => i !== s.activeIndex);
+            // Keep the board interesting: an owed Alpha takes the slot; otherwise
+            // make sure exactly one "strong" roll remains on offer.
+            const tier: EncounterTier | undefined = alphaDue(remaining)
+              ? 'alpha'
+              : !remaining.some((e) => e.tier === 'strong') ? 'strong' : undefined;
+            encounters[s.activeIndex] = rollOne(lvl, active, tier);
             return { encounters, activeIndex: null };
           },
           false,

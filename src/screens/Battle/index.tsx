@@ -15,11 +15,12 @@ import { useShallow } from 'zustand/react/shallow';
 import type { PokeType } from '../../types/pokemon';
 import type { MathPuzzle, MathTopic } from '../../types/math';
 import type { Potions } from '../../types/gameState';
-import { typeColors } from '../../styles/tokens';
+import { typeColors, FONT_PIXEL } from '../../styles/tokens';
 import { getMove } from '../../data/moves';
 import { getSpecies } from '../../data/species';
 import { calcHp, calcAllStats, catchProbability, expGained, levelFromExp, expToLevel, moneyReward, totalPotions, totalBalls } from '../../lib/formulas';
 import { playerMoveDamage, enemyMoveDamage } from '../../lib/battleMath';
+import { tierRewardMult } from '../../lib/encounterGenerator';
 import { getIdleSpriteUrl, getBallSpriteUrl } from '../../lib/sprites';
 import { asset } from '../../lib/assets';
 import { generateRankedPuzzle, effectiveMultiplier, getTypeMultiplier } from '../../lib/mathProblemGenerator';
@@ -367,10 +368,11 @@ export default function BattleScreen() {
     persistAllHp();
 
     const enemyRarityForReward = getSpecies(currentBattle.enemy.speciesId)?.rarity ?? 'Common';
-    const pokeReward = moneyReward(enemyLevel, enemyRarityForReward);
+    const pokeReward = Math.round(moneyReward(enemyLevel, enemyRarityForReward) * tierRewardMult(currentBattle.tier));
     const expGains   = buildExpGains();
     const defeatedName = getSpecies(currentBattle.enemy.speciesId)?.name ?? 'Pokémon';
     gs.earnPokeDollars(pokeReward);
+    gs.incrementBattleCount();   // victory counter — drives the Alpha cadence
     endBattle();
     // Full-screen victory splash, then on to the dungeon.
     navigate('/summary', { state: { battleOutcome: 'victory', name: defeatedName, expGains, pokeReward } });
@@ -516,7 +518,8 @@ export default function BattleScreen() {
 
       const hpFractionRemoved = oldEnemyHp - newEnemyHp;   // 0–100 (% of max HP)
       if (hpFractionRemoved > 0) {
-        const totalExpReward = expGained(enemySpecies?.baseExp ?? 64, enemyLevel);
+        // Strong/alpha encounters pay a reward multiplier on EXP too.
+        const totalExpReward = expGained(enemySpecies?.baseExp ?? 64, enemyLevel) * tierRewardMult(battle?.tier);
         awardExp(Math.round(totalExpReward * hpFractionRemoved / 100));
       }
 
@@ -902,6 +905,11 @@ export default function BattleScreen() {
             <div className={b.nameRow}>
               <span className={b.nameText}>{enemySpecies?.name ?? '?'}</span>
               <span className={b.nameLv}>Lv{enemyLevel}</span>
+              {battle.tier && (
+                <span style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: battle.tier === 'alpha' ? '#ff9a8f' : '#ffc46b', whiteSpace: 'nowrap' }}>
+                  {battle.tier === 'alpha' ? '👑 ALPHA' : '🔥 STRONG'}
+                </span>
+              )}
               {(() => { const tc = typeColors(activeEnemyTypes[0]); return <span className={b.typeBadge} style={{ background: tc.bg, color: tc.fg, border: `1px solid ${tc.bdr}` }}>{activeEnemyTypes[0]}</span>; })()}
             </div>
             <div className={b.hpRow}>
@@ -920,7 +928,8 @@ export default function BattleScreen() {
             ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '72%', top: 132, width: 120, height: 120, transform: 'translateX(-50%)' }} />
             : (catchPhase === 'wobble' || catchPhase === 'caught')
               ? null   /* inside the thrown Poké Ball */
-              : <img className={`${b.sprite} ${enemyLunge ? b.lungeLeft : ''}`} src={getIdleSpriteUrl(enemyDexNumber)} alt="" onClick={() => openSpeciesDetail(enemySpecies?.id)} style={{ left: '72%', top: 146, width: 92, height: 92, transform: 'translateX(-50%) scaleX(-1)', cursor: 'pointer' }} />}
+              : <img className={`${b.sprite} ${enemyLunge ? b.lungeLeft : ''}`} src={getIdleSpriteUrl(enemyDexNumber)} alt="" onClick={() => openSpeciesDetail(enemySpecies?.id)} style={{ left: '72%', top: battle.tier === 'alpha' ? 134 : 146, width: battle.tier === 'alpha' ? 104 : 92, height: battle.tier === 'alpha' ? 104 : 92, transform: 'translateX(-50%) scaleX(-1)', cursor: 'pointer',
+                ...(battle.tier === 'alpha' ? { filter: 'drop-shadow(0 0 12px rgba(224, 60, 50, 0.95))' } : battle.tier === 'strong' ? { filter: 'drop-shadow(0 0 9px rgba(240, 160, 48, 0.9))' } : {}) }} />}
 
           {/* Thrown Poké Ball — arcs over, then wobbles on the ground */}
           {catchPhase && selectedBall && (

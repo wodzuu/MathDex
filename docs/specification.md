@@ -4,9 +4,10 @@
 
 A Pokémon-Inspired Mathematics Learning Game
 
-*Full Game Design Specification  ·  v1.7*
+*Full Game Design Specification  ·  v1.8*
 
-*Revised (v1.7): Curriculum extended to 21 Math Ranks adding multiplication and division (incl. ×/÷ "tables"); fast-track rank-up; multi-challenge battle puzzles with a 50% damage floor; multiple trainers (create with name + starter, switch, rename, delete) with a New Trainer first-run screen; full-screen battle-outcome summary; PC swap for a full party (see §3, §4.3, §7.4).*
+*Revised (v1.8): Difficulty rebalance — wild levels are power-scaled by base-stat totals (a lucky strong catch no longer trivialises fights); one of the three dungeon offers is always a 🔥 STRONG risk/reward roll (Rare+, +3–5 levels, ×2 rewards); a 👑 ALPHA boss appears after every 10th victory (Epic+, +5 levels, ×3 rewards) — see §2.4, §7.2.*
+*Earlier (v1.7): Curriculum extended to 21 Math Ranks adding multiplication and division (incl. ×/÷ "tables"); fast-track rank-up; multi-challenge battle puzzles with a 50% damage floor; multiple trainers (create with name + starter, switch, rename, delete) with a New Trainer first-run screen; full-screen battle-outcome summary; PC swap for a full party (see §3, §4.3, §7.4).*
 *Earlier (v1.6): Level-only evolution implemented for both the player and wild Pokémon; encounters stage-gate by level (base → final, opponents evolve too) with rarity-weighted selection + a pity guarantee replacing the fixed rarity bag (see §6.2, §6.5).*
 *Earlier (v1.5): Math difficulty decoupled from opponent level into a mastery-gated **Math Rank** with a moving accuracy window and interleaved review (see §3).*
 *Earlier (v1.4): Dungeon floors removed; combat scales with opponent level; Pokémon rarity system; incremental damage-proportional EXP; speed-based turn order.*
@@ -103,6 +104,16 @@ Changes made in this implementation pass (reflected in the live build):
 | **PC swap into a full party** | 6 | A boxed Pokémon can be swapped directly into a party slot, so a single-slot party is no longer frozen (couldn't deposit the last member nor join a full party). |
 | **Backdrops switched to JPG** | 11 | Town / dungeon / battle / trainer backdrops use `.jpg` assets. |
 
+## **v1.7 → v1.8**
+
+Difficulty & engagement rebalance (reflected in the live build):
+
+| Change | Affected sections | Rationale |
+| :---- | :---- | :---- |
+| **Power-aware wild levels** | 2,6,12 | "Same level" was not "same strength": base-stat totals differ hugely across species, so one lucky strong catch (e.g. a high-BST Rare) trivialised every same-level fight. The wild's render level is now scaled by the BST ratio between the player's strongest party member and the rolled species (clamped ×0.65–1.4) — weak species spawn above the player, strong ones at or below. |
+| **🔥 STRONG encounter slot** | 2,7,8,12 | One of the three dungeon offers is always a risk/reward roll: +3–5 levels on top of power scaling, Rare-or-better species, ×2 money and EXP. The player chooses their difficulty every visit. |
+| **👑 ALPHA bosses** | 2,7,8,12 | After every 10th victory the next roll is an Alpha: +5 levels on top of power scaling, Epic-or-better, ×3 money and EXP, enlarged red-aura sprite. Periodic challenge spikes without raising the everyday floor. Victories are counted in `Trainer.stats.totalBattles`. |
+
 # **1. Vision and Design Philosophy**
 
 MathDex is a Pokémon-style RPG in which every act of progression — attacking, catching Pokémon, and (later) identifying and equipping items — is gated or enhanced by solving arithmetic problems. The core insight driving the design is that mathematics should be load-bearing, not decorative. Equations are not doors to pass through before the fun begins; they are the mechanism that generates the fun.
@@ -172,11 +183,12 @@ Because accurate math makes Pokémon stronger, math fluency and progression rein
 
 ## **2.4 Encounter Generation**
 
-When the player enters the Dungeon or advances to the next wild Pokémon, an encounter is generated:
+The Dungeon offers **three** wild Pokémon at once; the player picks their matchup. Each offer is generated as follows:
 
-* **Opponent level** = `max(1, partyHighestLevel + ⌊random·3⌋ − 1)` — i.e. the level of the player's strongest party member, ±1.
-* **Species** is stage-gated by level then rarity-weighted, with a persisted per-tier pity guarantee so rarer Pokémon always show up on a schedule (see §6.2).
-* **Species** is then chosen uniformly at random from the Pokémon of that rarity, and rendered at the opponent's level (rarity is independent of level — an early legendary is simply a low-level one).
+* **Base level** = `max(1, partyHighestLevel + ⌊random·3⌋ − 1)` — the player's strongest party member, ±1.
+* **Species** is stage-gated by the base level then rarity-weighted, with a persisted per-tier pity guarantee so rarer Pokémon always show up on a schedule (see §6.2).
+* **Power-aware render level.** "Same level" is not "same strength" — base-stat totals (BST) differ hugely across species. The wild's final level is the base level scaled by `playerBST ÷ wildBST` (clamped ×0.65–1.4), where playerBST is the strongest party member's species BST. A frail species spawns a few levels *above* the player; a powerhouse at or *below*. This keeps fights challenging no matter what the player caught.
+* **Encounter tiers.** One of the three offers is always the **🔥 STRONG** slot: +3–5 levels on top of power scaling, **Rare-or-better** species (a floor independent of pity), and **×2 money and EXP** — a visible risk/reward choice. After every 10th victory, the next roll is a **👑 ALPHA** boss instead: +5 levels, **Epic-or-better**, **×3 rewards**, shown with an enlarged, red-aura sprite in both the dungeon and the battle. Only one Alpha is on offer at a time; it persists until fought. Defeating any slot replaces it with a fresh roll that keeps exactly one STRONG on the board.
 * The highest opponent level the player has ever encountered is recorded and shown in the Trainer view ("Top enemy").
 
 ## **2.5 The Lead Pokémon**
@@ -518,7 +530,7 @@ Single currency — Pokédollars (₽).
 
 | Source | Amount | Available from |
 | :---- | :---- | :---- |
-| Wild Pokémon **defeated** | `max(20, ⌊opponent level × 12 × rarityMult⌋)` | Start of game |
+| Wild Pokémon **defeated** | `max(20, ⌊opponent level × 12 × rarityMult⌋) × tierMult` | Start of game |
 | Selling identified items | 30% of estimated item value | Item system activation |
 
 The reward scales with **level and rarity** (rarer opponents pay more), with a small floor so early commons still pay something:
@@ -527,7 +539,7 @@ The reward scales with **level and rarity** (rarer opponents pay more), with a s
 | :---- | :---- | :---- | :---- | :---- | :---- |
 | `rarityMult` | ×1.0 | ×1.5 | ×2.0 | ×3.0 | ×5.0 |
 
-Money is awarded **only on defeat** — never on catch or flee.
+`tierMult` is ×2 for a 🔥 STRONG encounter and ×3 for a 👑 ALPHA boss (×1 otherwise); the same multiplier applies to the EXP awarded per hit (§4.7). Money is awarded **only on defeat** — never on catch or flee.
 
 ### **Spending**
 
@@ -648,7 +660,8 @@ Game state is persisted to IndexedDB (Dexie). It holds: a list of **trainers** (
 | :---- | :---- | :---- |
 | Turn-based battles | Yes | Actions: Attack, Ball, Potion, Flee |
 | Endless wild encounters | Yes | One opponent at a time; no floors/rooms/map |
-| Opponent level = party-high ±1 | Yes | Drives combat difficulty and rewards (not math) |
+| Opponent level = party-high ±1, power-scaled by BST | Yes | Weak species spawn above the player, strong ones below (§2.4) |
+| 🔥 STRONG slot + 👑 ALPHA bosses | Yes | Risk/reward roll every visit; boss every 10 victories (§2.4) |
 | +, −, ×, ÷ curriculum by Math Rank | Yes | 21 ranks, decoupled from opponent level (§3) |
 | Fast-track rank-up | Yes | ≤2 mistakes in a rank's first 20 challenges → instant level-up |
 | Multi-challenge battle puzzles | Yes | N per move; 50% damage guaranteed + earned (§4.3) |
@@ -714,7 +727,7 @@ Pairs involving any type outside these six default to ×1.
 
 | Category | Detail | Amount / Price |
 | :---- | :---- | :---- |
-| Income | Wild Pokémon **defeated** | `max(20, ⌊level × 12 × rarityMult⌋)` (Common ×1 → Legendary ×5) |
+| Income | Wild Pokémon **defeated** | `max(20, ⌊level × 12 × rarityMult⌋) × tierMult` (Common ×1 → Legendary ×5; STRONG ×2 / ALPHA ×3) |
 | Income | Selling identified items (Phase 2) | 30% of item value |
 | Spending | Potion / Super / Hyper | ₽300 / ₽700 / ₽1200 |
 | Spending | Poké / Great / Ultra Ball | ₽200 / ₽600 / ₽1200 |

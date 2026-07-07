@@ -146,6 +146,18 @@
 .nameText { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; color: #f0f4ff; }
 .nameLv { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #aeb8d6; }
 
+/* ── Encounter tier tags (risk/reward slot + the periodic Alpha boss) ─────── */
+.tierStrong, .tierAlpha {
+  display: inline-block; font-family: 'Press Start 2P', monospace; font-size: 6px;
+  border-radius: 5px; padding: 3px 6px; line-height: 1.4; white-space: nowrap;
+}
+.tierStrong { color: #ffc46b; background: rgba(240, 160, 48, 0.16); border: 1px solid #a06a1d; }
+.tierAlpha  { color: #ff9a8f; background: rgba(224, 60, 50, 0.18); border: 1px solid #a03028; animation: alphaPulse 1.1s ease-in-out infinite alternate; }
+@keyframes alphaPulse {
+  from { box-shadow: 0 0 3px rgba(224, 60, 50, 0.4); }
+  to   { box-shadow: 0 0 10px rgba(224, 60, 50, 0.9); }
+}
+
 .hpRow { display: flex; align-items: center; gap: 6px; }
 .hpLabel { font-family: 'Press Start 2P', monospace; font-size: 7px; color: #8892b8; }
 .hpTrack { flex: 1; height: 8px; background: #0c1020; border-radius: 4px; overflow: hidden; }

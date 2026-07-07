@@ -216,7 +216,7 @@ export default function DungeonScreen() {
     if (!playerPk || !enc) return;
     setLead(playerPk.instanceId);
     useDungeonStore.getState().selectEncounter(safeWildIdx);
-    startBattle(buildEnemyPokemon(enc), playerPk.instanceId);
+    startBattle(buildEnemyPokemon(enc), playerPk.instanceId, enc.tier);
     navigate('/battle');
   }, [playerPk, enc, safeWildIdx, setLead, startBattle, navigate]);
 
@@ -271,6 +271,13 @@ export default function DungeonScreen() {
               <div className={s.wildGroup}>
                 {/* Wild status panel — ABOVE the wild Pokémon */}
                 <div className={s.nameBadge} style={{ top: 8, left: '72%', transform: 'translateX(-50%)' }}>
+                  {enc?.tier && (
+                    <div>
+                      <span className={enc.tier === 'alpha' ? s.tierAlpha : s.tierStrong}>
+                        {enc.tier === 'alpha' ? '👑 ALPHA · ×3 loot' : '🔥 STRONG · ×2 loot'}
+                      </span>
+                    </div>
+                  )}
                   <div className={s.nameRow}>
                     <span className={s.nameText}>{matchup.wild.name}</span>
                     <span className={s.nameLv}>Lv{matchup.wild.level}</span>
@@ -282,7 +289,8 @@ export default function DungeonScreen() {
                 <div className={s.platformShadow} style={{ left: '72%', top: 138, width: 52, height: 9, transform: 'translateX(-50%)' }} />
                 <img className={s.sprite} src={getIdleSpriteUrl(matchup.wild.dexNumber)} alt=""
                      onClick={() => navigate(`/pokemon/${matchup.wild.speciesId}`)}
-                     style={{ left: '72%', top: 78, width: 84, height: 84, transform: 'translateX(-50%)', zIndex: 4, cursor: 'pointer', pointerEvents: 'auto' }} />
+                     style={{ left: '72%', top: enc?.tier === 'alpha' ? 70 : 78, width: enc?.tier === 'alpha' ? 96 : 84, height: enc?.tier === 'alpha' ? 96 : 84, transform: 'translateX(-50%)', zIndex: 4, cursor: 'pointer', pointerEvents: 'auto',
+                       ...(enc?.tier === 'alpha' ? { filter: 'drop-shadow(0 0 10px rgba(224, 60, 50, 0.9))' } : enc?.tier === 'strong' ? { filter: 'drop-shadow(0 0 8px rgba(240, 160, 48, 0.85))' } : {}) }} />
                 <button className={s.arrowBtn} style={{ left: 'calc(72% - 79px)', top: 103, pointerEvents: 'auto' }} onClick={prevWild} aria-label="Previous wild Pokémon">‹</button>
                 <button className={s.arrowBtn} style={{ left: 'calc(72% + 45px)', top: 103, pointerEvents: 'auto' }} onClick={nextWild} aria-label="Next wild Pokémon">›</button>
               </div>

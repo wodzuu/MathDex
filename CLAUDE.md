@@ -19,9 +19,9 @@ npm run typecheck  # Type-check only (no emit)
 
 ## Game Design Specification
 
-`docs/specification.md` (v1.7) is the authoritative source for all game mechanics. Read it before implementing any game logic. Key sections:
+`docs/specification.md` (v1.8) is the authoritative source for all game mechanics. Read it before implementing any game logic. Key sections:
 
-- **§2** – Core game loop: endless wild encounters (no floors), encounter generation (opponent level = party-high ±1), first-run trainer creation
+- **§2** – Core game loop: endless wild encounters (no floors), encounter generation (party-high ±1, power-scaled by base-stat totals; 🔥 STRONG slot + 👑 ALPHA bosses), first-run trainer creation
 - **§3** – Mathematics curriculum: 21 Math Ranks (+, −, ×, ÷) decoupled from opponent level; fast-track + windowed rank-up; interleaved ⭐ review
 - **§4** – Battle system: damage formula, multi-challenge puzzles with a 50% damage floor, speed-based turn order, incremental damage-proportional EXP, Focus/charged crit, full-screen outcome summary
 - **§5** – Item system (Phase 2, level-gated: activation trigger, rarity tiers, per-Pokémon slot progression — designed, not yet built)
@@ -51,7 +51,7 @@ src/
     formulas.ts   Pure functions: calcDamage, calcAllStats, expGained, itemSlotCount, totalPotions/totalBalls, …
     battleMath.ts playerMoveDamage / enemyMoveDamage — the single code path for battle damage numbers
     mathProblemGenerator.ts  GEN config table (one entry per Math Rank genLevel) + generateRankedPuzzle
-    encounterGenerator.ts    Stage-gated, rarity-weighted encounter rolls with pity
+    encounterGenerator.ts    Stage-gated, rarity-weighted, BST-power-scaled rolls with pity + tier helpers
     newGame.ts    makeTrainer(name, starterId) + createNewGame() (empty — no trainer until created)
     assets.ts     asset(path) — BASE_URL + cache-busting ?v=<build> for public/ images
     sprites.ts    Sprite URL helpers (idle/walk/ball/item)

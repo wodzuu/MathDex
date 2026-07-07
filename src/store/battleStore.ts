@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { OwnedPokemon } from '../types/gameState';
+import type { EncounterTier } from '../types/dungeon';
 
 // ── Battle state shape ────────────────────────────────────────────────────────
 // Only what must survive client-side navigation away from the battle screen
@@ -23,6 +24,8 @@ export interface BattleState {
    * and returning — e.g. to view a Pokédex entry — doesn't replay it.
    */
   openingResolved: boolean;
+  /** Encounter difficulty tier — drives the aura + reward multiplier. */
+  tier?: EncounterTier;
 }
 
 // ── Store state shape ─────────────────────────────────────────────────────────
@@ -35,7 +38,7 @@ interface BattleStoreState {
   battle: BattleState | null;
 
   /** Initialise a new battle. */
-  startBattle: (enemy: OwnedPokemon, activePlayerInstanceId: string) => void;
+  startBattle: (enemy: OwnedPokemon, activePlayerInstanceId: string, tier?: EncounterTier) => void;
   /** Flag the opening strike as done, so it isn't replayed on remount. */
   markOpeningResolved: () => void;
   /** Persist the enemy HP bar (0–100) across navigation. */
@@ -53,7 +56,7 @@ export const useBattleStore = create<BattleStoreState>()(
     (set) => ({
       battle: null,
 
-      startBattle: (enemy, activePlayerInstanceId) =>
+      startBattle: (enemy, activePlayerInstanceId, tier) =>
         set(
           {
             battle: {
@@ -61,6 +64,7 @@ export const useBattleStore = create<BattleStoreState>()(
               enemyHpPercent: 100,
               activePlayerInstanceId,
               openingResolved: false,
+              tier,
             } satisfies BattleState,
           },
           false,

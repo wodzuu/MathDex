@@ -2,13 +2,13 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { GameState, Trainer, OwnedPokemon, Pokeballs, Potions } from '../types/gameState';
 import type { MathTopic } from '../types/math';
-import type { EncounterData } from '../types/dungeon';
+import type { EncounterData, EncounterTier } from '../types/dungeon';
 import { levelFromExp, calcHp, partySlotsForLevel } from '../lib/formulas';
 import { getSpecies } from '../data/species';
 import { getMove } from '../data/moves';
 import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, MATH_FASTTRACK_SIZE, MATH_FASTTRACK_MAX_MISTAKES } from '../data/curriculum';
 import { evolveOnLevelUp } from '../lib/evolution';
-import { pickLevel, pickEncounterSpecies, buildEncounter, EMPTY_PITY } from '../lib/encounterGenerator';
+import { pickLevel, pickEncounterSpecies, buildEncounter, scaledWildLevel, baseStatTotal, EMPTY_PITY } from '../lib/encounterGenerator';
 import { makeTrainer } from '../lib/newGame';
 
 // ── Exported helpers ──────────────────────────────────────────────────────────
@@ -102,8 +102,9 @@ interface GameStoreState extends GameState {
   incrementBattleCount: () => void;
   recordOpponentLevel:  (level: number) => void;
 
-  /** Roll one stage-gated, rarity-weighted wild encounter (advances pity). Spec §6.2. */
-  rollEncounter:        (partyHighestLevel: number, itemSystemActive: boolean) => EncounterData;
+  /** Roll one stage-gated, rarity-weighted, power-scaled wild encounter
+   *  (advances pity). Optional tier makes it a strong/alpha roll. Spec §6.2. */
+  rollEncounter:        (partyHighestLevel: number, itemSystemActive: boolean, tier?: EncounterTier) => EncounterData;
 
   /** Set the trainer's persisted Focus meter (0–5). Spec §4.4. */
   setFocus: (focus: number) => void;
@@ -294,13 +295,30 @@ export const useGameStore = create<GameStoreState>()(
           return { stats: { ...t.stats, highestOpponentLevel: best } };
         }), false, 'recordOpponentLevel'),
 
-      rollEncounter: (partyHighestLevel, itemSystemActive) => {
-        const level  = pickLevel(partyHighestLevel);
+      rollEncounter: (partyHighestLevel, itemSystemActive, tier) => {
+        const baseLevel = pickLevel(partyHighestLevel);
         const s      = get();
         const active = s.trainers.find(t => t.id === s.activeTrainerId);
-        const { species, pity } = pickEncounterSpecies(level, active?.encounterPity ?? EMPTY_PITY);
+
+        // Strong/alpha encounters raise the rarity floor (independent of pity).
+        const minRarity = tier === 'alpha' ? 'Epic' as const : tier === 'strong' ? 'Rare' as const : undefined;
+        const { species, pity } = pickEncounterSpecies(baseLevel, active?.encounterPity ?? EMPTY_PITY, minRarity);
         set((st) => patchTrainer(st, () => ({ encounterPity: pity })), false, 'rollEncounter');
-        return buildEncounter(species, level, itemSystemActive);
+
+        // Power-aware level: size the wild by base-stat total relative to the
+        // player's strongest party member, so one lucky strong catch doesn't
+        // trivialise every fight (spec §2.4).
+        const party     = active ? getPartyPokemon(active) : [];
+        const strongest = party.reduce<OwnedPokemon | null>(
+          (best, p) => !best || levelFromExp(p.totalExp) > levelFromExp(best.totalExp) ? p : best, null);
+        const playerSpec = strongest ? getSpecies(strongest.speciesId) : undefined;
+        let level = playerSpec ? scaledWildLevel(baseLevel, baseStatTotal(playerSpec), baseStatTotal(species)) : baseLevel;
+
+        // Tier level bonus on top: strong +3–5, alpha +5.
+        if (tier === 'strong') level += 3 + Math.floor(Math.random() * 3);
+        if (tier === 'alpha')  level += 5;
+
+        return buildEncounter(species, level, itemSystemActive, tier);
       },
 
       setFocus: (focus) =>

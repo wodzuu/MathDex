@@ -15,7 +15,7 @@
  *      "you'll always meet rarer Pokémon on a schedule" promise.
  */
 
-import type { EncounterData } from '../types/dungeon';
+import type { EncounterData, EncounterTier } from '../types/dungeon';
 import type { PokemonRarity, PokemonSpecies } from '../types/pokemon';
 import type { EncounterPity } from '../types/gameState';
 import { getSpecies } from '../data/species';
@@ -43,6 +43,29 @@ export function pickLevel(partyHighestLevel: number): number {
   return Math.max(1, partyHighestLevel + Math.floor(Math.random() * 3) - 1);
 }
 
+/** Sum of a species' six base stats — its rough power at a given level. */
+export function baseStatTotal(species: PokemonSpecies): number {
+  const b = species.baseStats;
+  return b.hp + b.attack + b.defense + b.spAtk + b.spDef + b.speed;
+}
+
+/**
+ * Power-aware wild level (spec §2.4): "same level" is not "same strength" —
+ * base stat totals differ hugely across species. Size the wild's level by the
+ * BST ratio so a weak species spawns a few levels above the player and a
+ * strong one at or below, keeping fights challenging whatever the player
+ * caught. The ratio is clamped so opponents stay within a sane band.
+ */
+export function scaledWildLevel(baseLevel: number, playerBST: number, wildBST: number): number {
+  const ratio = Math.min(1.4, Math.max(0.65, playerBST / Math.max(1, wildBST)));
+  return Math.max(1, Math.round(baseLevel * ratio));
+}
+
+/** Money/EXP multiplier for an encounter tier. */
+export function tierRewardMult(tier?: EncounterTier): number {
+  return tier === 'alpha' ? 3 : tier === 'strong' ? 2 : 1;
+}
+
 function weightedPick(pool: PokemonSpecies[]): PokemonSpecies {
   const total = pool.reduce((a, s) => a + RARITY_WEIGHT[s.rarity], 0);
   let r = Math.random() * total;
@@ -56,11 +79,13 @@ function weightedPick(pool: PokemonSpecies[]): PokemonSpecies {
 /**
  * Choose the species for one wild encounter at `level`, honouring the pity
  * guarantee. Pure: returns the chosen species + advanced pity counters for the
- * caller to persist.
+ * caller to persist. `minRarity` (strong/alpha encounters) raises the floor
+ * regardless of pity.
  */
 export function pickEncounterSpecies(
   level: number,
   pity: EncounterPity,
+  minRarity?: PokemonRarity,
 ): { species: PokemonSpecies; pity: EncounterPity } {
   const pool = eligiblePoolAtLevel(level)
     .map(getSpecies)
@@ -73,11 +98,12 @@ export function pickEncounterSpecies(
     legendary: pity.legendary + 1,
   };
 
-  // Is a tier owed? Highest tier wins.
+  // Is a tier owed? Highest tier wins; a requested minimum can raise it further.
   let floor: PokemonRarity | null = null;
   if (next.legendary >= ENCOUNTER_PITY.legendary) floor = 'Legendary';
   else if (next.epic  >= ENCOUNTER_PITY.epic)     floor = 'Epic';
   else if (next.rare  >= ENCOUNTER_PITY.rare)     floor = 'Rare';
+  if (minRarity && (!floor || rank(minRarity) > rank(floor))) floor = minRarity;
 
   let chosen: PokemonSpecies;
   if (floor) {
@@ -101,6 +127,7 @@ export function buildEncounter(
   species: PokemonSpecies,
   level: number,
   itemSystemActive: boolean,
+  tier?: EncounterTier,
 ): EncounterData {
   return {
     id:          `enc-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
@@ -111,5 +138,6 @@ export function buildEncounter(
     level,
     rarity:      species.rarity,
     holdsItem:   itemSystemActive,
+    tier,
   };
 }
