@@ -142,9 +142,15 @@ export default function PokedexScreen() {
   const navigate = useNavigate();
   const trainer  = useActiveTrainer();
   const [tab, setTab] = useState<'evolutions' | 'list'>('list');
+  const [query, setQuery] = useState('');
 
   const families = useMemo(buildFamilies, []);
   const allByName = useMemo(() => [...GEN1_SPECIES].sort((a, b) => a.name.localeCompare(b.name)), []);
+  // Name filter for the flat list (case-insensitive substring).
+  const listed = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? allByName.filter((sp) => sp.name.toLowerCase().includes(q)) : allByName;
+  }, [allByName, query]);
   const caught = useMemo(
     () => new Set(trainer.caughtPokemon.map((p) => p.speciesId)),
     [trainer.caughtPokemon],
@@ -202,16 +208,37 @@ export default function PokedexScreen() {
             })}
           </>
         ) : (
-          <div className={s.grid}>
-            {allByName.map((sp) => (
-              <button type="button" key={sp.id} className={s.cell} onClick={() => openDetail(sp.id)}>
-                <div className={`${s.disc} ${s.discOn}`}>
-                  <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.sprite} />
-                </div>
-                <div className={s.cellName}>{sp.name}</div>
-              </button>
-            ))}
-          </div>
+          <>
+            {/* Name filter — sticky so it stays reachable while scrolling. */}
+            <div className={s.searchWrap}>
+              <span className={s.searchIcon} aria-hidden>🔍</span>
+              <input
+                className={s.searchInput}
+                type="search"
+                value={query}
+                placeholder="Search by name…"
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Filter Pokémon by name"
+              />
+              {query && (
+                <button className={s.searchClear} onClick={() => setQuery('')} aria-label="Clear search">✕</button>
+              )}
+            </div>
+            {listed.length === 0 ? (
+              <div className={s.noMatch}>No Pokémon match “{query.trim()}”</div>
+            ) : (
+              <div className={s.grid}>
+                {listed.map((sp) => (
+                  <button type="button" key={sp.id} className={s.cell} onClick={() => openDetail(sp.id)}>
+                    <div className={`${s.disc} ${s.discOn}`}>
+                      <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.sprite} />
+                    </div>
+                    <div className={s.cellName}>{sp.name}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

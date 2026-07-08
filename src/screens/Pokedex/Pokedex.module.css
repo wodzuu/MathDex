@@ -70,6 +70,36 @@
 .mini .nm { white-space: normal; }
 
 /* ── Pokémon list tab — every species, 3 per row ── */
+/* ── Name filter (Pokémon list tab) ────────────────────────────────────────── */
+.searchWrap {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(214, 217, 228, 0.94);
+  border: 1px solid #b8bccd; border-radius: 12px;
+  padding: 8px 12px; margin: 2px 0 8px;
+  backdrop-filter: blur(2px);
+}
+.searchIcon { font-size: 13px; flex-shrink: 0; }
+.searchInput {
+  flex: 1; min-width: 0;
+  font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 700;
+  color: #12172b; background: transparent; border: none; outline: none;
+}
+.searchInput::placeholder { color: #5c6280; font-weight: 600; }
+/* Hide the OS-native clear button — we render our own. */
+.searchInput::-webkit-search-cancel-button { -webkit-appearance: none; }
+.searchClear {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  background: #b8bccd; border: none; color: #12172b;
+  font-size: 11px; font-weight: 900; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.noMatch {
+  text-align: center; padding: 26px 10px;
+  font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; color: #5c6280;
+}
+
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 2px; }
 .cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; background: none; border: 0; font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .cell .disc { margin: 0; }
