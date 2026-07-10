@@ -9,7 +9,7 @@
  */
 
 import { D, FONT_PIXEL, FONT_UI, typeColors } from '../styles/tokens';
-import { getIdleSpriteUrl } from '../lib/sprites';
+import PokemonSprite from './ui/PokemonSprite';
 import RarityBadge from './RarityBadge';
 import type { PartyDisplayPokemon } from '../hooks/usePartyDisplay';
 
@@ -58,8 +58,8 @@ export default function PartyMemberCard({ pk, isLead = false, frameLead = false,
       }}
     >
       {/* Sprite — tappable to open the Pokédex detail when enabled. */}
-      <img
-        src={getIdleSpriteUrl(pk.dexNumber)}
+      <PokemonSprite
+        dex={pk.dexNumber}
         alt={pk.name}
         onClick={onAvatarClick ? (e) => { e.stopPropagation(); onAvatarClick(); } : undefined}
         style={{ width: spriteSz, height: spriteSz, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.7))', cursor: onAvatarClick ? 'pointer' : 'inherit' }}

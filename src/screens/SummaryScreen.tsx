@@ -11,7 +11,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-import { getIdleSpriteUrl } from '../lib/sprites';
+import PokemonSprite from '../components/ui/PokemonSprite';
 import { asset } from '../lib/assets';
 import ScreenBackdrop from '../components/ui/ScreenBackdrop';
 import { FONT_PIXEL, FONT_UI } from '../styles/tokens';
@@ -78,7 +78,7 @@ export default function SummaryScreen() {
           // The caught Pokémon emerging from an open Poké Ball.
           <div style={{ position: 'relative', width: 188, height: 188, margin: '0 auto 14px', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.5))' }}>
             <img src={POKEBALL_BG} alt="" aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
-            <img src={getIdleSpriteUrl(dexNumber)} alt={name}
+            <PokemonSprite dex={dexNumber} alt={name}
               style={{ position: 'absolute', left: '50%', top: '46%', transform: 'translate(-50%, -50%)', width: 104, height: 104, imageRendering: 'pixelated', objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(140,210,255,0.55))' }} />
           </div>
         ) : outcome === 'fainted' ? (
@@ -108,7 +108,7 @@ export default function SummaryScreen() {
               <div key={g.instanceId}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center',
                   background: 'rgba(6,18,10,0.55)', border: '1px solid rgba(120,200,120,0.45)', borderRadius: 12, padding: '8px 12px' }}>
-                <img src={getIdleSpriteUrl(g.evolvedToDex ?? g.dexNumber)} alt={g.evolvedToName ?? g.name}
+                <PokemonSprite dex={g.evolvedToDex ?? g.dexNumber} alt={g.evolvedToName ?? g.name}
                   style={{ width: 52, height: 52, imageRendering: 'pixelated', objectFit: 'contain', flexShrink: 0 }} />
                 <span style={{ fontSize: 14, fontWeight: 800, color: '#f0f4ff', textTransform: 'capitalize' }}>{g.evolvedToName ?? g.name}</span>
                 <span style={{ fontFamily: FONT_PIXEL, fontSize: 9, color: '#6890F0' }}>+{g.expAdded} EXP</span>

@@ -19,8 +19,8 @@ import { getSpecies } from '../../data/species';
 import type { PokemonSpecies } from '../../types/pokemon';
 import { evolutionsOf } from '../../lib/evolution';
 import { useActiveTrainer } from '../../store/gameStore';
-import { getIdleSpriteUrl, getSpriteUrl } from '../../lib/sprites';
 import { asset } from '../../lib/assets';
+import PokemonSprite from '../../components/ui/PokemonSprite';
 
 import s from './Pokedex.module.css';
 
@@ -51,25 +51,6 @@ const FOOTER_BG = {
   backgroundPosition: 'bottom center, center',
   backgroundSize:     '100% auto, 100% 100%',
 };
-
-// Idle sprite with a fallback to the walk sprite — a couple of idle gifs are
-// missing from the asset set (Beedrill, Dragonair), so avoid broken images.
-function SpriteImg({ dex, name, className }: { dex: number; name: string; className: string }) {
-  return (
-    <img
-      className={className}
-      src={getIdleSpriteUrl(dex)}
-      alt={name}
-      loading="lazy"
-      onError={(e) => {
-        const im = e.currentTarget;
-        if (im.dataset.fallback) return;
-        im.dataset.fallback = '1';
-        im.src = getSpriteUrl(dex);
-      }}
-    />
-  );
-}
 
 interface Node { sp: PokemonSpecies; children: Node[]; }
 
@@ -109,7 +90,7 @@ function Disc({ sp, caught }: { sp: PokemonSpecies; caught: boolean }) {
   return (
     <div className={`${s.disc} ${caught ? s.discOn : ''}`}>
       {caught
-        ? <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.sprite} />
+        ? <PokemonSprite dex={sp.dexNumber} alt={sp.name} className={s.sprite} loading="lazy" />
         : <span className={s.q}>?</span>}
     </div>
   );
@@ -130,7 +111,7 @@ function MiniChip({ sp, caught, onPick }: { sp: PokemonSpecies; caught: boolean;
     <button type="button" className={s.mini} onClick={() => onPick(sp.id)}>
       <div className={`${s.miniDisc} ${caught ? s.discOn : ''}`}>
         {caught
-          ? <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.miniSprite} />
+          ? <PokemonSprite dex={sp.dexNumber} alt={sp.name} className={s.miniSprite} loading="lazy" />
           : <span className={s.miniQ}>?</span>}
       </div>
       <div className={s.nm} style={{ color: caught ? NAME_CAUGHT : NAME_UNSEEN }}>{sp.name}</div>
@@ -231,7 +212,7 @@ export default function PokedexScreen() {
                 {listed.map((sp) => (
                   <button type="button" key={sp.id} className={s.cell} onClick={() => openDetail(sp.id)}>
                     <div className={`${s.disc} ${s.discOn}`}>
-                      <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.sprite} />
+                      <PokemonSprite dex={sp.dexNumber} alt={sp.name} className={s.sprite} loading="lazy" />
                     </div>
                     <div className={s.cellName}>{sp.name}</div>
                   </button>

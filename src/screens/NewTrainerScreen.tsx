@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../store/gameStore';
 import { STARTER_IDS } from '../lib/newGame';
 import { getSpecies } from '../data/species';
-import { getIdleSpriteUrl } from '../lib/sprites';
+import PokemonSprite from '../components/ui/PokemonSprite';
 import { D, FONT_PIXEL, FONT_UI, typeColors } from '../styles/tokens';
 
 const MAX_NAME = 12;
@@ -82,7 +82,7 @@ export default function NewTrainerScreen() {
                     boxShadow: selected ? `0 0 0 3px ${D.green}33` : 'none', transition: 'all .15s',
                   }}
                 >
-                  <img src={getIdleSpriteUrl(sp?.dexNumber ?? 1)} alt={sp?.name ?? id}
+                  <PokemonSprite dex={sp?.dexNumber ?? 1} alt={sp?.name ?? id}
                     style={{ width: 72, height: 72, imageRendering: 'pixelated', objectFit: 'contain' }} />
                   <span style={{ fontSize: 15, fontWeight: 900, textTransform: 'capitalize' }}>{sp?.name ?? id}</span>
                   <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, padding: '2px 8px', borderRadius: 99, textTransform: 'uppercase', background: tc.bg, color: tc.fg, border: `1px solid ${tc.bdr}` }}>{sp?.types[0] ?? 'Normal'}</span>

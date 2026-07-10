@@ -21,7 +21,8 @@ import { getSpecies } from '../../data/species';
 import { calcHp, calcAllStats, catchProbability, expGained, levelFromExp, expToLevel, moneyReward, totalPotions, totalBalls } from '../../lib/formulas';
 import { playerMoveDamage, enemyMoveDamage } from '../../lib/battleMath';
 import { tierRewardMult } from '../../lib/encounterGenerator';
-import { getIdleSpriteUrl, getBallSpriteUrl } from '../../lib/sprites';
+import { getBallSpriteUrl } from '../../lib/sprites';
+import PokemonSprite from '../../components/ui/PokemonSprite';
 import { asset } from '../../lib/assets';
 import { generateRankedPuzzle, effectiveMultiplier, getTypeMultiplier } from '../../lib/mathProblemGenerator';
 import { useBattleStore } from '../../store/battleStore';
@@ -882,7 +883,7 @@ export default function BattleScreen() {
           <div className={b.groundShadow} style={{ left: '28%', top: 202, width: 76, height: 14, transform: 'translateX(-50%)' }} />
           {playerHit
             ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '28%', top: 134, width: 120, height: 120, transform: 'translateX(-50%)' }} />
-            : <img key={activeId} className={`${b.sprite} ${playerLunge ? b.lungeRight : ''}`} src={getIdleSpriteUrl(playerDexNumber)} alt="" onClick={() => openSpeciesDetail(playerSpecies?.id)} style={{ left: '28%', top: 146, width: 96, height: 96, transform: 'translateX(-50%)', cursor: 'pointer' }} />}
+            : <PokemonSprite key={activeId} className={`${b.sprite} ${playerLunge ? b.lungeRight : ''}`} dex={playerDexNumber} onClick={() => openSpeciesDetail(playerSpecies?.id)} style={{ left: '28%', top: 146, width: 96, height: 96, transform: 'translateX(-50%)', cursor: 'pointer' }} />}
           {hasParty && (
             <>
               <button className={b.arrowBtn} style={{ left: 'calc(28% - 72px)', top: 176 }} disabled={!switchEnabled} onClick={() => switchDir(-1)} aria-label="Previous Pokémon">‹</button>
@@ -928,7 +929,7 @@ export default function BattleScreen() {
             ? <img className={b.hitFx} src={HIT_URL} alt="" style={{ left: '72%', top: 132, width: 120, height: 120, transform: 'translateX(-50%)' }} />
             : (catchPhase === 'wobble' || catchPhase === 'caught')
               ? null   /* inside the thrown Poké Ball */
-              : <img className={`${b.sprite} ${enemyLunge ? b.lungeLeft : ''}`} src={getIdleSpriteUrl(enemyDexNumber)} alt="" onClick={() => openSpeciesDetail(enemySpecies?.id)} style={{ left: '72%', top: battle.tier === 'alpha' ? 134 : 146, width: battle.tier === 'alpha' ? 104 : 92, height: battle.tier === 'alpha' ? 104 : 92, transform: 'translateX(-50%) scaleX(-1)', cursor: 'pointer',
+              : <PokemonSprite className={`${b.sprite} ${enemyLunge ? b.lungeLeft : ''}`} dex={enemyDexNumber} onClick={() => openSpeciesDetail(enemySpecies?.id)} style={{ left: '72%', top: battle.tier === 'alpha' ? 134 : 146, width: battle.tier === 'alpha' ? 104 : 92, height: battle.tier === 'alpha' ? 104 : 92, transform: 'translateX(-50%) scaleX(-1)', cursor: 'pointer',
                 ...(battle.tier === 'alpha' ? { filter: 'drop-shadow(0 0 12px rgba(224, 60, 50, 0.95))' } : battle.tier === 'strong' ? { filter: 'drop-shadow(0 0 9px rgba(240, 160, 48, 0.9))' } : {}) }} />}
 
           {/* Thrown Poké Ball — arcs over, then wobbles on the ground */}

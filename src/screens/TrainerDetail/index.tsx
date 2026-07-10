@@ -12,7 +12,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useActiveTrainer, useGameStore, getLeadInstanceId } from '../../store/gameStore';
 import { MATH_RANKS, MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, clampMathRank } from '../../data/curriculum';
 import { getSpecies } from '../../data/species';
-import { getIdleSpriteUrl } from '../../lib/sprites';
+import PokemonSprite from '../../components/ui/PokemonSprite';
 import { asset } from '../../lib/assets';
 import ScreenBackdrop from '../../components/ui/ScreenBackdrop';
 
@@ -100,7 +100,7 @@ export default function TrainerDetailScreen() {
               className={`${s.tChip} ${isActive ? s.tChipActive : ''}`}
               onClick={() => { if (!isActive) setActiveTrainer(t.id); }}
             >
-              <img className={s.tChipImg} src={getIdleSpriteUrl(dex)} alt="" />
+              <PokemonSprite className={s.tChipImg} dex={dex} />
               <span className={s.tChipName}>{t.name}</span>
               {isActive && <span className={s.tChipBadge}>ACTIVE</span>}
             </button>

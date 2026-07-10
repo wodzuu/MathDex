@@ -21,7 +21,7 @@ import { usePwaStore } from '../../store/pwaStore';
 import { getSpecies, SPECIES_MAP } from '../../data/species';
 import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, clampMathRank } from '../../data/curriculum';
 import { calcHp, levelFromExp, totalPotions, totalBalls } from '../../lib/formulas';
-import { getIdleSpriteUrl } from '../../lib/sprites';
+import PokemonSprite from '../../components/ui/PokemonSprite';
 import { asset } from '../../lib/assets';
 import s from './Town.module.css';
 
@@ -151,7 +151,7 @@ export default function TownScreen() {
                 onClick={() => petPokemon(spot.left, spot.top)}
                 aria-label="Party Pokémon — pet it"
               >
-                <img src={getIdleSpriteUrl(p.dex)} alt="" style={{ opacity: p.pct <= 0 ? 0.45 : 1 }} />
+                <PokemonSprite dex={p.dex} style={{ opacity: p.pct <= 0 ? 0.45 : 1 }} />
               </button>
             );
           })}
@@ -169,7 +169,7 @@ export default function TownScreen() {
             <button className={s.statusParty} onClick={() => navigate('/pc')} aria-label="Party — open the Pokémon Center">
               {partyGlance.map((p) => (
                 <span key={p.id} className={s.statusMon}>
-                  <img src={getIdleSpriteUrl(p.dex)} alt="" />
+                  <PokemonSprite dex={p.dex} />
                   <span className={s.statusHpDot} style={{ background: p.col }} />
                 </span>
               ))}

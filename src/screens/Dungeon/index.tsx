@@ -28,7 +28,8 @@ import { getMove }         from '../../data/moves';
 import { calcHp, calcAllStats, expToLevel, levelFromExp, totalPotions, totalBalls } from '../../lib/formulas';
 import { damageRange, wildMoveIds, type Fighter } from '../../lib/matchup';
 import { effectiveMultiplier } from '../../lib/mathProblemGenerator';
-import { getIdleSpriteUrl, getItemSpriteUrl, getBallSpriteUrl } from '../../lib/sprites';
+import { getItemSpriteUrl, getBallSpriteUrl } from '../../lib/sprites';
+import PokemonSprite from '../../components/ui/PokemonSprite';
 
 import type { EncounterData } from '../../types/dungeon';
 import type { OwnedPokemon } from '../../types/gameState';
@@ -287,7 +288,7 @@ export default function DungeonScreen() {
                 </div>
                 <div className={s.platform} style={{ left: '72%', top: 128, width: 120, height: 30, transform: 'translateX(-50%)', ...(wC ? diskStyle(wC) : {}) }} />
                 <div className={s.platformShadow} style={{ left: '72%', top: 138, width: 52, height: 9, transform: 'translateX(-50%)' }} />
-                <img className={s.sprite} src={getIdleSpriteUrl(matchup.wild.dexNumber)} alt=""
+                <PokemonSprite className={s.sprite} dex={matchup.wild.dexNumber}
                      onClick={() => navigate(`/pokemon/${matchup.wild.speciesId}`)}
                      style={{ left: '72%', top: enc?.tier === 'alpha' ? 70 : 78, width: enc?.tier === 'alpha' ? 96 : 84, height: enc?.tier === 'alpha' ? 96 : 84, transform: 'translateX(-50%)', zIndex: 4, cursor: 'pointer', pointerEvents: 'auto',
                        ...(enc?.tier === 'alpha' ? { filter: 'drop-shadow(0 0 10px rgba(224, 60, 50, 0.9))' } : enc?.tier === 'strong' ? { filter: 'drop-shadow(0 0 8px rgba(240, 160, 48, 0.85))' } : {}) }} />
@@ -301,7 +302,7 @@ export default function DungeonScreen() {
               {/* My disk + shadow + sprite (below my panel) */}
               <div className={s.platform} style={{ left: '28%', top: 222, width: 132, height: 32, transform: 'translateX(-50%)', ...(pC ? diskStyle(pC) : {}) }} />
               <div className={s.platformShadow} style={{ left: '28%', top: 233, width: 62, height: 10, transform: 'translateX(-50%)' }} />
-              <img className={s.sprite} src={getIdleSpriteUrl(matchup.player.dexNumber)} alt=""
+              <PokemonSprite className={s.sprite} dex={matchup.player.dexNumber}
                    onClick={() => navigate(`/pokemon/${matchup.player.speciesId}`)}
                    style={{ left: '28%', top: 168, width: 92, height: 92, transform: 'translateX(-50%)', cursor: 'pointer' }} />
 

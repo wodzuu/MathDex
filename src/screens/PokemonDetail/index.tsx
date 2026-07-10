@@ -12,7 +12,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getSpecies } from '../../data/species';
 import { getMove } from '../../data/moves';
 import { useActiveTrainer } from '../../store/gameStore';
-import { getIdleSpriteUrl, getSpriteUrl } from '../../lib/sprites';
+import PokemonSprite from '../../components/ui/PokemonSprite';
 import { asset } from '../../lib/assets';
 import { levelFromExp } from '../../lib/formulas';
 import { baseFormOf, evolutionTreeFrom, type EvoNode } from '../../lib/evolution';
@@ -41,22 +41,6 @@ const STATS: { key: keyof BaseStats; label: string }[] = [
 
 const ALL_TYPES = Object.keys(TYPE_COLORS) as PokeType[];
 
-function SpriteImg({ dex, name, className }: { dex: number; name: string; className: string }) {
-  return (
-    <img
-      className={className}
-      src={getIdleSpriteUrl(dex)}
-      alt={name}
-      onError={(e) => {
-        const im = e.currentTarget;
-        if (im.dataset.fallback) return;
-        im.dataset.fallback = '1';
-        im.src = getSpriteUrl(dex);
-      }}
-    />
-  );
-}
-
 function TypePill({ type, small }: { type: PokeType; small?: boolean }) {
   const tc = typeColors(type);
   return <span className={small ? s.typePillSm : s.typePill} style={{ background: tc.bg, color: tc.fg, border: `1px solid ${tc.bdr}` }}>{type}</span>;
@@ -75,7 +59,7 @@ function EvoStage({ id, current, onPick }: { id: string; current: boolean; onPic
   if (!sp) return null;
   return (
     <button type="button" className={`${s.evoStage} ${current ? s.evoCurrent : ''}`} onClick={() => onPick(id)}>
-      <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.evoSprite} />
+      <PokemonSprite dex={sp.dexNumber} alt={sp.name} className={s.evoSprite} />
       <span className={s.evoName}>{sp.name}</span>
     </button>
   );
@@ -151,7 +135,7 @@ export default function PokemonDetailScreen() {
       <div className={s.scroll} style={SCROLL_BG}>
         {/* Hero: sprite, types, rarity + EXP yield */}
         <div className={s.hero}>
-          <SpriteImg dex={sp.dexNumber} name={sp.name} className={s.heroSprite} />
+          <PokemonSprite dex={sp.dexNumber} alt={sp.name} className={s.heroSprite} />
           <div className={s.types}>{sp.types.map((t) => <TypePill key={t} type={t} />)}</div>
           <div className={s.meta}>
             <span className={s.rarityBadge} style={{ background: rc.bg, color: rc.fg, border: `1px solid ${rc.bdr}` }}>{sp.rarity}</span>
