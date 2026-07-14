@@ -22,6 +22,7 @@ import { getSpecies, SPECIES_MAP } from '../../data/species';
 import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, clampMathRank } from '../../data/curriculum';
 import { calcHp, levelFromExp, totalPotions, totalBalls } from '../../lib/formulas';
 import PokemonSprite from '../../components/ui/PokemonSprite';
+import IosInstallHint from '../../components/IosInstallHint';
 import { asset } from '../../lib/assets';
 import s from './Town.module.css';
 
@@ -127,6 +128,9 @@ export default function TownScreen() {
           New version available. Tap to update
         </button>
       )}
+
+      {/* iOS can't suggest installing on its own — teach Share → Add to Home Screen. */}
+      <IosInstallHint />
 
       <div className={s.scroll}>
         {/* ── Forest backdrop: forest = dungeon, grass = building panels ── */}
