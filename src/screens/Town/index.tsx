@@ -133,10 +133,14 @@ export default function TownScreen() {
         <div className={s.mapWrap}>
           <img className={s.map} src={TOWN_URL} alt="Town" />
 
-          {/* ── Ambient motion: cloud shadows, a falling leaf, twinkles ── */}
+          {/* ── Forest fog: three haze bands, deepest where the path vanishes ── */}
+          <div className={s.fog} style={{ top: '4%',  height: 72 }} aria-hidden />
+          <div className={s.fog} style={{ top: '13%', height: 84, animationDelay: '-9s',  animationDuration: '32s' }} aria-hidden />
+          <div className={s.fog} style={{ top: '24%', height: 56, animationDelay: '-18s', animationDuration: '21s', opacity: 0.8 }} aria-hidden />
+
+          {/* ── Ambient motion: cloud shadows + twinkles ── */}
           <div className={s.cloud} style={{ top: '30%', animationDelay: '0s' }} aria-hidden />
           <div className={s.cloud} style={{ top: '58%', width: 120, animationDelay: '-26s' }} aria-hidden />
-          <span className={s.leaf} aria-hidden>🍂</span>
           <span className={s.sparkle} style={{ left: '84%', top: '88%' }} aria-hidden>✨</span>
           <span className={s.sparkle} style={{ left: '8%', top: '52%', animationDelay: '1.2s' }} aria-hidden>✨</span>
 
@@ -166,7 +170,7 @@ export default function TownScreen() {
             <button className={s.statusChip} onClick={() => navigate('/mart')} aria-label="Pokédollars — open the Mart">
               ₽{trainer.pokeDollars.toLocaleString()}
             </button>
-            <button className={s.statusParty} onClick={() => navigate('/pc')} aria-label="Party — open the Pokémon Center">
+            <button className={s.statusParty} onClick={enterCenter} aria-label="Party — heal at the Pokémon Center">
               {partyGlance.map((p) => (
                 <span key={p.id} className={s.statusMon}>
                   <PokemonSprite dex={p.dex} />

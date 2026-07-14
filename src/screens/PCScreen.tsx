@@ -42,6 +42,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 
 interface PCRowProps {
   pk:           PartyDisplayPokemon;
+  animateHp?:   boolean;
   actionLabel:  string;
   actionColor:  string;
   actionBg:     string;
@@ -51,11 +52,11 @@ interface PCRowProps {
   onAvatar:     () => void;
 }
 
-function PCRow({ pk, actionLabel, actionColor, actionBg, disabled, disabledHint, onAction, onAvatar }: PCRowProps) {
+function PCRow({ pk, animateHp, actionLabel, actionColor, actionBg, disabled, disabledHint, onAction, onAvatar }: PCRowProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderBottom: `1px solid ${D.border}` }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <PartyMemberCard pk={pk} onAvatarClick={onAvatar} />
+        <PartyMemberCard pk={pk} onAvatarClick={onAvatar} animateHp={animateHp} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
         <button onClick={onAction} disabled={disabled} style={{
@@ -140,17 +141,11 @@ export default function PCScreen() {
       <ScreenBackdrop src={PC_BG} scrim={PC_SCRIM} />
       <div style={{ position: 'relative', zIndex: 1 }}>
 
-      {/* Header */}
-      <div style={{ padding: '16px 14px 12px', background: `linear-gradient(180deg,#0a1a3a,${D.navy})`, borderBottom: `2px solid ${D.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate('/')} style={{ background: D.card, border: `2px solid ${D.border}`, borderRadius: 10, padding: '6px 12px', color: D.muted, fontFamily: FONT_UI, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-            ← Town
-          </button>
-          <div>
-            <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.yellow, letterSpacing: 2, marginBottom: 4 }}>PC TERMINAL</div>
-            <div style={{ fontSize: 20, fontWeight: 900 }}>Party &amp; PC Box</div>
-          </div>
-        </div>
+      {/* Header — same layout as the Trainer view */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: 8, padding: 12, background: 'rgba(10, 18, 32, 0.92)', borderBottom: `1px solid ${D.border}` }}>
+        <button onClick={() => navigate('/')} style={{ background: D.card, border: `1px solid ${D.border}`, borderRadius: 10, padding: '7px 12px', color: '#c7cfe8', fontFamily: FONT_UI, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>← Town</button>
+        <span style={{ flex: 1, textAlign: 'center', fontFamily: FONT_PIXEL, fontSize: 12, color: D.yellow }}>PC Terminal</span>
+        <span style={{ width: 78, flexShrink: 0 }} />
       </div>
 
       {/* Swap-in instruction banner */}
@@ -166,8 +161,8 @@ export default function PCScreen() {
       {/* ── PARTY ── */}
       <div style={{ padding: '14px 14px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted, letterSpacing: 2 }}>PARTY</div>
-          <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{partyDisplay.length} / {maxPartySize}</div>
+          <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: '#eef2ff', letterSpacing: 2, textShadow: '0 1px 5px rgba(0,0,0,0.9)' }}>PARTY</div>
+          <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: '#eef2ff', textShadow: '0 1px 5px rgba(0,0,0,0.9)' }}>{partyDisplay.length} / {maxPartySize}</div>
         </div>
       </div>
 
@@ -179,6 +174,7 @@ export default function PCScreen() {
             <PCRow
               key={pk.instanceId}
               pk={pk}
+              animateHp
               actionLabel={pendingSwapId ? 'Swap here' : 'Deposit'}
               actionColor={pendingSwapId ? D.yellow : D.muted}
               actionBg={pendingSwapId ? '#1a1400' : D.card2}
@@ -217,14 +213,14 @@ export default function PCScreen() {
       {/* ── PC BOX ── */}
       <div style={{ padding: '0 14px 6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted, letterSpacing: 2 }}>PC BOX</div>
-          <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: D.muted }}>{boxDisplay.length} Pokémon</div>
+          <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: '#eef2ff', letterSpacing: 2, textShadow: '0 1px 5px rgba(0,0,0,0.9)' }}>PC BOX</div>
+          <div style={{ fontFamily: FONT_PIXEL, fontSize: 8, color: '#eef2ff', textShadow: '0 1px 5px rgba(0,0,0,0.9)' }}>{boxDisplay.length} Pokémon</div>
         </div>
 
         {/* Sort toolbar — selected key shows a direction arrow + accent colour. */}
         {boxDisplay.length > 1 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontFamily: FONT_UI, fontSize: 12, fontWeight: 800, color: D.muted }}>Sort by:</span>
+            <span style={{ fontFamily: FONT_UI, fontSize: 12, fontWeight: 800, color: '#eef2ff', textShadow: '0 1px 5px rgba(0,0,0,0.9)' }}>Sort by:</span>
             {SORT_OPTIONS.map((o) => {
               const selected = o.key === sortKey;
               return (
@@ -234,10 +230,9 @@ export default function PCScreen() {
                   style={{
                     fontFamily: FONT_UI, fontSize: 12, fontWeight: 800, cursor: 'pointer',
                     padding: '5px 10px', borderRadius: 8, transition: 'all .15s',
-                    background: selected ? '#1a1400' : D.card2,
-                    color: selected ? D.yellow : D.muted,
-                    border: `1px solid ${selected ? D.yellow : D.border}`,
-                    opacity: selected ? 1 : 0.6,
+                    background: selected ? '#1a1400' : 'rgba(34, 37, 58, 0.95)',
+                    color: selected ? D.yellow : '#dfe5f5',
+                    border: `1px solid ${selected ? D.yellow : '#4a5378'}`,
                   }}
                 >
                   {o.label}{selected ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}

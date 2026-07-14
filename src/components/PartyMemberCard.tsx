@@ -8,6 +8,7 @@
  * All styling is inline (project convention) using tokens from styles/tokens.
  */
 
+import { useEffect, useState } from 'react';
 import { D, FONT_PIXEL, FONT_UI, typeColors } from '../styles/tokens';
 import PokemonSprite from './ui/PokemonSprite';
 import RarityBadge from './RarityBadge';
@@ -38,12 +39,23 @@ interface PartyMemberCardProps {
   onClick?: () => void;
   /** Makes the sprite avatar tappable (e.g. to open the Pokédex detail). */
   onAvatarClick?: () => void;
+  /** Sweep the HP bar up from empty on mount — the "just healed!" moment. */
+  animateHp?: boolean;
 }
 
-export default function PartyMemberCard({ pk, isLead = false, frameLead = false, onClick, onAvatarClick }: PartyMemberCardProps) {
+export default function PartyMemberCard({ pk, isLead = false, frameLead = false, onClick, onAvatarClick, animateHp = false }: PartyMemberCardProps) {
   const spriteSz   = isLead ? 72 : 64;
   const showFrame  = frameLead && isLead;
   const tc         = typeColors(pk.type);
+
+  // Heal sweep: start the HP bar empty and let the width transition fill it.
+  const [hpSettled, setHpSettled] = useState(!animateHp);
+  useEffect(() => {
+    if (!animateHp) return;
+    const t = setTimeout(() => setHpSettled(true), 180);
+    return () => clearTimeout(t);
+  }, [animateHp]);
+  const shownHpPct = hpSettled ? pk.hpPct : 0;
 
   return (
     <div
@@ -81,7 +93,7 @@ export default function PartyMemberCard({ pk, isLead = false, frameLead = false,
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
           <span style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: D.white, minWidth: 12 }}>HP</span>
           <div style={{ flex: 1, height: 6, background: '#111', border: '1px solid rgba(255,255,255,.08)', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ width: `${pk.hpPct}%`, height: '100%', background: hpColor(pk.hpPct), transition: 'width .4s' }} />
+            <div style={{ width: `${shownHpPct}%`, height: '100%', background: hpColor(pk.hpPct), transition: animateHp ? 'width .7s ease-out' : 'width .4s' }} />
           </div>
           <span style={{ fontFamily: FONT_PIXEL, fontSize: 6, color: hpColor(pk.hpPct), minWidth: 46, textAlign: 'right' }}>
             {pk.currentHp}/{pk.maxHp}

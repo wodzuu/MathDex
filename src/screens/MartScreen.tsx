@@ -101,20 +101,15 @@ export default function MartScreen() {
       <ScreenBackdrop src={MART_BG} scrim={MART_SCRIM} />
       <div style={{ position: 'relative', zIndex: 1 }}>
 
-      {/* Header — the live balance doubles as purchase feedback. */}
-      <div style={{ padding: '12px 14px', borderBottom: `1px solid ${D.border}`, display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, background: D.darker, zIndex: 10 }}>
+      {/* Header — same layout as the Trainer view; the live balance on the
+          right doubles as purchase feedback. */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: 8, padding: 12, background: 'rgba(10, 18, 32, 0.92)', borderBottom: `1px solid ${D.border}` }}>
         <button onClick={() => navigate('/')}
-          style={{ background: 'transparent', border: `2px solid ${D.border}`, color: D.muted, borderRadius: 10, padding: '8px 14px', fontFamily: FONT_UI, fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>← Back</button>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted, marginBottom: 2 }}>POKÉMART</div>
-          <div style={{ fontFamily: FONT_PIXEL, fontSize: 11, color: D.yellow }}>Oak Island Shop</div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontFamily: FONT_PIXEL, fontSize: 7, color: D.muted }}>BALANCE</div>
-          <div style={{ fontFamily: FONT_PIXEL, fontSize: 11, color: D.yellow }}>
-            <span key={pokeDollars} className="count-pop" style={{ color: D.yellow }}>₽{pokeDollars.toLocaleString()}</span>
-          </div>
-        </div>
+          style={{ background: D.card, border: `1px solid ${D.border}`, borderRadius: 10, padding: '7px 12px', color: '#c7cfe8', fontFamily: FONT_UI, fontSize: 13, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>← Town</button>
+        <span style={{ flex: 1, textAlign: 'center', fontFamily: FONT_PIXEL, fontSize: 12, color: D.yellow }}>Poké Mart</span>
+        <span style={{ width: 78, flexShrink: 0, textAlign: 'right', fontFamily: FONT_PIXEL, fontSize: 10, color: D.yellow }}>
+          <span key={pokeDollars} className="count-pop" style={{ color: D.yellow }}>₽{pokeDollars.toLocaleString()}</span>
+        </span>
       </div>
 
       <div style={{ padding: '14px 14px 0' }}>
