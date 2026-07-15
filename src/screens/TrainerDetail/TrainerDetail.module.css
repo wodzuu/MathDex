@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 12px 12px;
   background: rgba(10, 18, 32, 0.92);
   border-bottom: 1px solid #3a3d5c;
 }

@@ -16,6 +16,10 @@
   background-color: #b8302a;
   font-family: 'Nunito', sans-serif;
   color: #f0f4ff;
+  /* Installed-PWA iPhones: keep the header below the status bar; the solid
+     red screen background fills the strip so it blends with the bezel. */
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
 }
 
 /* Fixed top bezel: the header cap + the Back row and tabs overlaid on it.

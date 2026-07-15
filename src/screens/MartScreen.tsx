@@ -103,7 +103,7 @@ export default function MartScreen() {
 
       {/* Header — same layout as the Trainer view; the live balance on the
           right doubles as purchase feedback. */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: 8, padding: 12, background: 'rgba(10, 18, 32, 0.92)', borderBottom: `1px solid ${D.border}` }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: 8, padding: 'calc(12px + env(safe-area-inset-top)) 12px 12px', background: 'rgba(10, 18, 32, 0.92)', borderBottom: `1px solid ${D.border}` }}>
         <button onClick={() => navigate('/')}
           style={{ background: D.card, border: `1px solid ${D.border}`, borderRadius: 10, padding: '7px 12px', color: '#c7cfe8', fontFamily: FONT_UI, fontSize: 13, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>← Town</button>
         <span style={{ flex: 1, textAlign: 'center', fontFamily: FONT_PIXEL, fontSize: 12, color: D.yellow }}>Poké Mart</span>

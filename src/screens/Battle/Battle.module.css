@@ -21,7 +21,7 @@
 .content { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100dvh; }
 
 /* ── Header ── */
-.header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 12px 0; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: calc(12px + env(safe-area-inset-top)) 12px 0; }
 .fleeBtn {
   background: #5a1e16; border: 2px solid #c0392b; border-radius: 12px;
   padding: 7px 16px; color: #f6cfca; font-family: 'Nunito', sans-serif;

@@ -38,7 +38,7 @@ export default function NewTrainerScreen() {
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', minHeight: '100dvh', background: D.darker, fontFamily: FONT_UI, color: D.white, display: 'flex', flexDirection: 'column', padding: '0 0 calc(20px + env(safe-area-inset-bottom))' }}>
       {/* Header */}
-      <div style={{ padding: '18px 16px 14px', background: `linear-gradient(180deg,#0a1a3a,${D.navy})`, borderBottom: `2px solid ${D.border}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ padding: 'calc(18px + env(safe-area-inset-top)) 16px 14px', background: `linear-gradient(180deg,#0a1a3a,${D.navy})`, borderBottom: `2px solid ${D.border}`, display: 'flex', alignItems: 'center', gap: 12 }}>
         {hasTrainers && (
           <button onClick={() => navigate(-1)} style={{ background: D.card, border: `2px solid ${D.border}`, borderRadius: 10, padding: '6px 12px', color: D.muted, fontFamily: FONT_UI, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>← Cancel</button>
         )}
