@@ -61,6 +61,7 @@
 .mapWrap {
   position: relative;
   line-height: 0;          /* kill the inline-image gap */
+  overflow: hidden;        /* clip the drifting fog/cloud layers to the map */
 }
 
 .map {
