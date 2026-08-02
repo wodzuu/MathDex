@@ -77,6 +77,14 @@
 .tChipNew { border-style: dashed; justify-content: center; color: #aeb8d6; }
 .tChipPlus { font-size: 30px; line-height: 1; color: #8892b8; font-weight: 700; }
 
+/* ── Save data (export / import) ── */
+.saveRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 14px; }
+.saveBtn {
+  padding: 12px 8px; border-radius: 11px; background: #161b30; border: 1.5px solid #3a3d5c;
+  color: #c7cfe8; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.saveBtn:active { background: #1c2340; }
+
 .deleteLink {
   display: block; margin: 22px 14px 8px; padding: 12px; width: calc(100% - 28px);
   background: #3a1414; border: 1.5px solid #8a1f1f; border-radius: 11px;

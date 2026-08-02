@@ -14,6 +14,7 @@ import { useGameStore } from '../store/gameStore';
 import { STARTER_IDS } from '../lib/newGame';
 import { getSpecies } from '../data/species';
 import PokemonSprite from '../components/ui/PokemonSprite';
+import ImportSave from '../components/ImportSave';
 import { D, FONT_PIXEL, FONT_UI, typeColors } from '../styles/tokens';
 
 const MAX_NAME = 12;
@@ -107,6 +108,12 @@ export default function NewTrainerScreen() {
         >
           Start adventure
         </button>
+
+        {/* Disaster recovery: /trainer is unreachable without a trainer, so the
+            restore-from-backup path must exist here too. */}
+        <ImportSave style={{ alignSelf: 'center', marginTop: 2, padding: 8, background: 'transparent', border: 'none', color: D.muted, fontFamily: FONT_UI, fontSize: 13, fontWeight: 800, textDecoration: 'underline', cursor: 'pointer' }}>
+          Have a backup? Import a save
+        </ImportSave>
       </div>
     </div>
   );

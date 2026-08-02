@@ -13,7 +13,9 @@ import { useActiveTrainer, useGameStore, getLeadInstanceId } from '../../store/g
 import { MATH_RANKS, MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, clampMathRank } from '../../data/curriculum';
 import { getSpecies } from '../../data/species';
 import PokemonSprite from '../../components/ui/PokemonSprite';
+import ImportSave from '../../components/ImportSave';
 import { asset } from '../../lib/assets';
+import { exportSaveToFile } from '../../lib/saveCodec';
 import ScreenBackdrop from '../../components/ui/ScreenBackdrop';
 
 import s from './TrainerDetail.module.css';
@@ -162,6 +164,20 @@ export default function TrainerDetailScreen() {
             </div>
           );
         })}
+      </div>
+
+      <div className={s.sectionLabel}>Save data</div>
+      <div className={s.saveRow}>
+        <button
+          className={s.saveBtn}
+          onClick={() => {
+            const { version, activeTrainerId: aid, trainers: ts, settings } = useGameStore.getState();
+            void exportSaveToFile({ version, activeTrainerId: aid, trainers: ts, settings });
+          }}
+        >
+          📤 Export save
+        </button>
+        <ImportSave className={s.saveBtn}>📥 Import save</ImportSave>
       </div>
 
       <button className={s.deleteLink} onClick={openConfirm}>🗑 Delete {trainer.name}</button>
