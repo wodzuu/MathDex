@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadGameState, saveGameState } from '../db/db';
+import { loadGameState, saveGameState, requestPersistentStorage } from '../db/db';
 import { createNewGame } from '../lib/newGame';
 import { useGameStore } from '../store/gameStore';
 
@@ -13,6 +13,10 @@ export function useGameInit(): GameInitStatus {
     let cancelled = false;
     async function init() {
       try {
+        const persisted = await requestPersistentStorage();
+        if (!persisted) {
+          console.warn('[useGameInit] persistent storage not granted — the browser may evict the save');
+        }
         let state = await loadGameState();
         if (!state) {
           state = createNewGame();
