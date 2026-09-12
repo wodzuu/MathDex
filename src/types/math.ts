@@ -48,7 +48,8 @@ export interface MathPuzzle {
   /**
    * Seconds before the puzzle auto-submits at partial credit.
    * null for identification puzzles (always untimed). Spec §5.4.
-   * Battle timer: 8s at level 1, scaling to 4s at level 40+.
+   * Battle/catch timer: the rank's hidden difficulty × 21 ÷ the trainer's
+   * calculation speed, rounded to whole seconds. Spec §3.5.
    */
   timeLimitSeconds: number | null;
   /**

@@ -22,8 +22,8 @@ npm run typecheck  # Type-check only (no emit)
 `docs/specification.md` (v1.8) is the authoritative source for all game mechanics. Read it before implementing any game logic. Key sections:
 
 - **§2** – Core game loop: endless wild encounters (no floors), encounter generation (party-high ±1, power-scaled by base-stat totals; 🔥 STRONG slot + 👑 ALPHA bosses), first-run trainer creation
-- **§3** – Mathematics curriculum: 21 Math Ranks (+, −, ×, ÷) decoupled from opponent level; fast-track + windowed rank-up; interleaved ⭐ review
-- **§4** – Battle system: damage formula, multi-challenge puzzles with a 50% damage floor, speed-based turn order, incremental damage-proportional EXP, Focus/charged crit, full-screen outcome summary
+- **§3** – Mathematics curriculum: 21 Math Ranks (+, −, ×, ÷) decoupled from opponent level; fast-track + windowed rank-up; interleaved ⭐ review; challenge timing from hidden rank difficulty × calculation speed (§3.5)
+- **§4** – Battle system: damage formula, multi-challenge puzzles with a 50% damage floor, speed-based turn order, incremental damage-proportional EXP + catch-up share for lagging party members, Focus/charged crit, full-screen outcome summary
 - **§5** – Item system (Phase 2, level-gated: activation trigger, rarity tiers, per-Pokémon slot progression — designed, not yet built)
 - **§6** – Pokémon system: rarity tiers (from capture rate), rarity-weighted encounters + pity, types, evolution, catching, party/PC Box (incl. swap)
 - **§7** – Progression & economy (money on defeat only), trainers & the Trainer view (create/switch/rename/delete)
@@ -38,7 +38,7 @@ src/
     tokens.ts     D palette, TYPE_COLORS, STAT_COLORS, RARITY_COLORS, font constants
     animations.ts Global keyframes + utility CSS classes; useGlobalAnimations() hook
   store/
-    gameStore.ts    Zustand: trainers (create/switch/rename/delete), party/box, economy, math rank, stats
+    gameStore.ts    Zustand: trainers (create/switch/rename/delete), party/box, economy, math rank, calc speed, stats
     battleStore.ts  Zustand: minimal battle state that survives navigation (enemy, HP%, active id, openingResolved)
     dungeonStore.ts Zustand: the three rolled wild encounters + active selection
     pwaStore.ts     Zustand: PWA update prompt state
@@ -48,7 +48,8 @@ src/
     useGameInit.ts    Load-or-create save on boot + debounced autosave subscription
     usePartyDisplay.ts Derived display data for party/box cards
   lib/
-    formulas.ts   Pure functions: calcDamage, calcAllStats, expGained, itemSlotCount, totalPotions/totalBalls, …
+    formulas.ts   Pure functions: calcDamage, calcAllStats, expGained, catchUpExpShare,
+                  puzzleTimeLimitSeconds, itemSlotCount, totalPotions/totalBalls, …
     battleMath.ts playerMoveDamage / enemyMoveDamage — the single code path for battle damage numbers
     mathProblemGenerator.ts  GEN config table (one entry per Math Rank genLevel) + generateRankedPuzzle
     encounterGenerator.ts    Stage-gated, rarity-weighted, BST-power-scaled rolls with pity + tier helpers
@@ -75,7 +76,7 @@ public/           Backdrops (.jpg), sprites, PWA icons
 
 ### Math Rank progression (spec §3)
 
-`MATH_RANKS` in `src/data/curriculum.ts` is the 21-rank ladder; each rank's `genLevel` indexes the `GEN` config table in `mathProblemGenerator.ts`. Rank-up happens in `gameStore.recordMathAttempt`:
+`MATH_RANKS` in `src/data/curriculum.ts` is the 21-rank ladder; each rank's `genLevel` indexes the `GEN` config table in `mathProblemGenerator.ts`. Each rank also carries a **hidden `difficulty`** (1 for ranks 1–5, 1.5 for 6–21) used *only* for the challenge timer — never shown to the player and never affecting damage, EXP, or rank-up. Rank-up happens in `gameStore.recordMathAttempt`:
 - **Fast-track:** ≤ `MATH_FASTTRACK_MAX_MISTAKES` (2) wrong in the first `MATH_FASTTRACK_SIZE` (20) challenges of a rank → immediate rank-up.
 - **Window:** otherwise ≥ 80% correct over the last 100 current-rank challenges.
 - ⭐ review challenges (~30%, drawn from lower ranks) never count toward rank-up.
@@ -92,9 +93,15 @@ Damage = (MovePower + ItemBonus) × Atk ÷ Def × TypeMultiplier × STAB × Crit
 
 `ItemBonus = 0` until the item system exists. Always go through `playerMoveDamage()` / `enemyMoveDamage()` in `src/lib/battleMath.ts` so the move-list preview, the actual hit, and the enemy damage range can't drift apart. Spec §4.2.
 
+### Challenge timing (spec §3.5)
+
+`puzzleTimeLimitSeconds(difficulty, calcSpeed)` in `formulas.ts` = `round(difficulty × 21 / calcSpeed)`, min 1s. `calcSpeed` is `Trainer.calcSpeed` (1–5, default `DEFAULT_CALC_SPEED` = 3), a player setting edited on the Trainer screen together with the name. Review puzzles use the *drawn* (lower) rank's difficulty. This replaced the old level-based `battleTimerSeconds`.
+
 ### EXP is incremental and damage-proportional (spec §4.7)
 
 EXP is granted the instant damage lands, to the Pokémon that dealt it, proportional to the HP fraction removed — persisted immediately (kept even if the enemy is later caught). There is no participant set and no end-of-battle split.
+
+On top of that, every party member **below the party's highest level** earns a `catchUpExpShare()` — `CATCH_UP_RATE` (0.5) × a taper × its *own* next level's cost — scaled by the same HP fraction. Denominating the award in the same units as the requirement makes it scale-free (~2 battles per level at any level), which the flat damage EXP is not: level cost is cubic while the award is linear in enemy level. It is **additive**, not a split — the attacker's own EXP is untouched. In `Battle/index.tsx`, `grantExp()` handles one Pokémon (with `celebrate` gating the level-up banner to the on-screen one) and `awardExp()` fans out to the party.
 
 ### Two-phase item system (spec §5 — designed, not yet built)
 

@@ -4,9 +4,10 @@
 
 A Pokémon-Inspired Mathematics Learning Game
 
-*Full Game Design Specification  ·  v1.8*
+*Full Game Design Specification  ·  v1.9*
 
-*Revised (v1.8): Difficulty rebalance — wild levels are power-scaled by base-stat totals (a lucky strong catch no longer trivialises fights); one of the three dungeon offers is always a 🔥 STRONG risk/reward roll (Rare+, +3–5 levels, ×2 rewards); a 👑 ALPHA boss appears after every 10th victory (Epic+, +5 levels, ×3 rewards) — see §2.4, §7.2.*
+*Revised (v1.9): Challenge timers are derived from a **hidden per-rank difficulty** and a player-configurable **calculation speed** (1–5) instead of the opponent's level; lagging party members earn a **level-relative catch-up EXP share** so a weak Pokémon can close the gap — see §3.5, §4.7, §7.4.*
+*Earlier (v1.8): Difficulty rebalance — wild levels are power-scaled by base-stat totals (a lucky strong catch no longer trivialises fights); one of the three dungeon offers is always a 🔥 STRONG risk/reward roll (Rare+, +3–5 levels, ×2 rewards); a 👑 ALPHA boss appears after every 10th victory (Epic+, +5 levels, ×3 rewards) — see §2.4, §7.2.*
 *Earlier (v1.7): Curriculum extended to 21 Math Ranks adding multiplication and division (incl. ×/÷ "tables"); fast-track rank-up; multi-challenge battle puzzles with a 50% damage floor; multiple trainers (create with name + starter, switch, rename, delete) with a New Trainer first-run screen; full-screen battle-outcome summary; PC swap for a full party (see §3, §4.3, §7.4).*
 *Earlier (v1.6): Level-only evolution implemented for both the player and wild Pokémon; encounters stage-gate by level (base → final, opponents evolve too) with rarity-weighted selection + a pity guarantee replacing the fixed rarity bag (see §6.2, §6.5).*
 *Earlier (v1.5): Math difficulty decoupled from opponent level into a mastery-gated **Math Rank** with a moving accuracy window and interleaved review (see §3).*
@@ -114,6 +115,16 @@ Difficulty & engagement rebalance (reflected in the live build):
 | **🔥 STRONG encounter slot** | 2,7,8,12 | One of the three dungeon offers is always a risk/reward roll: +3–5 levels on top of power scaling, Rare-or-better species, ×2 money and EXP. The player chooses their difficulty every visit. |
 | **👑 ALPHA bosses** | 2,7,8,12 | After every 10th victory the next roll is an Alpha: +5 levels on top of power scaling, Epic-or-better, ×3 money and EXP, enlarged red-aura sprite. Periodic challenge spikes without raising the everyday floor. Victories are counted in `Trainer.stats.totalBattles`. |
 
+## **v1.8 → v1.9**
+
+Timing and catch-up pass (reflected in the live build):
+
+| Change | Affected sections | Rationale |
+| :---- | :---- | :---- |
+| **Hidden per-rank difficulty** | 3,11,12 | Each Math Rank carries a `difficulty` multiplier (×1 for ranks 1–5, ×1.5 for 6–21) used *only* to size the challenge timer. It is never shown to the player — harder categories simply feel less rushed. Replaces `battleTimerSeconds(genLevel)`, which sized the timer by *opponent level* and so had nothing to do with how hard the maths actually was. |
+| **Calculation speed (player setting)** | 3,7,8,11,12 | A per-trainer 1–5 setting (default 3) for how fast the child likes to work, edited on the Trainer view together with the name. Timer = `difficulty × 21 ÷ calculation speed`, rounded to whole seconds, minimum 1 s. Lets the same curriculum suit a deliberate and a quick child without changing the maths. |
+| **Catch-up EXP share** | 4,7,11,12 | A party member that fell behind could never close the gap: a level costs N³ while a battle pays an amount only linear in the enemy's level, and the laggard deals almost no damage so its income was ~0. Lagging members now earn a fraction of **their own next level** per battle (`CATCH_UP_RATE = 0.5`), tapering to zero at parity. Scale-free, so it is ~2 battles per level at any level. The attacker still receives its full damage-proportional EXP — the share is additive, not a split. |
+
 # **1. Vision and Design Philosophy**
 
 MathDex is a Pokémon-style RPG in which every act of progression — attacking, catching Pokémon, and (later) identifying and equipping items — is gated or enhanced by solving arithmetic problems. The core insight driving the design is that mathematics should be load-bearing, not decorative. Equations are not doors to pass through before the fun begins; they are the mechanism that generates the fun.
@@ -207,29 +218,31 @@ Math difficulty is driven by the player's **Math Rank** — an educational progr
 
 `mathRank` is a 1-based index into `MATH_RANKS` (`src/data/curriculum.ts`); it only ever climbs (never demotes). Each rank maps to a `genLevel` difficulty step handled by the generator's config table (`src/lib/mathProblemGenerator.ts`). The live ladder (21 ranks) interleaves the four operations so a player meets each one early:
 
-| Rank | Label | Operation | Problem |
-| :---- | :---- | :---- | :---- |
-| 1 | Addition to 10 | addition | sum 2–10 |
-| 2 | Addition to 20 | addition | sum 10–20 |
-| 3 | Subtraction to 10 | subtraction | operands ≤ 10, no negative |
-| 4 | Addition to 50 | addition | one small addend (0–9), sum ≤ 50 |
-| 5 | Subtraction to 20 | subtraction | operands ≤ 20, no negative |
-| 6 | Harder addition to 50 | addition | sum 20–50 |
-| 7 | Addition to 100 | addition | sum 40–100 |
-| 8 | Subtraction to 50 | subtraction | operands ≤ 50, no negative, **no borrowing** |
-| 9 | Subtraction with borrowing | subtraction | operands ≤ 50, no negative, **borrowing required** |
-| 10 | Subtraction to 10, negative answers | subtraction | operands ≤ 10, negatives allowed |
-| 11 | Multiplication to 20 | multiplication | product ≤ 20, factors ≤ 10 |
-| 12 | Subtraction to 20, negative answers | subtraction | operands ≤ 20, negatives allowed |
-| 13 | Multiplication to 50 | multiplication | product ≤ 50, factors ≤ 10 |
-| 14 | Subtraction to 50, negative answers | subtraction | operands ≤ 50, negatives allowed |
-| 15 | Multiplication table 10x10 | multiplication | factors 1–10 (product ≤ 100) |
-| 16 | Division table 10x10 | division | divisor & quotient 1–10, exact |
-| 17 | Division to 24 | division | dividend < 24, divisor < 10, exact |
-| 18 | Multiplication to 100 (max 20x?) | multiplication | product ≤ 100, factors ≤ 20 |
-| 19 | Division to 48 | division | dividend < 48, divisor < 20, exact |
-| 20 | Multiplication to 100 (max 50x?) | multiplication | product ≤ 100, factors ≤ 50 |
-| 21 | Division to 100 | division | dividend < 100, divisor < 20, exact |
+| Rank | Label | Operation | Problem | Difficulty |
+| :---- | :---- | :---- | :---- | :---- |
+| 1 | Addition to 10 | addition | sum 2–10 | ×1 |
+| 2 | Addition to 20 | addition | sum 10–20 | ×1 |
+| 3 | Subtraction to 10 | subtraction | operands ≤ 10, no negative | ×1 |
+| 4 | Addition to 50 | addition | one small addend (0–9), sum ≤ 50 | ×1 |
+| 5 | Subtraction to 20 | subtraction | operands ≤ 20, no negative | ×1 |
+| 6 | Harder addition to 50 | addition | sum 20–50 | ×1.5 |
+| 7 | Addition to 100 | addition | sum 40–100 | ×1.5 |
+| 8 | Subtraction to 50 | subtraction | operands ≤ 50, no negative, **no borrowing** | ×1.5 |
+| 9 | Subtraction with borrowing | subtraction | operands ≤ 50, no negative, **borrowing required** | ×1.5 |
+| 10 | Subtraction to 10, negative answers | subtraction | operands ≤ 10, negatives allowed | ×1.5 |
+| 11 | Multiplication to 20 | multiplication | product ≤ 20, factors ≤ 10 | ×1.5 |
+| 12 | Subtraction to 20, negative answers | subtraction | operands ≤ 20, negatives allowed | ×1.5 |
+| 13 | Multiplication to 50 | multiplication | product ≤ 50, factors ≤ 10 | ×1.5 |
+| 14 | Subtraction to 50, negative answers | subtraction | operands ≤ 50, negatives allowed | ×1.5 |
+| 15 | Multiplication table 10x10 | multiplication | factors 1–10 (product ≤ 100) | ×1.5 |
+| 16 | Division table 10x10 | division | divisor & quotient 1–10, exact | ×1.5 |
+| 17 | Division to 24 | division | dividend < 24, divisor < 10, exact | ×1.5 |
+| 18 | Multiplication to 100 (max 20x?) | multiplication | product ≤ 100, factors ≤ 20 | ×1.5 |
+| 19 | Division to 48 | division | dividend < 48, divisor < 20, exact | ×1.5 |
+| 20 | Multiplication to 100 (max 50x?) | multiplication | product ≤ 100, factors ≤ 50 | ×1.5 |
+| 21 | Division to 100 | division | dividend < 100, divisor < 20, exact | ×1.5 |
+
+The **Difficulty** column is a *hidden* multiplier (`MathRankDef.difficulty`). It is never surfaced in the UI and has no effect on damage, EXP, or rank-up — it only sizes the challenge timer (§3.5), so a child gets proportionally longer to think on the harder categories.
 
 Addition and multiplication randomise operand order (commutative); subtraction and division keep order (`a − b`, `a ÷ b`). Division is always exact (integral quotient, divisor ≥ 2 except in the 10×10 table). Every problem has exactly one whole-number answer (which may be negative at the "negative answers" ranks). The labels are surfaced in the Trainer view's rank ladder, but the **battle puzzle and the card headline show only the rank number**.
 
@@ -241,7 +254,7 @@ There are **two ways to rank up** (tunable constants in `curriculum.ts`); since 
 * **Standard window** — `MATH_WINDOW_SIZE = 100`, `MATH_RANKUP_THRESHOLD = 0.80`. When the rolling window of the last 100 *current-rank* challenges is **full** and **≥ 80%** are correct, the rank advances and the window resets.
 * **Never demote.** A struggling child simply stays on the current rank, getting the repetition they need, until they are reliably accurate.
 
-A strong player can chain fast-tracks (≈20 challenges per rank); a struggling one takes the full ~100-challenge window. The window persists in game state (`Trainer.mathWindow`). Time pressure is part of difficulty: each challenge's timer is `battleTimerSeconds(genLevel)` for the rank's generator step.
+A strong player can chain fast-tracks (≈20 challenges per rank); a struggling one takes the full ~100-challenge window. The window persists in game state (`Trainer.mathWindow`). Time pressure is part of difficulty: each challenge is timed from the rank's hidden difficulty and the trainer's calculation speed (§3.5).
 
 ## **3.3 Interleaved Review**
 
@@ -262,7 +275,29 @@ So roughly 70% of challenges are at the current rank (the ones that count) and 3
 | Pedagogical note: Spaced repetition occurs naturally through play. A child grinding encounters solves dozens of addition and subtraction problems per session without perceiving it as drilling. |
 | :---- |
 
-## **3.5 Extension Path**
+## **3.5 Challenge Timing — Difficulty × Calculation Speed**
+
+Every battle and catch challenge is timed. The limit comes from two factors and **not** from the opponent's level:
+
+| Timer (seconds) = round( rank difficulty × 21 ÷ calculation speed ), minimum 1 s |
+| :---- |
+
+* **Rank difficulty** — the hidden per-rank multiplier from §3.1 (×1 for ranks 1–5, ×1.5 thereafter). Harder categories get proportionally more time. A ⭐ review challenge uses the *drawn* (lower) rank's difficulty, so an easier review is given correspondingly less time.
+* **Calculation speed** — a per-trainer setting from **1 (Take my time)** to **5 (Lightning)**, default **3 (Normal)**. It is edited on the Trainer view alongside the name (§7.4) and persisted as `Trainer.calcSpeed`.
+
+| Calculation speed | Ranks 1–5 (×1) | Ranks 6–21 (×1.5) |
+| :---- | :---- | :---- |
+| 1 — Take my time | 21 s | 32 s |
+| 2 — Steady | 11 s | 16 s |
+| 3 — Normal *(default)* | 7 s | 11 s |
+| 4 — Quick | 5 s | 8 s |
+| 5 — Lightning | 4 s | 6 s |
+
+> **Rationale.** The previous rule sized the timer by *opponent level* (8 s down to 4 s by level 40), which measured the wrong thing entirely — a child grinding easy addition against a high-level Pokémon was rushed for no pedagogical reason. Difficulty belongs to the *maths*, and pace belongs to the *child*; separating the two lets one curriculum serve a deliberate thinker and a quick one without altering a single problem.
+
+An expired timer submits whatever is typed (blank counts as wrong) and costs only partial credit — never a zero outcome (§3.4).
+
+## **3.6 Extension Path**
 
 Addition, subtraction, multiplication, and division are **live** (§3.1). The remaining richer topics — order of operations, fractions, percentages, and introductory algebra — remain a documented extension path: append new entries to `MATH_RANKS`, add their `genLevel` configs to the generator's table, and they slot onto the ladder automatically, gated by the same mastery window and fast-track rules.
 
@@ -293,7 +328,7 @@ Status moves (move power 0) deal a small fixed chip of damage and additionally a
 Selecting a move poses **several** Math-Rank challenges (more maths per fight), all generated from the player's Math Rank (see §3):
 
 * **How many.** `N = ceil( min(1, DMG ÷ enemyMaxHP) × 5 )`, at least 1 — i.e. aim for ~5 challenges across a fight, scaled by the share of the enemy's HP the move would remove (a big hit asks more questions). `DMG` is the move's full potential damage.
-* **Stacked, sequential, no early feedback.** Challenges are answered one at a time, each with **its own timer** (`battleTimerSeconds(genLevel)`); answered ones stay on screen showing the typed answer. ✅/❌ are **withheld until every challenge is answered** (an expired timer counts as blank/wrong).
+* **Stacked, sequential, no early feedback.** Challenges are answered one at a time, each with **its own timer** (§3.5); answered ones stay on screen showing the typed answer. ✅/❌ are **withheld until every challenge is answered** (an expired timer counts as blank/wrong).
 * **Reveal + Deal.** Once all are in, each row reveals ✅/❌, each wrong answer shows its damage penalty, and a **"Deal N damage"** button appears. Pressing it (click, or **Enter** as a deliberate second key-press) applies the hit.
 * **Damage.** 50% of the move's damage is guaranteed; the other 50% is split evenly across the N challenges, so each wrong answer forfeits `round( 0.5 × DMG ÷ N )`. Final damage = `max(50% DMG, DMG − wrong × share)`.
 * **Focus.** The move advances the Focus meter one pip only if **every** challenge was correct; any wrong answer resets it (see §4.4).
@@ -335,6 +370,25 @@ Consequences:
 * EXP is persisted immediately. If the weakened opponent is later **caught** rather than defeated, the Pokémon(s) that weakened it **keep** the EXP they already earned.
 * The player's EXP bar fills live during the battle as damage lands.
 * Money, by contrast, is awarded only on defeat (see §7).
+
+### **Catch-up share for lagging party members**
+
+Damage-proportional EXP alone leaves a weak party member permanently stranded. Three mechanics compound: party slots unlock off the player's **strongest** owned Pokémon (§6.6), encounters are sized against that same Pokémon (§2.4), and EXP goes only to the damage dealer — so a newcomer faces opponents it cannot hurt and earns nothing for trying. The EXP curve makes it structural: a level costs **N³** while a battle pays an amount only **linear** in the enemy's level, so the debt outgrows the income as the game goes on.
+
+The fix denominates the catch-up award in the **same units as the requirement** — a fraction of the Pokémon's *own* next level rather than a flat EXP number:
+
+| Catch-up EXP per battle = CATCH\_UP\_RATE × min(1, gap ÷ CATCH\_UP\_FULL\_GAP) × ( (L+1)³ − L³ ) |
+| :---- |
+
+where `L` is that Pokémon's level and `gap` is the party's highest level minus `L`. Live tuning: `CATCH_UP_RATE = 0.5`, `CATCH_UP_FULL_GAP = 5`.
+
+* **Scale-free.** Because the award and the requirement are in the same units, a fully-lagging Pokémon gains ≈ **1 level per 2 battles at any level** — the cubic/linear mismatch cannot bite.
+* **Additive, not a split.** The attacker still receives its full damage-proportional EXP; the share is paid on top, to every party member behind the leader.
+* **Accrues incrementally**, scaled by the HP fraction each hit removes, exactly like the attacker's own EXP — so one battle's worth of damage pays one full share.
+* **Tapers to zero at parity**, so nothing is trivialised. In practice the bench settles ≈1 level behind the leader and holds there rather than overtaking.
+* Benched gains appear in the battle outcome summary, but a benched level-up does **not** raise the on-screen banner (that is reserved for the active Pokémon).
+
+> **Note.** This closes the *progression* gap, not the *playability* one: a lagging Pokémon levels on the bench, but encounters remain sized to the party's strongest, so it still cannot fight effectively until it has nearly caught up. Scaling encounters to the *selected* Pokémon remains an open design option.
 
 ## **4.8 Battle UI Components**
 
@@ -554,17 +608,17 @@ The reward scales with **level and rarity** (rarer opponents pay more), with a s
 
 ## **7.3 EXP and Leveling**
 
-Medium-Fast curve: total EXP to reach level N = N³. The EXP value of an opponent is `⌊Base EXP × opponent level ÷ 7⌋`, distributed across hits in proportion to damage (see §4.7).
+Medium-Fast curve: total EXP to reach level N = N³. The EXP value of an opponent is `⌊Base EXP × opponent level ÷ 7⌋`, distributed across hits in proportion to damage (see §4.7). Party members below the party's highest level additionally earn a **level-relative catch-up share** each battle, so a weak Pokémon can close the gap without having to out-damage the leader (§4.7).
 
 ## **7.4 Trainers and the Trainer View**
 
-A save can hold **multiple trainers**, each with its own Pokémon, party, economy, stats, Focus, and Math Rank. One is the **active** trainer at any time.
+A save can hold **multiple trainers**, each with its own Pokémon, party, economy, stats, Focus, Math Rank, and calculation speed. One is the **active** trainer at any time.
 
 **Creating a trainer (New Trainer screen).** A brand-new game starts with **no trainer**. A route guard sends any gameplay screen to the **New Trainer** screen until one exists. There the player enters a **name** (≤ 12 chars) and picks one of **four starters** — **Pikachu, Bulbasaur, Charmander, Squirtle** — and the adventure begins (drops into Town). The same screen is reachable later to add more trainers (then it offers Cancel).
 
 **The Trainer view** (opened from the Town trainer card) shows, for the active trainer:
 
-* **Avatar + name.** The name is **edited inline** (tap the ✎, type, ✓/Enter to save, ✕/Esc to cancel; blank names rejected).
+* **Avatar, name, and calculation speed.** Under the name sits a read-only summary line — *"Calculation speed: Normal (3/5)"*. Tapping the name (✎) opens an **edit card holding both** the name field and a 1–5 **calculation-speed slider** (labelled Take my time / Steady / Normal / Quick / Lightning). ✓/Enter commits **both** changes; ✕/Esc discards both. Blank names are rejected. The speed feeds the challenge timer only (§3.5) — it never changes which problems are generated.
 * **Trainers switcher** — a grid (4 per row) of all trainers (each chip shows its lead Pokémon's sprite + name, the active one badged). Tapping a chip switches the active trainer; a **+ New** chip opens the New Trainer screen.
 * **Stats grid** — **Correct answers** (total solved), **Best streak** (longest), **Pokémon caught**, and **Top enemy** ("Level N" — the highest opponent level ever encountered, persisted).
 * **Math Rank ladder** — every rank with its skill label, completion state, and a progress bar for the current rank. (The battle puzzle and any headline still show the rank **number** only; the ladder is where the labels appear.)
@@ -622,7 +676,7 @@ Every simplified mechanic has a documented extension path, now triggered by **Po
 
 ## **9.1 Difficulty (live build)**
 
-The live build uses a single default tuning: a per-challenge battle timer (`battleTimerSeconds(genLevel)`, ~8 s down with rank), the 50%-floor multi-challenge battle model (§4.3), and 75% partial credit on a wrong/expired **catch** answer. The Explorer / Trainer / Champion difficulty presets from v1.3 remain a design option layered on top of these values.
+The live build uses a single default tuning: a per-challenge timer derived from the rank's hidden difficulty and the trainer's calculation speed (§3.5), the 50%-floor multi-challenge battle model (§4.3), and 75% partial credit on a wrong/expired **catch** answer. Calculation speed is the one difficulty dial exposed to the player; the Explorer / Trainer / Champion difficulty presets from v1.3 remain a design option layered on top of these values.
 
 # **10. Narrative and Characters**
 
@@ -646,7 +700,7 @@ The damage formula (§4.2) is evaluated by the engine. Item Bonus is zero while 
 
 ## **11.4 Save State**
 
-Game state is persisted to IndexedDB (Dexie). It holds: a list of **trainers** (each with caught Pokémon, party, lead, Pokédollars, Pokéballs, potions, stats, math rank + window, the **encounter pity** counters, see §6.2 — and the **Focus** meter, see §4.4), the active trainer id, and settings. A fresh save has an **empty** trainer list (the New Trainer screen creates the first; trainers can be added, switched, renamed, and deleted — see §7.4). (Max party size is **derived** from the strongest Pokémon's level — see §6.6 — not stored.) Each owned Pokémon stores its species id, total EXP, current HP (every party member's HP is written back at battle end), and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
+Game state is persisted to IndexedDB (Dexie). It holds: a list of **trainers** (each with caught Pokémon, party, lead, Pokédollars, Pokéballs, potions, stats, math rank + window, **calculation speed** (see §3.5), the **encounter pity** counters, see §6.2 — and the **Focus** meter, see §4.4), the active trainer id, and settings. Fields added after v1.0 (`focus`, `mathRank`, `mathWindow`, `encounterPity`, `calcSpeed`) are **optional** so older saves load unchanged, each falling back to its documented default (`calcSpeed` → 3). A fresh save has an **empty** trainer list (the New Trainer screen creates the first; trainers can be added, switched, renamed, and deleted — see §7.4). (Max party size is **derived** from the strongest Pokémon's level — see §6.6 — not stored.) Each owned Pokémon stores its species id, total EXP, current HP (every party member's HP is written back at battle end), and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
 
 ## **11.5 Build & Deployment**
 
@@ -665,7 +719,9 @@ Game state is persisted to IndexedDB (Dexie). It holds: a list of **trainers** (
 | +, −, ×, ÷ curriculum by Math Rank | Yes | 21 ranks, decoupled from opponent level (§3) |
 | Fast-track rank-up | Yes | ≤2 mistakes in a rank's first 20 challenges → instant level-up |
 | Multi-challenge battle puzzles | Yes | N per move; 50% damage guaranteed + earned (§4.3) |
-| Per-challenge battle timer | Yes | `battleTimerSeconds(genLevel)`, ~8 s down with rank |
+| Per-challenge battle timer | Yes | `difficulty × 21 ÷ calculation speed` (§3.5); 7 s / 11 s at the default speed |
+| Hidden per-rank difficulty | Yes | ×1 for ranks 1–5, ×1.5 for 6–21; timer only, never shown |
+| Calculation speed (1–5) | Yes | Per-trainer, default 3; edited with the name on the Trainer view (§7.4) |
 | Partial credit | Yes | Battle: 50% floor + earned; Catch: 75% wrong/expired |
 | Damage formula | Yes | Item Bonus = 0 until activation |
 | STAB ×1.5 | Yes | Move type matches attacker type |
@@ -673,6 +729,7 @@ Game state is persisted to IndexedDB (Dexie). It holds: a list of **trainers** (
 | Status moves (stat modifiers) | Yes | Shown on stat chips, coloured |
 | Speed-based turn order | Yes | Faster first; enemy opening strike |
 | Incremental damage-proportional EXP | Yes | Kept by weakener even if enemy is caught |
+| Catch-up EXP for lagging party members | Yes | Half their own next level per battle, tapering to 0 at parity (§4.7) |
 | Money on defeat only | Yes | ⌊level × 12⌋ |
 | Potions (+20/60/120) | Yes | Correct HP restoration |
 | Poké Balls (40/60/80%) | Yes | Catch math = Math-Rank puzzle |
