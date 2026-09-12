@@ -87,8 +87,9 @@ export default function BattleScreen() {
 
   // Math Rank drives puzzle difficulty but is hidden from the player — it just happens.
   const mathRank = trainer.mathRank ?? 1;
-  // Calculation speed (Trainer screen setting) stretches/shrinks every timer.
-  const calcSpeed = trainer.calcSpeed ?? DEFAULT_CALC_SPEED;
+  // Trainer timer settings (Trainer screen): whether challenges are timed at
+  // all, and how fast a pace to set when they are.
+  const timing = { calcSpeed: trainer.calcSpeed ?? DEFAULT_CALC_SPEED, timerEnabled: trainer.timerEnabled ?? true };
 
   // ── Derive active context ────────────────────────────────────────────────────
   // The screen renders nothing (and redirects) without a battle, so the
@@ -485,9 +486,10 @@ export default function BattleScreen() {
     return () => clearTimeout(t);
   }, [battle, enemyAttack, handleBlackout, firstAlive, switchTo, markOpeningResolved]);
 
-  // Timer expiry — catch math (its own single-puzzle countdown, no auto-advance)
+  // Timer expiry — catch math (its own single-puzzle countdown, no auto-advance).
+  // `q.timer === null` means the challenge is untimed, so it never expires.
   useEffect(() => {
-    if (q.timer > 0 || q.ready || panel !== 'catch' || catchResult !== null || catchPhase !== null) return;
+    if (q.timer === null || q.timer > 0 || q.ready || panel !== 'catch' || catchResult !== null || catchPhase !== null) return;
     handleSubmitCatch();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.timer, q.ready, panel, catchResult, catchPhase]);
@@ -612,7 +614,7 @@ export default function BattleScreen() {
     // enemy's max HP this move removes. N = ceil(min(1, DMG/MHP) × 5), at least 1.
     const chunk   = enemyMaxHp ? Math.min(1, baseDmg / enemyMaxHp) : 1;
     const count   = Math.max(1, Math.ceil(chunk * 5));
-    const puzzles = Array.from({ length: count }, () => generateRankedPuzzle(mathRank, true, calcSpeed));
+    const puzzles = Array.from({ length: count }, () => generateRankedPuzzle(mathRank, true, timing));
 
     setSelectedMove(slot);
     resolvedRef.current = false;   // arm the final resolution
@@ -644,7 +646,7 @@ export default function BattleScreen() {
 
   function handleSelectBall(ball: BallOption) {
     // Catch challenges always use the current rank — never a lower-rank review.
-    const puzzle = generateRankedPuzzle(mathRank, false, calcSpeed);
+    const puzzle = generateRankedPuzzle(mathRank, false, timing);
     setSelectedBall(ball);
     setCatchPuzzle(puzzle);
     setCatchResult(null);
@@ -652,7 +654,7 @@ export default function BattleScreen() {
     setResult(null);
     setPanel('catch');
     // Expiry handled by the effect above; starts after the "get ready" beat.
-    q.startTimer(puzzle.timeLimitSeconds ?? 6, undefined, 900);
+    q.startTimer(puzzle.timeLimitSeconds, undefined, 900);
   }
 
   function handleSubmitCatch() {

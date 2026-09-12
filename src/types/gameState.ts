@@ -45,9 +45,17 @@ export interface Trainer {
    * Calculation speed (1–5) — how fast this trainer is at mental arithmetic.
    * Player-configurable on the Trainer screen; only affects how long a math
    * challenge's timer runs (see puzzleTimeLimitSeconds). Optional for backward
-   * compatibility (missing = DEFAULT_CALC_SPEED).
+   * compatibility (missing = DEFAULT_CALC_SPEED). Retained while the timer is
+   * off so turning it back on restores the chosen pace.
    */
   calcSpeed?: number;
+  /**
+   * Whether math challenges are timed at all. When false the puzzle carries
+   * `timeLimitSeconds: null`, no countdown runs, and the player may take as
+   * long as they like — nothing else about the challenge changes. Optional for
+   * backward compatibility (missing = timed).
+   */
+  timerEnabled?: boolean;
   /**
    * Encounter pity counters (spec §6.2) — encounters since the last spawn of a
    * Rare / Epic / Legendary, used to guarantee rarer Pokémon on a schedule.

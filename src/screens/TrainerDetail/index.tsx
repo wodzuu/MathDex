@@ -36,18 +36,25 @@ export default function TrainerDetailScreen() {
   const navigate = useNavigate();
   const trainer  = useActiveTrainer();
 
-  const { trainers, activeTrainerId, setActiveTrainer, renameActiveTrainer, deleteTrainer, setCalcSpeed } = useGameStore(
-    useShallow((st) => ({ trainers: st.trainers, activeTrainerId: st.activeTrainerId, setActiveTrainer: st.setActiveTrainer, renameActiveTrainer: st.renameActiveTrainer, deleteTrainer: st.deleteTrainer, setCalcSpeed: st.setCalcSpeed })),
+  const { trainers, activeTrainerId, setActiveTrainer, renameActiveTrainer, deleteTrainer, setCalcSpeed, setTimerEnabled } = useGameStore(
+    useShallow((st) => ({ trainers: st.trainers, activeTrainerId: st.activeTrainerId, setActiveTrainer: st.setActiveTrainer, renameActiveTrainer: st.renameActiveTrainer, deleteTrainer: st.deleteTrainer, setCalcSpeed: st.setCalcSpeed, setTimerEnabled: st.setTimerEnabled })),
   );
 
-  const calcSpeed = clampCalcSpeed(trainer.calcSpeed ?? DEFAULT_CALC_SPEED);
+  const calcSpeed    = clampCalcSpeed(trainer.calcSpeed ?? DEFAULT_CALC_SPEED);
+  const timerEnabled = trainer.timerEnabled ?? true;
 
-  // Inline editing of the trainer's name + calculation speed (one ✓ commits both).
-  const [editing, setEditing]     = useState(false);
-  const [draft, setDraft]         = useState('');
-  const [speedDraft, setSpeedDraft] = useState(calcSpeed);
-  const startEdit  = () => { setDraft(trainer.name); setSpeedDraft(calcSpeed); setEditing(true); };
-  const commitEdit = () => { renameActiveTrainer(draft); setCalcSpeed(speedDraft); setEditing(false); };
+  // Inline editing of name + timer settings (one ✓ commits all of them).
+  const [editing, setEditing]         = useState(false);
+  const [draft, setDraft]             = useState('');
+  const [speedDraft, setSpeedDraft]   = useState(calcSpeed);
+  const [timerDraft, setTimerDraft]   = useState(timerEnabled);
+  const startEdit  = () => { setDraft(trainer.name); setSpeedDraft(calcSpeed); setTimerDraft(timerEnabled); setEditing(true); };
+  const commitEdit = () => {
+    renameActiveTrainer(draft);
+    setTimerEnabled(timerDraft);
+    setCalcSpeed(speedDraft);   // kept even while off, so re-enabling restores the pace
+    setEditing(false);
+  };
 
   // Delete confirmation — requires typing the word "delete".
   const [confirming, setConfirming] = useState(false);
@@ -91,21 +98,42 @@ export default function TrainerDetailScreen() {
             </div>
 
             <div className={s.speedEdit}>
-              <div className={s.speedTop}>
-                <span className={s.speedEditLabel}>Calculation speed</span>
-                <span className={s.speedValue}>{CALC_SPEED_LABELS[speedDraft - 1]} · {speedDraft}/{MAX_CALC_SPEED}</span>
-              </div>
-              <input
-                className={s.speedSlider}
-                type="range"
-                min={MIN_CALC_SPEED}
-                max={MAX_CALC_SPEED}
-                step={1}
-                value={speedDraft}
-                aria-label="Calculation speed"
-                onChange={(e) => setSpeedDraft(Number(e.target.value))}
-              />
-              <div className={s.speedHint}>Faster means less time on the clock for each math challenge.</div>
+              <button
+                type="button"
+                className={s.timerToggle}
+                role="switch"
+                aria-checked={timerDraft}
+                onClick={() => setTimerDraft((v) => !v)}
+              >
+                <span className={s.speedEditLabel}>Challenge timer</span>
+                <span className={`${s.switch} ${timerDraft ? s.switchOn : ''}`}>
+                  <span className={s.switchKnob} />
+                </span>
+              </button>
+
+              {/* Speed only means anything while the timer runs, so it is hidden
+                  (not disabled) when the timer is off. */}
+              {timerDraft ? (
+                <>
+                  <div className={s.speedTop}>
+                    <span className={s.speedEditLabel}>Calculation speed</span>
+                    <span className={s.speedValue}>{CALC_SPEED_LABELS[speedDraft - 1]} · {speedDraft}/{MAX_CALC_SPEED}</span>
+                  </div>
+                  <input
+                    className={s.speedSlider}
+                    type="range"
+                    min={MIN_CALC_SPEED}
+                    max={MAX_CALC_SPEED}
+                    step={1}
+                    value={speedDraft}
+                    aria-label="Calculation speed"
+                    onChange={(e) => setSpeedDraft(Number(e.target.value))}
+                  />
+                  <div className={s.speedHint}>Faster means less time on the clock for each math challenge.</div>
+                </>
+              ) : (
+                <div className={s.speedHint}>No countdown — take as long as you need on every challenge.</div>
+              )}
             </div>
 
             <div className={s.editActions}>
@@ -120,7 +148,9 @@ export default function TrainerDetailScreen() {
               <span className={s.editIcon}>✎</span>
             </span>
             <span className={s.speedSummary}>
-              Calculation speed: <b>{CALC_SPEED_LABELS[calcSpeed - 1]}</b> ({calcSpeed}/{MAX_CALC_SPEED})
+              {timerEnabled
+                ? <>Calculation speed: <b>{CALC_SPEED_LABELS[calcSpeed - 1]}</b> ({calcSpeed}/{MAX_CALC_SPEED})</>
+                : <>Challenge timer: <b>Off</b></>}
             </span>
           </button>
         )}

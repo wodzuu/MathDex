@@ -97,6 +97,8 @@ Damage = (MovePower + ItemBonus) × Atk ÷ Def × TypeMultiplier × STAB × Crit
 
 `puzzleTimeLimitSeconds(difficulty, calcSpeed)` in `formulas.ts` = `round(difficulty × 21 / calcSpeed)`, min 1s. `calcSpeed` is `Trainer.calcSpeed` (1–5, default `DEFAULT_CALC_SPEED` = 3), a player setting edited on the Trainer screen together with the name. Review puzzles use the *drawn* (lower) rank's difficulty. This replaced the old level-based `battleTimerSeconds`.
 
+`Trainer.timerEnabled` (default true) turns the timer off entirely; generators then emit **`timeLimitSeconds: null`**, which is the single representation of "untimed" everywhere downstream. Anything consuming it must treat `null` as *no clock*, never coalesce it to a default: `startTimer(null)` schedules nothing, `TimerBlock` renders nothing, and the catch-expiry effect in `Battle/index.tsx` must short-circuit on `q.timer === null` (`null > 0` is false, so without the guard an untimed catch would auto-throw instantly). Both settings reach the generator via the `PuzzleTiming` object.
+
 ### EXP is incremental and damage-proportional (spec §4.7)
 
 EXP is granted the instant damage lands, to the Pokémon that dealt it, proportional to the HP fraction removed — persisted immediately (kept even if the enemy is later caught). There is no participant set and no end-of-battle split.

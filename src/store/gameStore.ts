@@ -111,6 +111,9 @@ interface GameStoreState extends GameState {
 
   /** Set the trainer's calculation speed (1–5) — drives the challenge timer. */
   setCalcSpeed: (speed: number) => void;
+
+  /** Turn the math challenge timer on/off for the trainer (speed is retained). */
+  setTimerEnabled: (enabled: boolean) => void;
 }
 
 const EMPTY: GameState = { version: 1, activeTrainerId: '', trainers: [], settings: {} };
@@ -329,6 +332,9 @@ export const useGameStore = create<GameStoreState>()(
 
       setCalcSpeed: (speed) =>
         set((s) => patchTrainer(s, () => ({ calcSpeed: clampCalcSpeed(speed) })), false, 'setCalcSpeed'),
+
+      setTimerEnabled: (enabled) =>
+        set((s) => patchTrainer(s, () => ({ timerEnabled: enabled })), false, 'setTimerEnabled'),
     }),
     { name: 'MathDex/GameStore' },
   ),

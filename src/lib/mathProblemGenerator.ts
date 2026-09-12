@@ -161,11 +161,23 @@ const GEN: Record<number, GenConfig> = {
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
+ * How long the player gets on a generated puzzle — the trainer's two timing
+ * settings (spec §3.5). `timerEnabled: false` produces an untimed puzzle
+ * (`timeLimitSeconds: null`); `calcSpeed` is ignored in that case but kept in
+ * game state so re-enabling restores the chosen pace.
+ */
+export interface PuzzleTiming {
+  calcSpeed?: number;
+  timerEnabled?: boolean;
+}
+
+/**
  * Generate a battle math puzzle for the given difficulty step (a Math Rank's
  * `genLevel`). The operation and number ranges come from that step; the timer
  * comes from the step's hidden difficulty and the trainer's calculation speed.
  */
-export function generateBattlePuzzle(genLevel: number, calcSpeed = DEFAULT_CALC_SPEED): MathPuzzle {
+export function generateBattlePuzzle(genLevel: number, timing: PuzzleTiming = {}): MathPuzzle {
+  const { calcSpeed = DEFAULT_CALC_SPEED, timerEnabled = true } = timing;
   const cfg = GEN[genLevel] ?? GEN[1];
   let { a, b } = cfg.operands();
   // Commutative operations: vary which operand appears first.
@@ -183,7 +195,9 @@ export function generateBattlePuzzle(genLevel: number, calcSpeed = DEFAULT_CALC_
     topic: cfg.topic,
     level: genLevel,
     context: 'battle',
-    timeLimitSeconds: puzzleTimeLimitSeconds(difficultyForGenLevel(genLevel), calcSpeed),
+    timeLimitSeconds: timerEnabled
+      ? puzzleTimeLimitSeconds(difficultyForGenLevel(genLevel), calcSpeed)
+      : null,
   };
 }
 
@@ -195,17 +209,17 @@ export function generateBattlePuzzle(genLevel: number, calcSpeed = DEFAULT_CALC_
  * the rank-up window. Pass `allowReview = false` to force a current-rank puzzle
  * (e.g. catch attempts, which should never be drawn from a lower rank).
  *
- * `calcSpeed` is the trainer's calculation-speed setting (1–5); the timer uses
- * the *drawn* rank's difficulty, so an easier review puzzle gets less time.
+ * `timing` carries the trainer's timer settings; the timer uses the *drawn*
+ * rank's difficulty, so an easier review puzzle gets less time.
  */
 export function generateRankedPuzzle(
   mathRank: number,
   allowReview = true,
-  calcSpeed = DEFAULT_CALC_SPEED,
+  timing: PuzzleTiming = {},
 ): MathPuzzle {
   const rank      = clampMathRank(mathRank);
   const isReview  = allowReview && rank > 1 && Math.random() < MATH_REVIEW_FRACTION;
   const drawnRank = isReview ? randInt(1, rank - 1) : rank;
   const genLevel  = MATH_RANKS[drawnRank - 1].genLevel;
-  return { ...generateBattlePuzzle(genLevel, calcSpeed), isReview };
+  return { ...generateBattlePuzzle(genLevel, timing), isReview };
 }

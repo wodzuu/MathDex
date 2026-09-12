@@ -31,8 +31,10 @@ function BackBtn({ onClick }: { onClick: () => void }) {
 }
 
 /** Countdown readout + progress bar shared by the math and catch panels.
- *  While `ready` is true the clock hasn't started — a "READY…" beat flashes. */
-function TimerBlock({ timer, limit, ready }: { timer: number; limit: number; ready?: boolean }) {
+ *  While `ready` is true the clock hasn't started — a "READY…" beat flashes.
+ *  Renders nothing when the challenge is untimed (the trainer's timer is off). */
+function TimerBlock({ timer, limit, ready }: { timer: number | null; limit: number | null; ready?: boolean }) {
+  if (timer === null || limit === null) return null;
   return (
     <div style={{ textAlign: 'center', minWidth: 44, flexShrink: 0 }}>
       <div style={{ fontFamily: FONT_PIXEL, fontSize: 24, lineHeight: 1.2, color: ready ? D.muted : timer <= 2 ? D.red : timer <= 4 ? D.yellow : D.white, ...(!ready && timer <= 2 ? { animation: 'timerPulse .4s ease-in-out infinite' } : {}) }}>
@@ -348,7 +350,8 @@ interface CatchPanelProps {
   throwing: boolean;
   ready: boolean;
   enemyHpPct: number;
-  timer: number;
+  /** Seconds left, or null when the challenge is untimed. */
+  timer: number | null;
   answer: string;
   setAnswer: (v: string) => void;
   onSubmit: () => void;
@@ -374,7 +377,7 @@ export function CatchPanel({ ball, puzzle, catchResult, result, throwing, ready,
             {puzzle.equation}
           </div>
         </div>
-        {!catchResult && !throwing && <TimerBlock timer={timer} limit={puzzle.timeLimitSeconds ?? 6} ready={ready} />}
+        {!catchResult && !throwing && <TimerBlock timer={timer} limit={puzzle.timeLimitSeconds} ready={ready} />}
       </div>
 
       {/* Ball in flight, escaped result, or the answer pad. A successful catch

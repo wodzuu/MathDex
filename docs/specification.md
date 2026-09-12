@@ -6,7 +6,7 @@ A Pokémon-Inspired Mathematics Learning Game
 
 *Full Game Design Specification  ·  v1.9*
 
-*Revised (v1.9): Challenge timers are derived from a **hidden per-rank difficulty** and a player-configurable **calculation speed** (1–5) instead of the opponent's level; lagging party members earn a **level-relative catch-up EXP share** so a weak Pokémon can close the gap — see §3.5, §4.7, §7.4.*
+*Revised (v1.9): Challenge timers are derived from a **hidden per-rank difficulty** and a player-configurable **calculation speed** (1–5) instead of the opponent's level, and can be **turned off entirely**; lagging party members earn a **level-relative catch-up EXP share** so a weak Pokémon can close the gap — see §3.5, §4.7, §7.4.*
 *Earlier (v1.8): Difficulty rebalance — wild levels are power-scaled by base-stat totals (a lucky strong catch no longer trivialises fights); one of the three dungeon offers is always a 🔥 STRONG risk/reward roll (Rare+, +3–5 levels, ×2 rewards); a 👑 ALPHA boss appears after every 10th victory (Epic+, +5 levels, ×3 rewards) — see §2.4, §7.2.*
 *Earlier (v1.7): Curriculum extended to 21 Math Ranks adding multiplication and division (incl. ×/÷ "tables"); fast-track rank-up; multi-challenge battle puzzles with a 50% damage floor; multiple trainers (create with name + starter, switch, rename, delete) with a New Trainer first-run screen; full-screen battle-outcome summary; PC swap for a full party (see §3, §4.3, §7.4).*
 *Earlier (v1.6): Level-only evolution implemented for both the player and wild Pokémon; encounters stage-gate by level (base → final, opponents evolve too) with rarity-weighted selection + a pity guarantee replacing the fixed rarity bag (see §6.2, §6.5).*
@@ -123,6 +123,7 @@ Timing and catch-up pass (reflected in the live build):
 | :---- | :---- | :---- |
 | **Hidden per-rank difficulty** | 3,11,12 | Each Math Rank carries a `difficulty` multiplier (×1 for ranks 1–5, ×1.5 for 6–21) used *only* to size the challenge timer. It is never shown to the player — harder categories simply feel less rushed. Replaces `battleTimerSeconds(genLevel)`, which sized the timer by *opponent level* and so had nothing to do with how hard the maths actually was. |
 | **Calculation speed (player setting)** | 3,7,8,11,12 | A per-trainer 1–5 setting (default 3) for how fast the child likes to work, edited on the Trainer view together with the name. Timer = `difficulty × 21 ÷ calculation speed`, rounded to whole seconds, minimum 1 s. Lets the same curriculum suit a deliberate and a quick child without changing the maths. |
+| **Challenge timer can be turned off** | 3,7,8,11,12 | A per-trainer on/off switch above the speed slider. With it off, puzzles carry `timeLimitSeconds: null`: no countdown is shown, no "READY…" beat, and nothing ever auto-submits — for a child who freezes under time pressure, or for untimed practice. The speed slider is **hidden** while the timer is off (it would mean nothing), though the chosen speed is retained so turning the timer back on restores that pace. |
 | **Catch-up EXP share** | 4,7,11,12 | A party member that fell behind could never close the gap: a level costs N³ while a battle pays an amount only linear in the enemy's level, and the laggard deals almost no damage so its income was ~0. Lagging members now earn a fraction of **their own next level** per battle (`CATCH_UP_RATE = 0.5`), tapering to zero at parity. Scale-free, so it is ~2 battles per level at any level. The attacker still receives its full damage-proportional EXP — the share is additive, not a split. |
 
 # **1. Vision and Design Philosophy**
@@ -277,7 +278,7 @@ So roughly 70% of challenges are at the current rank (the ones that count) and 3
 
 ## **3.5 Challenge Timing — Difficulty × Calculation Speed**
 
-Every battle and catch challenge is timed. The limit comes from two factors and **not** from the opponent's level:
+Battle and catch challenges are timed **unless the trainer has turned the timer off** (see *Turning the timer off* below). When timed, the limit comes from two factors and **not** from the opponent's level:
 
 | Timer (seconds) = round( rank difficulty × 21 ÷ calculation speed ), minimum 1 s |
 | :---- |
@@ -296,6 +297,18 @@ Every battle and catch challenge is timed. The limit comes from two factors and 
 > **Rationale.** The previous rule sized the timer by *opponent level* (8 s down to 4 s by level 40), which measured the wrong thing entirely — a child grinding easy addition against a high-level Pokémon was rushed for no pedagogical reason. Difficulty belongs to the *maths*, and pace belongs to the *child*; separating the two lets one curriculum serve a deliberate thinker and a quick one without altering a single problem.
 
 An expired timer submits whatever is typed (blank counts as wrong) and costs only partial credit — never a zero outcome (§3.4).
+
+### **Turning the timer off**
+
+`Trainer.timerEnabled` (default **true**) is an on/off switch shown above the speed slider on the Trainer view. When **off**:
+
+* puzzles are generated with `timeLimitSeconds: null` — the single representation of "untimed" throughout the battle code;
+* no countdown or progress bar is rendered, and the pre-countdown **"READY…"** beat is skipped;
+* **nothing ever auto-submits** — neither a battle challenge nor a catch attempt. The child answers entirely in their own time;
+* everything else is unchanged: the same problems are generated at the same rank, and partial credit, damage, EXP, and rank-up all behave identically.
+* the **speed slider is hidden** (not merely disabled) while the timer is off, since pace is meaningless without a clock. The chosen `calcSpeed` is still persisted, so switching the timer back on restores it.
+
+> **Rationale.** Time pressure helps some children and paralyses others. Making it optional costs nothing pedagogically — the maths is identical either way — and turns a barrier into a preference. It also makes the game usable for a child who is still building fluency and would otherwise forfeit half their damage to the clock rather than to the arithmetic.
 
 ## **3.6 Extension Path**
 
@@ -618,7 +631,7 @@ A save can hold **multiple trainers**, each with its own Pokémon, party, econom
 
 **The Trainer view** (opened from the Town trainer card) shows, for the active trainer:
 
-* **Avatar, name, and calculation speed.** Under the name sits a read-only summary line — *"Calculation speed: Normal (3/5)"*. Tapping the name (✎) opens an **edit card holding both** the name field and a 1–5 **calculation-speed slider** (labelled Take my time / Steady / Normal / Quick / Lightning). ✓/Enter commits **both** changes; ✕/Esc discards both. Blank names are rejected. The speed feeds the challenge timer only (§3.5) — it never changes which problems are generated.
+* **Avatar, name, and timer settings.** Under the name sits a read-only summary line — *"Calculation speed: Normal (3/5)"*, or *"Challenge timer: Off"* when the timer is disabled. Tapping the name (✎) opens an **edit card holding all of them**: the name field, a **Challenge timer** on/off switch, and — only while that switch is on — a 1–5 **calculation-speed slider** (labelled Take my time / Steady / Normal / Quick / Lightning). ✓/Enter commits **all** changes together; ✕/Esc discards them all. Blank names are rejected. These settings feed the challenge timer only (§3.5) — they never change which problems are generated.
 * **Trainers switcher** — a grid (4 per row) of all trainers (each chip shows its lead Pokémon's sprite + name, the active one badged). Tapping a chip switches the active trainer; a **+ New** chip opens the New Trainer screen.
 * **Stats grid** — **Correct answers** (total solved), **Best streak** (longest), **Pokémon caught**, and **Top enemy** ("Level N" — the highest opponent level ever encountered, persisted).
 * **Math Rank ladder** — every rank with its skill label, completion state, and a progress bar for the current rank. (The battle puzzle and any headline still show the rank **number** only; the ladder is where the labels appear.)
@@ -676,7 +689,7 @@ Every simplified mechanic has a documented extension path, now triggered by **Po
 
 ## **9.1 Difficulty (live build)**
 
-The live build uses a single default tuning: a per-challenge timer derived from the rank's hidden difficulty and the trainer's calculation speed (§3.5), the 50%-floor multi-challenge battle model (§4.3), and 75% partial credit on a wrong/expired **catch** answer. Calculation speed is the one difficulty dial exposed to the player; the Explorer / Trainer / Champion difficulty presets from v1.3 remain a design option layered on top of these values.
+The live build uses a single default tuning: a per-challenge timer derived from the rank's hidden difficulty and the trainer's calculation speed — or no timer at all, if the player switches it off (§3.5) — the 50%-floor multi-challenge battle model (§4.3), and 75% partial credit on a wrong/expired **catch** answer. The timer switch and calculation speed are the difficulty dials exposed to the player; the Explorer / Trainer / Champion difficulty presets from v1.3 remain a design option layered on top of these values.
 
 # **10. Narrative and Characters**
 
@@ -700,7 +713,7 @@ The damage formula (§4.2) is evaluated by the engine. Item Bonus is zero while 
 
 ## **11.4 Save State**
 
-Game state is persisted to IndexedDB (Dexie). It holds: a list of **trainers** (each with caught Pokémon, party, lead, Pokédollars, Pokéballs, potions, stats, math rank + window, **calculation speed** (see §3.5), the **encounter pity** counters, see §6.2 — and the **Focus** meter, see §4.4), the active trainer id, and settings. Fields added after v1.0 (`focus`, `mathRank`, `mathWindow`, `encounterPity`, `calcSpeed`) are **optional** so older saves load unchanged, each falling back to its documented default (`calcSpeed` → 3). A fresh save has an **empty** trainer list (the New Trainer screen creates the first; trainers can be added, switched, renamed, and deleted — see §7.4). (Max party size is **derived** from the strongest Pokémon's level — see §6.6 — not stored.) Each owned Pokémon stores its species id, total EXP, current HP (every party member's HP is written back at battle end), and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
+Game state is persisted to IndexedDB (Dexie). It holds: a list of **trainers** (each with caught Pokémon, party, lead, Pokédollars, Pokéballs, potions, stats, math rank + window, **calculation speed** and **timer on/off** (see §3.5), the **encounter pity** counters, see §6.2 — and the **Focus** meter, see §4.4), the active trainer id, and settings. Fields added after v1.0 (`focus`, `mathRank`, `mathWindow`, `encounterPity`, `calcSpeed`, `timerEnabled`) are **optional** so older saves load unchanged, each falling back to its documented default (`calcSpeed` → 3, `timerEnabled` → true). A fresh save has an **empty** trainer list (the New Trainer screen creates the first; trainers can be added, switched, renamed, and deleted — see §7.4). (Max party size is **derived** from the strongest Pokémon's level — see §6.6 — not stored.) Each owned Pokémon stores its species id, total EXP, current HP (every party member's HP is written back at battle end), and per-move PP; level and stats are derived. Trainer stats include total problems attempted/solved, current and longest streak, total battles, total catches, **highest opponent level encountered**, and per-topic accuracy. There is **no** floor-progress field. Autosave is debounced and runs on state changes and screen transitions. A `/reset` route clears the save and starts a new game.
 
 ## **11.5 Build & Deployment**
 
@@ -722,6 +735,7 @@ Game state is persisted to IndexedDB (Dexie). It holds: a list of **trainers** (
 | Per-challenge battle timer | Yes | `difficulty × 21 ÷ calculation speed` (§3.5); 7 s / 11 s at the default speed |
 | Hidden per-rank difficulty | Yes | ×1 for ranks 1–5, ×1.5 for 6–21; timer only, never shown |
 | Calculation speed (1–5) | Yes | Per-trainer, default 3; edited with the name on the Trainer view (§7.4) |
+| Challenge timer on/off | Yes | Per-trainer switch; off ⇒ untimed, nothing auto-submits, speed slider hidden (§3.5) |
 | Partial credit | Yes | Battle: 50% floor + earned; Catch: 75% wrong/expired |
 | Damage formula | Yes | Item Bonus = 0 until activation |
 | STAB ×1.5 | Yes | Move type matches attacker type |

@@ -141,7 +141,23 @@
 
 /* ── Calculation speed (inside the edit card) ── */
 .speedEdit { border-top: 1px solid #2a2e48; padding-top: 12px; }
-.speedTop { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.speedTop { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 12px; }
+
+/* On/off switch for the challenge timer. */
+.timerToggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: transparent; border: none; padding: 0; cursor: pointer; color: inherit;
+}
+.switch {
+  position: relative; flex-shrink: 0; width: 46px; height: 26px; border-radius: 13px;
+  background: #0c1020; border: 2px solid #3a3d5c; transition: background .15s, border-color .15s;
+}
+.switchOn { background: #2f6e3a; border-color: #48c774; }
+.switchKnob {
+  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: #aeb8d6; transition: transform .15s, background .15s;
+}
+.switchOn .switchKnob { transform: translateX(20px); background: #eafff0; }
 .speedEditLabel { font-size: 13px; font-weight: 800; color: #e7ecfb; }
 .speedValue { font-size: 12px; font-weight: 900; color: #FFCB05; }
 .speedSlider {

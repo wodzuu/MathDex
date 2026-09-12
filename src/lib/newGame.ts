@@ -57,6 +57,7 @@ export function makeTrainer(name: string, starterId: string): Trainer {
     mathRank:      1,
     mathWindow:    [],
     calcSpeed:     DEFAULT_CALC_SPEED,
+    timerEnabled:  true,
     encounterPity: { ...EMPTY_PITY },
   };
 }

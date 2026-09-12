@@ -24,7 +24,8 @@ export interface ChallengeQueue {
   chAnswers: (number | null)[];
   answer: string;
   setAnswer: (v: string) => void;
-  timer: number;
+  /** Seconds left on the current challenge, or null when it is untimed. */
+  timer: number | null;
   /** True during the pre-countdown "get ready" beat — the clock isn't running yet. */
   ready: boolean;
   baseDmg: number;
@@ -38,16 +39,17 @@ export interface ChallengeQueue {
   deduction: number;
   /** Damage the "Deal N damage" button will apply. */
   finalDamage: number;
-  curTimeLimit: number;
+  /** Full time limit of the current challenge, or null when it is untimed. */
+  curTimeLimit: number | null;
   // Actions
   begin: (puzzles: MathPuzzle[], baseDmg: number, isCrit: boolean) => void;
   submitTyped: () => void;
   clear: () => void;
-  startTimer: (seconds: number, onExpire?: () => void, delayMs?: number) => void;
+  /** `seconds === null` leaves the challenge untimed (no countdown, no expiry). */
+  startTimer: (seconds: number | null, onExpire?: () => void, delayMs?: number) => void;
   stopTimer: () => void;
 }
 
-const DEFAULT_TIME = 6;
 /** "Get ready" beat before the first countdown of a move / catch. */
 const READY_MS = 900;
 
@@ -55,7 +57,7 @@ export function useChallengeQueue(): ChallengeQueue {
   const [challenges, setChallenges] = useState<MathPuzzle[]>([]);
   const [chAnswers, setChAnswers]   = useState<(number | null)[]>([]);
   const [answer, setAnswer]         = useState('');
-  const [timer, setTimer]           = useState(DEFAULT_TIME);
+  const [timer, setTimer]           = useState<number | null>(null);
   const [ready, setReady]           = useState(false);
   const [baseDmg, setBaseDmg]       = useState(0);   // move's full damage (incl. crit)
   const [isCrit, setIsCrit]         = useState(false);
@@ -82,8 +84,12 @@ export function useChallengeQueue(): ChallengeQueue {
   // Countdown. `remaining` lives in a local so the interval never reads stale
   // React state; on expiry it fires onExpire (or just rests at 0). A delay
   // shows the full time under a "READY…" flash before the clock starts.
-  function startTimer(seconds: number, onExpire?: () => void, delayMs = 0) {
+  function startTimer(seconds: number | null, onExpire?: () => void, delayMs = 0) {
     stopTimer();
+    // Untimed challenge (the trainer turned the timer off): no countdown, no
+    // "get ready" beat, and crucially no expiry — the player answers in their
+    // own time. `timer === null` is what the UI reads to hide the clock.
+    if (seconds === null) { setTimer(null); return; }
     setTimer(seconds);
     const run = () => {
       setReady(false);
@@ -123,7 +129,7 @@ export function useChallengeQueue(): ChallengeQueue {
     setAnswer('');
     answerRef.current = '';
     if (next.length < total) {
-      startTimer(challengesRef.current[next.length].timeLimitSeconds ?? DEFAULT_TIME, expireChallenge);
+      startTimer(challengesRef.current[next.length].timeLimitSeconds, expireChallenge);
     } else {
       stopTimer();
     }
@@ -135,7 +141,7 @@ export function useChallengeQueue(): ChallengeQueue {
     setBaseDmg(dmg);
     setIsCrit(crit);
     setAnswer('');            answerRef.current = '';
-    startTimer(puzzles[0]?.timeLimitSeconds ?? DEFAULT_TIME, expireChallenge, READY_MS);
+    startTimer(puzzles[0]?.timeLimitSeconds ?? null, expireChallenge, READY_MS);
   }
 
   /** Lock in the typed answer (no feedback yet) and advance. */
@@ -163,7 +169,7 @@ export function useChallengeQueue(): ChallengeQueue {
   const guaranteed   = Math.round(baseDmg * 0.5);
   const deduction    = challenges.length ? Math.round((baseDmg - guaranteed) / challenges.length) : 0;
   const finalDamage  = Math.max(guaranteed, baseDmg - wrongCount * deduction);
-  const curTimeLimit = challenges[idx]?.timeLimitSeconds ?? DEFAULT_TIME;
+  const curTimeLimit = challenges[idx]?.timeLimitSeconds ?? null;
 
   return {
     challenges, chAnswers, answer, setAnswer, timer, ready, baseDmg, isCrit,
