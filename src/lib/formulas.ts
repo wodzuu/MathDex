@@ -74,6 +74,39 @@ export function expToNextLevel(totalExp: number): number {
   return expToLevel(nextLevel) - totalExp;
 }
 
+// ── Catch-up EXP ──────────────────────────────────────────────────────────────
+// A party member that falls behind can never close the gap on damage-proportional
+// EXP alone: a level costs N³ (cubic) while a battle pays a flat amount that is
+// only linear in the enemy's level, so the debt outgrows the income. Worse, the
+// laggard deals almost no damage, so its income is ~0 to begin with.
+//
+// The fix is to denominate the catch-up award in the SAME units as the
+// requirement: a fraction of the Pokémon's OWN next level, rather than a flat
+// EXP number. That is scale-free — roughly 1 / CATCH_UP_RATE battles per level
+// whether the Pokémon is level 5 or 95 — so the cubic/linear mismatch cannot
+// bite. The share tapers to zero at parity, so a Pokémon that has caught up goes
+// back to earning damage EXP only and nothing is trivialised.
+
+/** Fraction of its own next level a fully-lagging Pokémon earns per battle. */
+export const CATCH_UP_RATE = 0.5;
+
+/** Level gap at which the catch-up share reaches full strength. */
+export const CATCH_UP_FULL_GAP = 5;
+
+/**
+ * EXP a lagging party member earns over one full battle (i.e. for removing
+ * 100% of an enemy's HP). Callers scale it by the HP fraction actually removed
+ * so it accrues incrementally, exactly like the attacker's own EXP.
+ * Returns 0 for a Pokémon at or above the party's strongest.
+ */
+export function catchUpExpShare(myLevel: number, partyHighestLevel: number): number {
+  const gap = partyHighestLevel - myLevel;
+  if (gap <= 0) return 0;
+  const taper        = Math.min(1, gap / CATCH_UP_FULL_GAP);
+  const nextLevelCost = expToLevel(myLevel + 1) - expToLevel(myLevel);
+  return CATCH_UP_RATE * taper * nextLevelCost;
+}
+
 // ── Damage formula ────────────────────────────────────────────────────────────
 // Spec §4.2 (extended with attacker level):
 //   Damage = (MovePower + ItemBonus) × Atk ÷ Def × TypeMultiplier × STAB × Level ÷ 50
@@ -150,7 +183,6 @@ export function partySlotsForLevel(strongestLevel: number): number {
 }
 
 // ── Battle timer ──────────────────────────────────────────────────────────────
-// 8 seconds at level 1, scaling down to 4 seconds at level 40+.
 
 /**
  * Seconds allowed for one math challenge:

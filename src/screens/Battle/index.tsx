@@ -19,7 +19,7 @@ import { typeColors, FONT_PIXEL } from '../../styles/tokens';
 import { getMove } from '../../data/moves';
 import { getSpecies } from '../../data/species';
 import { DEFAULT_CALC_SPEED } from '../../data/curriculum';
-import { calcHp, calcAllStats, catchProbability, expGained, levelFromExp, expToLevel, moneyReward, totalPotions, totalBalls } from '../../lib/formulas';
+import { calcHp, calcAllStats, catchProbability, expGained, catchUpExpShare, levelFromExp, expToLevel, moneyReward, totalPotions, totalBalls } from '../../lib/formulas';
 import { playerMoveDamage, enemyMoveDamage } from '../../lib/battleMath';
 import { tierRewardMult } from '../../lib/encounterGenerator';
 import { getBallSpriteUrl } from '../../lib/sprites';
@@ -27,7 +27,7 @@ import PokemonSprite from '../../components/ui/PokemonSprite';
 import { asset } from '../../lib/assets';
 import { generateRankedPuzzle, effectiveMultiplier, getTypeMultiplier } from '../../lib/mathProblemGenerator';
 import { useBattleStore } from '../../store/battleStore';
-import { useGameStore, useActiveTrainer, getPartyPokemon } from '../../store/gameStore';
+import { useGameStore, useActiveTrainer, getPartyPokemon, getPartyHighestLevel } from '../../store/gameStore';
 import { statusEffectFor, softenFactor, POTION_HEAL, POTION_LABEL, type MoveSlot, type DmgFloat, type BallOption } from './battleData';
 import { useChallengeQueue } from './useChallengeQueue';
 import { MoveList, MathPanel, PotionPanel, BallPanel, CatchPanel, type SortedMove } from './panels';
@@ -243,14 +243,12 @@ export default function BattleScreen() {
   }, []);
 
   // ── Incremental EXP award ────────────────────────────────────────────────────
-  // Grant a slice of EXP to the currently-active Pokémon for damage it just dealt.
-  // Persisted to game state immediately so the EXP bar updates live and survives a
-  // later catch. Accumulated per-Pokémon in expAccRef for the post-battle summary.
-  const awardExp = useCallback((expShare: number) => {
+  // Grant a slice of EXP to one Pokémon. Persisted to game state immediately so
+  // the EXP bar updates live and survives a later catch. Accumulated per-Pokémon
+  // in expAccRef for the post-battle summary. `celebrate` gates the level-up
+  // banner to the Pokémon actually on screen.
+  const grantExp = useCallback((instanceId: string, expShare: number, celebrate: boolean) => {
     if (expShare <= 0) return;
-    const bt = useBattleStore.getState().battle;
-    if (!bt) return;
-    const instanceId = bt.activePlayerInstanceId;
     const store = useGameStore.getState();
     const t  = store.trainers.find((x) => x.id === store.activeTrainerId);
     const pk = t?.caughtPokemon.find((p) => p.instanceId === instanceId);
@@ -271,7 +269,7 @@ export default function BattleScreen() {
     // level) the moment it happens, with a banner over the player's Pokémon.
     const after = useGameStore.getState().trainers.find((x) => x.id === store.activeTrainerId)
       ?.caughtPokemon.find((p) => p.instanceId === instanceId);
-    if (after) {
+    if (after && celebrate) {
       const levelAfter = levelFromExp(after.totalExp);
       if (levelAfter > levelBefore) {
         const evolved = after.speciesId !== pk.speciesId;
@@ -284,6 +282,26 @@ export default function BattleScreen() {
       }
     }
   }, []);
+
+  // Grant EXP for damage just dealt: the full damage-proportional share to the
+  // attacker (spec §4.7), plus a level-relative CATCH-UP share to any party
+  // member lagging behind the party's strongest. `hpFraction` (0–100) scales the
+  // catch-up so one battle's worth of damage pays one full share, matching how
+  // the attacker's own EXP accrues.
+  const awardExp = useCallback((expShare: number, hpFraction: number) => {
+    const bt = useBattleStore.getState().battle;
+    if (!bt) return;
+    grantExp(bt.activePlayerInstanceId, expShare, true);
+
+    const store = useGameStore.getState();
+    const t = store.trainers.find((x) => x.id === store.activeTrainerId);
+    if (!t) return;
+    const partyHigh = getPartyHighestLevel(t);
+    for (const p of getPartyPokemon(t)) {
+      const share = catchUpExpShare(levelFromExp(p.totalExp), partyHigh);
+      grantExp(p.instanceId, Math.round(share * hpFraction / 100), p.instanceId === bt.activePlayerInstanceId);
+    }
+  }, [grantExp]);
 
   // Build the end-of-battle EXP summary from everything awarded this battle,
   // reading each Pokémon's final level fresh from game state.
@@ -524,7 +542,7 @@ export default function BattleScreen() {
       if (hpFractionRemoved > 0) {
         // Strong/alpha encounters pay a reward multiplier on EXP too.
         const totalExpReward = expGained(enemySpecies?.baseExp ?? 64, enemyLevel) * tierRewardMult(battle?.tier);
-        awardExp(Math.round(totalExpReward * hpFractionRemoved / 100));
+        awardExp(Math.round(totalExpReward * hpFractionRemoved / 100), hpFractionRemoved);
       }
 
       setFocusPips(isCrit ? 0 : allCorrect ? Math.min(5, focusPipsRef.current + 1) : 0);
