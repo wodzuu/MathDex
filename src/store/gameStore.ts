@@ -6,7 +6,7 @@ import type { EncounterData, EncounterTier } from '../types/dungeon';
 import { levelFromExp, calcHp, partySlotsForLevel } from '../lib/formulas';
 import { getSpecies } from '../data/species';
 import { getMove } from '../data/moves';
-import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, MATH_FASTTRACK_SIZE, MATH_FASTTRACK_MAX_MISTAKES } from '../data/curriculum';
+import { MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, MATH_FASTTRACK_SIZE, MATH_FASTTRACK_MAX_MISTAKES, clampCalcSpeed } from '../data/curriculum';
 import { evolveOnLevelUp } from '../lib/evolution';
 import { pickLevel, pickEncounterSpecies, buildEncounter, scaledWildLevel, baseStatTotal, EMPTY_PITY } from '../lib/encounterGenerator';
 import { makeTrainer } from '../lib/newGame';
@@ -108,6 +108,9 @@ interface GameStoreState extends GameState {
 
   /** Set the trainer's persisted Focus meter (0–5). Spec §4.4. */
   setFocus: (focus: number) => void;
+
+  /** Set the trainer's calculation speed (1–5) — drives the challenge timer. */
+  setCalcSpeed: (speed: number) => void;
 }
 
 const EMPTY: GameState = { version: 1, activeTrainerId: '', trainers: [], settings: {} };
@@ -323,6 +326,9 @@ export const useGameStore = create<GameStoreState>()(
 
       setFocus: (focus) =>
         set((s) => patchTrainer(s, () => ({ focus: Math.max(0, Math.min(5, focus)) })), false, 'setFocus'),
+
+      setCalcSpeed: (speed) =>
+        set((s) => patchTrainer(s, () => ({ calcSpeed: clampCalcSpeed(speed) })), false, 'setCalcSpeed'),
     }),
     { name: 'MathDex/GameStore' },
   ),

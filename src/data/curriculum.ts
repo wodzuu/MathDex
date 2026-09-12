@@ -35,12 +35,32 @@ export const MATH_FASTTRACK_MAX_MISTAKES = 2;
 /** Probability a challenge is pulled from a random lower rank as review. */
 export const MATH_REVIEW_FRACTION = 0.3;
 
+/**
+ * Calculation speed — a per-trainer setting (1–5) for how fast the player is at
+ * mental arithmetic. Higher = less time per challenge. Combined with a rank's
+ * `difficulty` to derive the puzzle timer (see puzzleTimeLimitSeconds).
+ */
+export const MIN_CALC_SPEED = 1;
+export const MAX_CALC_SPEED = 5;
+export const DEFAULT_CALC_SPEED = 3;
+
+/** Clamp a calculation-speed setting into the valid 1..5 range. */
+export function clampCalcSpeed(speed: number): number {
+  return Math.max(MIN_CALC_SPEED, Math.min(Math.round(speed), MAX_CALC_SPEED));
+}
+
 export interface MathRankDef {
   /** Difficulty config fed to the puzzle generator (mathProblemGenerator). */
   genLevel: number;
   topic: MathTopic;
   /** Short, kid-friendly description of the skill at this rank. */
   label: string;
+  /**
+   * Hidden difficulty multiplier for this rank — never shown to the player.
+   * Only feeds the challenge timer: harder categories get proportionally more
+   * seconds. See puzzleTimeLimitSeconds in lib/formulas.ts.
+   */
+  difficulty: number;
 }
 
 /**
@@ -49,27 +69,27 @@ export interface MathRankDef {
  * generator. `genLevel` reuses the generator's existing difficulty steps.
  */
 export const MATH_RANKS: readonly MathRankDef[] = [
-  { genLevel: 1,  topic: 'addition',       label: 'Addition to 10' },
-  { genLevel: 2,  topic: 'addition',       label: 'Addition to 20' },
-  { genLevel: 3,  topic: 'subtraction',    label: 'Subtraction to 10' },
-  { genLevel: 4,  topic: 'addition',       label: 'Addition to 50' },
-  { genLevel: 5,  topic: 'subtraction',    label: 'Subtraction to 20' },
-  { genLevel: 6,  topic: 'addition',       label: 'Harder addition to 50' },
-  { genLevel: 7,  topic: 'addition',       label: 'Addition to 100' },
-  { genLevel: 8,  topic: 'subtraction',    label: 'Subtraction to 50' },
-  { genLevel: 9,  topic: 'subtraction',    label: 'Subtraction with borrowing' },
-  { genLevel: 10, topic: 'subtraction',    label: 'Subtraction to 10, negative answers' },
-  { genLevel: 11, topic: 'multiplication', label: 'Multiplication to 20' },
-  { genLevel: 12, topic: 'subtraction',    label: 'Subtraction to 20, negative answers' },
-  { genLevel: 13, topic: 'multiplication', label: 'Multiplication to 50' },
-  { genLevel: 14, topic: 'subtraction',    label: 'Subtraction to 50, negative answers' },
-  { genLevel: 15, topic: 'multiplication', label: 'Multiplication table 10x10' },
-  { genLevel: 16, topic: 'division',       label: 'Division table 10x10' },
-  { genLevel: 17, topic: 'division',       label: 'Division to 24' },
-  { genLevel: 18, topic: 'multiplication', label: 'Multiplication to 100 (max 20x?)' },
-  { genLevel: 19, topic: 'division',       label: 'Division to 48' },
-  { genLevel: 20, topic: 'multiplication', label: 'Multiplication to 100 (max 50x?)' },
-  { genLevel: 21, topic: 'division',       label: 'Division to 100' },
+  { genLevel: 1,  topic: 'addition',       label: 'Addition to 10',                        difficulty: 1 },
+  { genLevel: 2,  topic: 'addition',       label: 'Addition to 20',                        difficulty: 1 },
+  { genLevel: 3,  topic: 'subtraction',    label: 'Subtraction to 10',                     difficulty: 1 },
+  { genLevel: 4,  topic: 'addition',       label: 'Addition to 50',                        difficulty: 1 },
+  { genLevel: 5,  topic: 'subtraction',    label: 'Subtraction to 20',                     difficulty: 1 },
+  { genLevel: 6,  topic: 'addition',       label: 'Harder addition to 50',                 difficulty: 1.5 },
+  { genLevel: 7,  topic: 'addition',       label: 'Addition to 100',                       difficulty: 1.5 },
+  { genLevel: 8,  topic: 'subtraction',    label: 'Subtraction to 50',                     difficulty: 1.5 },
+  { genLevel: 9,  topic: 'subtraction',    label: 'Subtraction with borrowing',            difficulty: 1.5 },
+  { genLevel: 10, topic: 'subtraction',    label: 'Subtraction to 10, negative answers',   difficulty: 1.5 },
+  { genLevel: 11, topic: 'multiplication', label: 'Multiplication to 20',                  difficulty: 1.5 },
+  { genLevel: 12, topic: 'subtraction',    label: 'Subtraction to 20, negative answers',   difficulty: 1.5 },
+  { genLevel: 13, topic: 'multiplication', label: 'Multiplication to 50',                  difficulty: 1.5 },
+  { genLevel: 14, topic: 'subtraction',    label: 'Subtraction to 50, negative answers',   difficulty: 1.5 },
+  { genLevel: 15, topic: 'multiplication', label: 'Multiplication table 10x10',            difficulty: 1.5 },
+  { genLevel: 16, topic: 'division',       label: 'Division table 10x10',                  difficulty: 1.5 },
+  { genLevel: 17, topic: 'division',       label: 'Division to 24',                        difficulty: 1.5 },
+  { genLevel: 18, topic: 'multiplication', label: 'Multiplication to 100 (max 20x?)',      difficulty: 1.5 },
+  { genLevel: 19, topic: 'division',       label: 'Division to 48',                        difficulty: 1.5 },
+  { genLevel: 20, topic: 'multiplication', label: 'Multiplication to 100 (max 50x?)',      difficulty: 1.5 },
+  { genLevel: 21, topic: 'division',       label: 'Division to 100',                       difficulty: 1.5 },
 ];
 
 /** Highest rank with distinct generated content (ceiling for rank-ups). */
@@ -83,4 +103,14 @@ export function clampMathRank(rank: number): number {
 /** Short skill label for a rank (e.g. "Addition to 100"). */
 export function mathRankLabel(rank: number): string {
   return MATH_RANKS[clampMathRank(rank) - 1].label;
+}
+
+/** Hidden difficulty multiplier of a rank (drives the challenge timer). */
+export function mathRankDifficulty(rank: number): number {
+  return MATH_RANKS[clampMathRank(rank) - 1].difficulty;
+}
+
+/** Hidden difficulty multiplier of a generator difficulty step. */
+export function difficultyForGenLevel(genLevel: number): number {
+  return MATH_RANKS.find((r) => r.genLevel === genLevel)?.difficulty ?? MATH_RANKS[0].difficulty;
 }

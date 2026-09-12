@@ -12,8 +12,11 @@
 
 import type { MathPuzzle } from '../types/math';
 import type { PokeType } from '../types/pokemon';
-import { battleTimerSeconds } from './formulas';
-import { MATH_RANKS, MATH_REVIEW_FRACTION, clampMathRank } from '../data/curriculum';
+import { puzzleTimeLimitSeconds } from './formulas';
+import {
+  MATH_RANKS, MATH_REVIEW_FRACTION, clampMathRank,
+  difficultyForGenLevel, DEFAULT_CALC_SPEED,
+} from '../data/curriculum';
 
 // ── Simplified 6-type effectiveness chart (spec §6.2) ────────────────────────
 // Only launch types have explicit entries; all other pairs default to ×1.
@@ -159,9 +162,10 @@ const GEN: Record<number, GenConfig> = {
 
 /**
  * Generate a battle math puzzle for the given difficulty step (a Math Rank's
- * `genLevel`). The operation, number ranges, and timer all come from that step.
+ * `genLevel`). The operation and number ranges come from that step; the timer
+ * comes from the step's hidden difficulty and the trainer's calculation speed.
  */
-export function generateBattlePuzzle(genLevel: number): MathPuzzle {
+export function generateBattlePuzzle(genLevel: number, calcSpeed = DEFAULT_CALC_SPEED): MathPuzzle {
   const cfg = GEN[genLevel] ?? GEN[1];
   let { a, b } = cfg.operands();
   // Commutative operations: vary which operand appears first.
@@ -179,7 +183,7 @@ export function generateBattlePuzzle(genLevel: number): MathPuzzle {
     topic: cfg.topic,
     level: genLevel,
     context: 'battle',
-    timeLimitSeconds: battleTimerSeconds(genLevel),
+    timeLimitSeconds: puzzleTimeLimitSeconds(difficultyForGenLevel(genLevel), calcSpeed),
   };
 }
 
@@ -190,11 +194,18 @@ export function generateBattlePuzzle(genLevel: number): MathPuzzle {
  * review; review puzzles are flagged `isReview` so the caller excludes them from
  * the rank-up window. Pass `allowReview = false` to force a current-rank puzzle
  * (e.g. catch attempts, which should never be drawn from a lower rank).
+ *
+ * `calcSpeed` is the trainer's calculation-speed setting (1–5); the timer uses
+ * the *drawn* rank's difficulty, so an easier review puzzle gets less time.
  */
-export function generateRankedPuzzle(mathRank: number, allowReview = true): MathPuzzle {
+export function generateRankedPuzzle(
+  mathRank: number,
+  allowReview = true,
+  calcSpeed = DEFAULT_CALC_SPEED,
+): MathPuzzle {
   const rank      = clampMathRank(mathRank);
   const isReview  = allowReview && rank > 1 && Math.random() < MATH_REVIEW_FRACTION;
   const drawnRank = isReview ? randInt(1, rank - 1) : rank;
   const genLevel  = MATH_RANKS[drawnRank - 1].genLevel;
-  return { ...generateBattlePuzzle(genLevel), isReview };
+  return { ...generateBattlePuzzle(genLevel, calcSpeed), isReview };
 }

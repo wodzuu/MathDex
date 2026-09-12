@@ -10,7 +10,10 @@ import { useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useActiveTrainer, useGameStore, getLeadInstanceId } from '../../store/gameStore';
-import { MATH_RANKS, MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, clampMathRank } from '../../data/curriculum';
+import {
+  MATH_RANKS, MATH_WINDOW_SIZE, MATH_RANKUP_THRESHOLD, MAX_MATH_RANK, clampMathRank,
+  MIN_CALC_SPEED, MAX_CALC_SPEED, DEFAULT_CALC_SPEED, clampCalcSpeed,
+} from '../../data/curriculum';
 import { getSpecies } from '../../data/species';
 import PokemonSprite from '../../components/ui/PokemonSprite';
 import ImportSave from '../../components/ImportSave';
@@ -26,20 +29,25 @@ const TRAINER_BG  = asset('trainer_bg.jpg');
 const TRAINER_SCRIM = 'linear-gradient(180deg, rgba(10, 18, 32, 0.35) 0%, rgba(10, 18, 32, 0.45) 45%, rgba(10, 18, 32, 0.82) 100%)';
 // Correct answers (out of the rolling window) needed to advance a rank.
 const TARGET_CORRECT = Math.round(MATH_WINDOW_SIZE * MATH_RANKUP_THRESHOLD);
+// Kid-friendly names for the 1–5 calculation-speed setting.
+const CALC_SPEED_LABELS = ['Take my time', 'Steady', 'Normal', 'Quick', 'Lightning'] as const;
 
 export default function TrainerDetailScreen() {
   const navigate = useNavigate();
   const trainer  = useActiveTrainer();
 
-  const { trainers, activeTrainerId, setActiveTrainer, renameActiveTrainer, deleteTrainer } = useGameStore(
-    useShallow((st) => ({ trainers: st.trainers, activeTrainerId: st.activeTrainerId, setActiveTrainer: st.setActiveTrainer, renameActiveTrainer: st.renameActiveTrainer, deleteTrainer: st.deleteTrainer })),
+  const { trainers, activeTrainerId, setActiveTrainer, renameActiveTrainer, deleteTrainer, setCalcSpeed } = useGameStore(
+    useShallow((st) => ({ trainers: st.trainers, activeTrainerId: st.activeTrainerId, setActiveTrainer: st.setActiveTrainer, renameActiveTrainer: st.renameActiveTrainer, deleteTrainer: st.deleteTrainer, setCalcSpeed: st.setCalcSpeed })),
   );
 
-  // Inline name editing.
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft]     = useState('');
-  const startEdit  = () => { setDraft(trainer.name); setEditing(true); };
-  const commitEdit = () => { renameActiveTrainer(draft); setEditing(false); };
+  const calcSpeed = clampCalcSpeed(trainer.calcSpeed ?? DEFAULT_CALC_SPEED);
+
+  // Inline editing of the trainer's name + calculation speed (one ✓ commits both).
+  const [editing, setEditing]     = useState(false);
+  const [draft, setDraft]         = useState('');
+  const [speedDraft, setSpeedDraft] = useState(calcSpeed);
+  const startEdit  = () => { setDraft(trainer.name); setSpeedDraft(calcSpeed); setEditing(true); };
+  const commitEdit = () => { renameActiveTrainer(draft); setCalcSpeed(speedDraft); setEditing(false); };
 
   // Delete confirmation — requires typing the word "delete".
   const [confirming, setConfirming] = useState(false);
@@ -70,22 +78,50 @@ export default function TrainerDetailScreen() {
       <div className={s.hero}>
         <img className={s.avatar} src={TRAINER_IMG} alt={trainer.name} />
         {editing ? (
-          <div className={s.nameEdit}>
-            <input
-              className={s.nameInput}
-              value={draft}
-              maxLength={12}
-              autoFocus
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditing(false); }}
-            />
-            <button className={s.nameSave} onClick={commitEdit} disabled={!draft.trim()}>✓</button>
-            <button className={s.nameCancel} onClick={() => setEditing(false)}>✕</button>
+          <div className={s.editCard}>
+            <div className={s.nameEdit}>
+              <input
+                className={s.nameInput}
+                value={draft}
+                maxLength={12}
+                autoFocus
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditing(false); }}
+              />
+            </div>
+
+            <div className={s.speedEdit}>
+              <div className={s.speedTop}>
+                <span className={s.speedEditLabel}>Calculation speed</span>
+                <span className={s.speedValue}>{CALC_SPEED_LABELS[speedDraft - 1]} · {speedDraft}/{MAX_CALC_SPEED}</span>
+              </div>
+              <input
+                className={s.speedSlider}
+                type="range"
+                min={MIN_CALC_SPEED}
+                max={MAX_CALC_SPEED}
+                step={1}
+                value={speedDraft}
+                aria-label="Calculation speed"
+                onChange={(e) => setSpeedDraft(Number(e.target.value))}
+              />
+              <div className={s.speedHint}>Faster means less time on the clock for each math challenge.</div>
+            </div>
+
+            <div className={s.editActions}>
+              <button className={s.nameCancel} onClick={() => setEditing(false)}>✕ Cancel</button>
+              <button className={s.nameSave} onClick={commitEdit} disabled={!draft.trim()}>✓ Save</button>
+            </div>
           </div>
         ) : (
-          <button className={s.nameBtn} onClick={startEdit} aria-label="Edit trainer name">
-            <span className={s.name}>{trainer.name}</span>
-            <span className={s.editIcon}>✎</span>
+          <button className={s.nameBtn} onClick={startEdit} aria-label="Edit trainer name and calculation speed">
+            <span className={s.nameLine}>
+              <span className={s.name}>{trainer.name}</span>
+              <span className={s.editIcon}>✎</span>
+            </span>
+            <span className={s.speedSummary}>
+              Calculation speed: <b>{CALC_SPEED_LABELS[calcSpeed - 1]}</b> ({calcSpeed}/{MAX_CALC_SPEED})
+            </span>
           </button>
         )}
       </div>

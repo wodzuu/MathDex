@@ -43,22 +43,33 @@
 }
 .name { font-size: 22px; font-weight: 900; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85); }
 
-/* Tap the name to edit it. */
+/* Tap the name to edit it (name + calculation speed are edited together). */
 .nameBtn {
-  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-  background: transparent; border: none; color: #f0f4ff; padding: 2px 4px; border-radius: 10px;
+  display: inline-flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;
+  background: transparent; border: none; color: #f0f4ff; padding: 2px 6px; border-radius: 10px;
 }
 .nameBtn:active { background: rgba(255, 255, 255, 0.06); }
+.nameLine { display: inline-flex; align-items: center; gap: 8px; }
 .editIcon { font-size: 14px; color: #FFCB05; opacity: 0.85; }
-
-.nameEdit { display: flex; align-items: center; gap: 8px; }
-.nameInput {
-  width: 170px; font-family: 'Nunito', sans-serif; font-size: 20px; font-weight: 900; text-align: center;
-  background: #161b30; color: #f0f4ff; border: 2px solid #FFCB05; border-radius: 10px; padding: 8px 10px; outline: none;
+.speedSummary {
+  font-size: 12px; font-weight: 700; color: #d3dbf3; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
 }
+.speedSummary b { color: #FFCB05; font-weight: 900; }
+
+/* Edit mode: a card holding the name field + the calculation-speed slider. */
+.editCard {
+  width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 14px;
+  background: #161b30; border: 1px solid #3a3d5c; border-radius: 14px; padding: 14px;
+}
+.nameEdit { display: flex; align-items: center; justify-content: center; }
+.nameInput {
+  width: 100%; font-family: 'Nunito', sans-serif; font-size: 20px; font-weight: 900; text-align: center;
+  background: #0c1020; color: #f0f4ff; border: 2px solid #FFCB05; border-radius: 10px; padding: 8px 10px; outline: none;
+}
+.editActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .nameSave, .nameCancel {
-  width: 38px; height: 38px; border-radius: 10px; font-size: 16px; font-weight: 900; cursor: pointer; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
+  height: 40px; border-radius: 10px; font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 900;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .nameSave { background: #2f6e3a; border: 2px solid #48c774; color: #eafff0; }
 .nameSave:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -127,6 +138,25 @@
 .statCard { background: #161b30; border: 1px solid #3a3d5c; border-radius: 12px; padding: 14px; text-align: center; }
 .statNum { font-family: 'Press Start 2P', monospace; font-size: 18px; line-height: 1.4; }
 .statName { font-size: 12px; font-weight: 700; color: #aeb8d6; margin-top: 8px; }
+
+/* ── Calculation speed (inside the edit card) ── */
+.speedEdit { border-top: 1px solid #2a2e48; padding-top: 12px; }
+.speedTop { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.speedEditLabel { font-size: 13px; font-weight: 800; color: #e7ecfb; }
+.speedValue { font-size: 12px; font-weight: 900; color: #FFCB05; }
+.speedSlider {
+  -webkit-appearance: none; appearance: none; width: 100%; margin: 12px 0 4px;
+  height: 9px; border-radius: 5px; background: #0c1020; outline: none; cursor: pointer;
+}
+.speedSlider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%;
+  background: #FFCB05; border: 2px solid #0a1220; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); cursor: pointer;
+}
+.speedSlider::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #FFCB05; border: 2px solid #0a1220; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); cursor: pointer;
+}
+.speedHint { font-size: 11px; font-weight: 700; color: #aeb8d6; margin-top: 8px; line-height: 1.5; }
 
 /* ── Sections + Math ranks ── */
 .sectionLabel { font-family: 'Press Start 2P', monospace; font-size: 9px; color: #d3dbf3; letter-spacing: 1px; margin: 18px 14px 10px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8); }

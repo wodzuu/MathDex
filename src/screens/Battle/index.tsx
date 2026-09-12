@@ -18,6 +18,7 @@ import type { Potions } from '../../types/gameState';
 import { typeColors, FONT_PIXEL } from '../../styles/tokens';
 import { getMove } from '../../data/moves';
 import { getSpecies } from '../../data/species';
+import { DEFAULT_CALC_SPEED } from '../../data/curriculum';
 import { calcHp, calcAllStats, catchProbability, expGained, levelFromExp, expToLevel, moneyReward, totalPotions, totalBalls } from '../../lib/formulas';
 import { playerMoveDamage, enemyMoveDamage } from '../../lib/battleMath';
 import { tierRewardMult } from '../../lib/encounterGenerator';
@@ -86,6 +87,8 @@ export default function BattleScreen() {
 
   // Math Rank drives puzzle difficulty but is hidden from the player — it just happens.
   const mathRank = trainer.mathRank ?? 1;
+  // Calculation speed (Trainer screen setting) stretches/shrinks every timer.
+  const calcSpeed = trainer.calcSpeed ?? DEFAULT_CALC_SPEED;
 
   // ── Derive active context ────────────────────────────────────────────────────
   // The screen renders nothing (and redirects) without a battle, so the
@@ -591,7 +594,7 @@ export default function BattleScreen() {
     // enemy's max HP this move removes. N = ceil(min(1, DMG/MHP) × 5), at least 1.
     const chunk   = enemyMaxHp ? Math.min(1, baseDmg / enemyMaxHp) : 1;
     const count   = Math.max(1, Math.ceil(chunk * 5));
-    const puzzles = Array.from({ length: count }, () => generateRankedPuzzle(mathRank));
+    const puzzles = Array.from({ length: count }, () => generateRankedPuzzle(mathRank, true, calcSpeed));
 
     setSelectedMove(slot);
     resolvedRef.current = false;   // arm the final resolution
@@ -623,7 +626,7 @@ export default function BattleScreen() {
 
   function handleSelectBall(ball: BallOption) {
     // Catch challenges always use the current rank — never a lower-rank review.
-    const puzzle = generateRankedPuzzle(mathRank, false);
+    const puzzle = generateRankedPuzzle(mathRank, false, calcSpeed);
     setSelectedBall(ball);
     setCatchPuzzle(puzzle);
     setCatchResult(null);

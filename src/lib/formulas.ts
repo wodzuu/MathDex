@@ -9,6 +9,7 @@
 
 import type { BaseStats, PokemonRarity } from '../types/pokemon';
 import type { Pokeballs, Potions } from '../types/gameState';
+import { clampCalcSpeed } from '../data/curriculum';
 
 // ── Stat formula ──────────────────────────────────────────────────────────────
 // Spec §6.1: Stat at level N = floor((2 × Base + 15) × N ÷ 100) + 5
@@ -152,13 +153,19 @@ export function partySlotsForLevel(strongestLevel: number): number {
 // 8 seconds at level 1, scaling down to 4 seconds at level 40+.
 
 /**
- * Returns the battle puzzle timer in seconds for a given opponent level.
- * Linear interpolation between 8s (level 1) and 4s (level 40).
+ * Seconds allowed for one math challenge:
+ *
+ *   difficulty × PUZZLE_TIME_BASE ÷ calculationSpeed
+ *
+ * `difficulty` is the hidden per-category multiplier from MATH_RANKS; the
+ * calculation speed (1–5, default 3) is a per-trainer setting. Rounded to a
+ * whole second so the countdown ticks cleanly, and never below 1s.
  */
-export function battleTimerSeconds(level: number): number {
-  if (level >= 40) return 4;
-  const t = (level - 1) / 39; // 0 at level 1, ~1 at level 40
-  return Math.round(8 - t * 4);
+export const PUZZLE_TIME_BASE = 21;
+
+export function puzzleTimeLimitSeconds(difficulty: number, calcSpeed: number): number {
+  const speed = clampCalcSpeed(calcSpeed);
+  return Math.max(1, Math.round((difficulty * PUZZLE_TIME_BASE) / speed));
 }
 
 // ── Catch rate ────────────────────────────────────────────────────────────────

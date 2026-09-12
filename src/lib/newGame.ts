@@ -4,6 +4,7 @@ import { expToLevel, calcHp } from './formulas';
 import { EMPTY_PITY } from './encounterGenerator';
 import { getSpecies } from '../data/species';
 import { getMove } from '../data/moves';
+import { DEFAULT_CALC_SPEED } from '../data/curriculum';
 
 const STARTER_LEVEL = 1;
 
@@ -55,6 +56,7 @@ export function makeTrainer(name: string, starterId: string): Trainer {
     focus:         0,
     mathRank:      1,
     mathWindow:    [],
+    calcSpeed:     DEFAULT_CALC_SPEED,
     encounterPity: { ...EMPTY_PITY },
   };
 }

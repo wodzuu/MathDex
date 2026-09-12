@@ -42,6 +42,13 @@ export interface Trainer {
    */
   mathWindow?: boolean[];
   /**
+   * Calculation speed (1–5) — how fast this trainer is at mental arithmetic.
+   * Player-configurable on the Trainer screen; only affects how long a math
+   * challenge's timer runs (see puzzleTimeLimitSeconds). Optional for backward
+   * compatibility (missing = DEFAULT_CALC_SPEED).
+   */
+  calcSpeed?: number;
+  /**
    * Encounter pity counters (spec §6.2) — encounters since the last spawn of a
    * Rare / Epic / Legendary, used to guarantee rarer Pokémon on a schedule.
    * Optional for backward compatibility (missing = all zero).
